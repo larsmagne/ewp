@@ -34,7 +34,11 @@
 ;; if you want images to be properly rotated.
 
 ;; (setq ewp-blog-address "my.blog.com")
-;; `M-x ewp-list-posts'
+;;
+;; This means that the XML-RPC endpoint is on
+;; "https://my.blog.com/xmlrpc.php".
+;;
+;; `M-x ewp-list-posts' to get started.
 
 ;;; Code:
 
