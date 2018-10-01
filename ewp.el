@@ -48,7 +48,7 @@
 (defvar ewp-list-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
-    (define-key map " " 'ewp-select-post)
+    (define-key map "e" 'ewp-select-post)
     (define-key map "n" 'ewp-new-post)
     (define-key map "g" 'ewp-list-posts)
     (define-key map "\r" 'ewp-browse)
@@ -263,7 +263,8 @@ All normal editing commands are switched off.
       (message "%s the post"
 	       (if ewp-post
 		   "Edited"
-		 "Posted")))))
+		 "Posted"))
+      (bury-buffer))))
 
 (defun ewp-new-post ()
   "Start editing a new post."
