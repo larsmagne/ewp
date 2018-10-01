@@ -372,6 +372,19 @@ All normal editing commands are switched off.
   (interactive)
   (eww (cdr (assoc "short_url" (get-text-property (point) 'data)))))
 
+(defun ewp-make-post-with-image-files (files)
+  "Make a post containing the current dired-marked image files."
+  (interactive (list (dired-get-marked-files nil current-prefix-arg)))
+  (ewp-new-post)
+  (end-of-buffer)
+  (dolist (file files)
+    (insert-image (create-image file 'imagemagick nil
+				:max-width 700)
+		  (format "<img src=%S>" file))
+    (insert "\n\n"))
+  (goto-char (point-min))
+  (end-of-line))
+
 (provide 'ewp)
 
 ;;; ewp.el ends here
