@@ -49,6 +49,8 @@
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
     (define-key map "\r" 'ewp-select-post)
+    (define-key map "n" 'ewp-new-post)
+    (define-key map "g" 'ewp-list-posts)
     map))
 
 (define-derived-mode ewp-list-mode special-mode "ewp"
