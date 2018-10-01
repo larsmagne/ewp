@@ -22,9 +22,13 @@
 ;;; Commentary:
 
 ;; Install
+
 ;; xml-rpc from https://github.com/larsmagne/xml-rpc-el
+
+;; (The "official" version has problem with non-ASCII text on Emacs
+;; versions 25 and up.)
+
 ;; metaweblog from https://github.com/org2blog/metaweblog
-;;
 
 ;; (setq ewp-blog-address "my.blog.com")
 ;; `M-x ewp-list-posts'
