@@ -119,7 +119,9 @@ All normal editing commands are switched off.
          (nth 0 (auth-source-search
 		 :max 1
 		 :host ewp-blog-address
-		 :port "https"))))
+		 :port "https"
+		 :require '(:user :secret)
+		 :create t))))
     (unless auth
       (error "No credentials for %s in the .authinfo file" ewp-blog-address))
     auth))
