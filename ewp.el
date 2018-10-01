@@ -43,10 +43,7 @@
 ;;; Code:
 
 (require 'cl)
-(require 'dom)
 (require 'metaweblog)
-
-(defvar ewp-post)
 
 (defvar ewp-blog-address nil
   "The name/address of the blog, like my.example.blog.")
@@ -59,6 +56,8 @@
 
 (defvar ewp-image-width 840
   "What width to tell Wordpress to resize images to when displaying on the blog.")
+
+(defvar ewp-post)
 
 (defvar ewp-list-mode-map
   (let ((map (make-sparse-keymap)))
@@ -377,7 +376,6 @@ All normal editing commands are switched off.
   "Examine the blog post under point."
   (interactive)
   (eww (cdr (assoc "short_url" (get-text-property (point) 'data)))))
-  
 
 (provide 'ewp)
 
