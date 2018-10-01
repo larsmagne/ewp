@@ -40,21 +40,13 @@
     (define-key map "\r" 'ewp-select-post)
     map))
 
-(define-derived-mode ewp-list-mode tabulated-list-mode "ewp"
+(define-derived-mode ewp-list-mode special-mode "ewp"
   "Major mode for listing Wordpress posts.
 
 All normal editing commands are switched off.
-\\<ewp-mode-map>
-
-The following commands are available:
-
-\\{ewp-mode-map}"
-  (setq tabulated-list-format [("Status" 10 ewp-sort-status)
-			       ("Date" 10 ewp-sort-date)
-			       ("Title" 40 ewp-sort-title)]
-	tabulated-list-sort-key (cons "Date" nil)
-	tabulated-list-printer 'ewp-print-entry)
+\\<ewp-mode-map>"
   (buffer-disable-undo)
+  (set-face-attribute 'variable-pitch nil :height 100)
   (setq truncate-lines t
 	buffer-read-only t))
 
@@ -66,15 +58,46 @@ The following commands are available:
 	 (inhibit-read-only t))
     (erase-buffer)
     (ewp-list-mode)
-    (setq tabulated-list-entries
-	  (ewp-get-posts (format "https://%s/xmlrpc.php" ewp-blog-address)
-			 (getf auth :user) (funcall (getf auth :secret))
-			 ewp-blog-id 100))
-    (tabulated-list-print)))
+    (dolist (post
+	     (ewp-get-posts (format "https://%s/xmlrpc.php" ewp-blog-address)
+			    (getf auth :user) (funcall (getf auth :secret))
+			    ewp-blog-id 100))
+      (ewp-print-entry post))
+    (goto-char (point-min))))
 
-(defun ewp-print-entry (id cols)
+(defun ewp-limit-string (string length)
+  (if (< (length string) length)
+      string
+    (substring string 0 length)))
+
+(defun ewp-print-entry (post)
   "Insert a Wordpress entry at point."
-  (insert ?\n))
+  (insert
+   (propertize
+    (format
+     "%s %s%s%s%s%s\n"
+     (propertize
+      (format-time-string "%Y-%m-%d" (caddr (assoc "post_date" post)))
+      'face 'variable-pitch)
+     (propertize 
+      (ewp-limit-string (cdr (assoc "post_status" post)) 10)
+      'face '(variable-pitch :foreground "#a0a0a0"))
+     (propertize " " 'display '(space :align-to 20))
+     (propertize
+      (ewp-limit-string
+       (mapconcat
+	'identity
+	(loop for term in (cdr (assoc "terms" post))
+	      when (equal (cdr (assoc "taxonomy" term)) "category")
+	      collect (cdr (assoc "name" term)))
+	",")
+       20)
+      'face '(variable-pitch :foreground "#b0b0b0"))
+     (propertize " " 'display '(space :align-to 40))
+     (propertize
+      (cdr (assoc "post_title" post))
+      'face 'variable-pitch))
+    'data post)))
 
 (defun ewp-auth ()
   (let ((auth
@@ -94,7 +117,7 @@ The following commands are available:
                        user-name
                        password
 		       `(("number" . ,posts))
-		       ["post_title" "post_date" "post_status"]))
+		       ["post_title" "post_date" "post_status" "terms"]))
 
 (defun ewp-select-post ()
   "Edit the post under point."
