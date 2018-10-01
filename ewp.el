@@ -122,11 +122,45 @@ All normal editing commands are switched off.
 (defun ewp-select-post ()
   "Edit the post under point."
   (interactive)
-  )
+  (let* ((data (get-text-property (point) 'data))
+	 (auth (ewp-auth))
+	 (post (ewp-get-post
+		(format "https://%s/xmlrpc.php" ewp-blog-address)
+		(getf auth :user) (funcall (getf auth :secret))
+		(cdr (assoc "post_id" data)))))
+    (switch-to-buffer (format "*%s edit*" (cdr (assoc "post_id" data))))
+    (erase-buffer)
+    (ewp-edit-mode)
+    (insert "Title: " (cdr (assoc "title" post)) "\n")
+    (insert "\n")
+    (insert (cdr (assoc "description" post)))
+    (goto-char (point-min))
+    (setq-local ewp-data data)))
 
 (defun ewp-sort-date (e1 e2)
   (time-less-p (caddr (assoc "post_date" e1))
 	       (caddr (assoc "post_date" e2))))
+
+(defun ewp-get-post (blog-xmlrpc user-name password post-id)
+  "Retrieves a post from the weblog. POST-ID is the id of the post
+which is to be returned.  Can be used with pages as well."
+  (xml-rpc-method-call blog-xmlrpc
+                       "metaWeblog.getPost"
+                       post-id
+                       user-name
+                       password))
+
+(defvar ewp-list-mode-map
+  (let ((map (make-keymap)))
+    (set-keymap-parent map html-mode-map)
+    (define-key map "\C-c\C-c" 'ewp-update-post)
+    map))
+
+(define-derived-mode ewp-edit-mode html-mode "ewp"
+  "Major mode for editing Wordpress posts.
+
+All normal editing commands are switched off.
+\\<ewp-mode-map>")
 
 (provide 'ewp)
 
