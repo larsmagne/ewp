@@ -229,6 +229,7 @@ All normal editing commands are switched off.
       (while (looking-at "\\([^\n:]+\\): \\(.*\\)")
 	(push (cons (match-string 1) (match-string 2)) headers)
 	(forward-line 1))
+      (forward-line 1)
       (setcdr (assoc "description" post)
 	      (buffer-substring (point) (point-max)))
       (setcdr (assoc "title" post) (cdr (assoc "Title" headers)))
