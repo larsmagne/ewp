@@ -43,7 +43,7 @@
   "Hook functions run after posting/editing a blog article.")
 
 (defvar ewp-image-width 840
-  "What width to tell Wordpress to resize images to when displayin on the blog.")
+  "What width to tell Wordpress to resize images to when displaying on the blog.")
 
 (defvar ewp-list-mode-map
   (let ((map (make-sparse-keymap)))
