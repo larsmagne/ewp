@@ -216,8 +216,6 @@ All normal editing commands are switched off.
 
 (define-derived-mode ewp-edit-mode html-mode "ewp"
   "Major mode for editing Wordpress posts.
-
-All normal editing commands are switched off.
 \\<ewp-mode-map>"
   (setq-local word-wrap t)
   (setq-local normal-auto-fill-function 'ignore))
