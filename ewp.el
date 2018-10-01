@@ -179,22 +179,23 @@ All normal editing commands are switched off.
        url
        (lambda (_)
 	 (goto-char (point-min))
-	 (when (search-forward "\n\n" nil t)
-	   (url-store-in-cache)
-	   (let ((image (buffer-substring (point) (point-max))))
-	     (when (buffer-live-p buffer)
-	       (with-current-buffer buffer
-		 (save-excursion
-		   (goto-char (point-min))
-		   (when (re-search-forward
-			  (format "<a .*<img.*%s.*</a>" (regexp-quote url))
-			  nil t)
-		     (put-text-property
-		      (match-beginning 0) (match-end 0)
-		      'display
-		      (create-image image 'imagemagick t
-				    :max-width 400))))))))
-	 (kill-buffer (current-buffer))
+	 (let ((buf (current-buffer)))
+	   (when (search-forward "\n\n" nil t)
+	     (url-store-in-cache)
+	     (let ((image (buffer-substring (point) (point-max))))
+	       (when (buffer-live-p buffer)
+		 (with-current-buffer buffer
+		   (save-excursion
+		     (goto-char (point-min))
+		     (when (re-search-forward
+			    (format "<a .*<img.*%s.*</a>" (regexp-quote url))
+			    nil t)
+		       (put-text-property
+			(match-beginning 0) (match-end 0)
+			'display
+			(create-image image 'imagemagick t
+				      :max-width 400))))))))
+	   (kill-buffer buf))
 	 (ewp-update-image urls buffer))))))
 
 (defun ewp-sort-date (e1 e2)
