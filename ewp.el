@@ -21,12 +21,15 @@
 
 ;;; Commentary:
 
+;; Install
+;; xml-rpc from https://github.com/larsmagne/xml-rpc-el
+;; metaweblog from https://github.com/org2blog/metaweblog
+
 ;;; Code:
 
 (require 'cl)
 (require 'dom)
 (require 'metaweblog)
-(require 'tabulated-list)
 
 (defvar ewp-post)
 
@@ -35,6 +38,9 @@
 
 (defvar ewp-blog-id 1
   "The Wordpress ID of the blog, which is usually 1.")
+
+(defvar ewp-send-hook nil
+  "Hook functions run after posting/editing a blog article.")
 
 (defvar ewp-image-width 840
   "What width to tell Wordpress to resize images to when displayin on the blog.")
@@ -223,12 +229,19 @@ All normal editing commands are switched off.
       (while (looking-at "\\([^\n:]+\\): \\(.*\\)")
 	(push (cons (match-string 1) (match-string 2)) headers)
 	(forward-line 1))
-      (setcdr (assoc "description" post) (buffer-substring (point) (point-max)))
+      (setcdr (assoc "description" post)
+	      (string-as-unibyte
+	       (encode-coding-string
+		(buffer-substring (point) (point-max))
+		'utf-8)))
       (setcdr (assoc "title" post) (cdr (assoc "Title" headers)))
       (setcdr (assoc "categories" post)
 	      (split-string (cdr (assoc "Categories" headers)) ","))
       (nconc post
-	     (list (cons "date" (format-time-string "%Y%m%dT%H:%M:%S"))))
+	     (list (cons "date"
+			 (format-time-string
+			  "%Y%m%dT%H:%M:%S"
+			  (caddr (assoc "dateCreated" post))))))
       (funcall
        (if ewp-post
 	   'metaweblog-edit-post
@@ -239,6 +252,7 @@ All normal editing commands are switched off.
        post
        ;; Publish if already published.
        (equal (cdr (assoc "Status" headers)) "publish"))
+      (run-hooks 'ewp-send-hook)
       (set-buffer-modified-p nil)
       (message "%s the post"
 	       (if ewp-post
