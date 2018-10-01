@@ -36,6 +36,9 @@
 (defvar ewp-blog-id 1
   "The Wordpress ID of the blog, which is usually 1.")
 
+(defvar ewp-image-width 840
+  "What width to tell Wordpress to resize images to when displayin on the blog.")
+
 (defvar ewp-list-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
@@ -143,6 +146,7 @@ All normal editing commands are switched off.
     (insert (cdr (assoc "description" post)))
     (goto-char (point-min))
     ;;(ewp-update-images)
+    (set-buffer-modified-p nil)
     (setq-local ewp-post post)))
 
 (defun ewp-update-images ()
@@ -207,14 +211,14 @@ All normal editing commands are switched off.
 (defun ewp-update-post ()
   "Update the post in the current buffer on Wordpress."
   (interactive)
+  (ewp-transform-and-upload)
   (save-excursion
     (goto-char (point-min))
     (let ((headers nil)
 	  (post (or (copy-list ewp-post)
 		    `(("title")
 		      ("description")
-		      ("categories")
-		      ("date" . ,(format-time-string "%Y%m%dT%H:%M:%S")))))
+		      ("categories"))))
 	  (auth (ewp-auth)))
       (while (looking-at "\\([^\n:]+\\): \\(.*\\)")
 	(push (cons (match-string 1) (match-string 2)) headers)
@@ -223,16 +227,19 @@ All normal editing commands are switched off.
       (setcdr (assoc "title" post) (cdr (assoc "Title" headers)))
       (setcdr (assoc "categories" post)
 	      (split-string (cdr (assoc "Categories" headers)) ","))
+      (nconc post
+	     (list (cons "date" (format-time-string "%Y%m%dT%H:%M:%S"))))
       (funcall
        (if ewp-post
 	   'metaweblog-edit-post
 	 'metaweblog-new-post)
        (format "https://%s/xmlrpc.php" ewp-blog-address)
        (getf auth :user) (funcall (getf auth :secret))
-       (cdr (assoc "postid" post))
+       (format "%s" (cdr (assoc "postid" post)))
        post
        ;; Publish if already published.
        (equal (cdr (assoc "Status" headers)) "publish"))
+      (set-buffer-modified-p nil)
       (message "%s the post"
 	       (if ewp-post
 		   "Edited"
@@ -246,7 +253,79 @@ All normal editing commands are switched off.
   (setq ewp-post nil)
   (insert "Title: \nCategories: \nStatus: draft\n\n")
   (goto-char (point-min))
-  (end-of-line))
+  (end-of-line)
+  (set-buffer-modified-p nil))
+
+(defun ewp-upload-media (file &optional image)
+  (let ((auth (ewp-auth)))
+    (metaweblog-upload-file
+     (format "https://%s/xmlrpc.php" ewp-blog-address)
+     (getf auth :user) (funcall (getf auth :secret))
+     (format "%s" ewp-blog-id)
+     `(("name" . ,(file-name-nondirectory file))
+       ("type" . ,(mailcap-file-name-to-mime-type file))
+       ("bits" . ,(with-temp-buffer
+		    (set-buffer-multibyte nil)
+		    (ewp-possibly-rotate-image file image)
+		    (base64-encode-region (point-min) (point-max))
+		    (buffer-string)))))))
+
+(defun ewp-transform-and-upload ()
+  "Look for local <img> and upload images from those to Wordpress."
+  (save-excursion
+    (goto-char (point-min))
+    (while (re-search-forward "<img.*src=\"\\([^\"]+\\).*>" nil t)
+      (let ((file (match-string 1))
+	    (start (match-beginning 0))
+	    (end (match-end 0)))
+	;; Local file.
+	(when (null (url-type (url-generic-parse-url file)))
+	  (let* ((result (ewp-upload-media
+			  file (get-text-property start 'display)))
+		 (size (image-size (create-image file) t))
+		 (url (cdr (assoc "url" result)))
+		 factor)
+	    (when (> (car size) ewp-image-width)
+	      (setq factor (/ (* ewp-image-width 1.0) (car size))))
+	    (when url
+	      (delete-region start end)
+	      (goto-char start)
+	      (insert
+	       (format
+		"<a href=\"%s\"><img src=\"%s%s\" alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
+		url url
+		(if factor
+		    (format "?w=%d" ewp-image-width)
+		  "")
+		(if factor
+		    ewp-image-width
+		  (car size))
+		(if factor
+		    (* (cdr size) ewp-image-width)
+		  (cdr size))
+		(cdr (assoc "id" result)))))))))))
+
+(defun ewp-possibly-rotate-image (file-name image)
+  (if (or (null image)
+	  (not (consp image))
+	  (not (eq (car image) 'image))
+	  (not (image-property image :rotation))
+	  (not (executable-find "exiftool")))
+      (insert-file-contents-literally file-name)
+    (call-process "exiftool"
+		  file-name
+		  (list (current-buffer) nil)
+		  nil
+		  (format "-Orientation#=%d"
+			  (cl-case (truncate
+				    (image-property image :rotation))
+			    (0 0)
+			    (90 6)
+			    (180 3)
+			    (270 8)
+			    (otherwise 0)))
+		  "-o" "-"
+		  "-")))
 
 (provide 'ewp)
 
