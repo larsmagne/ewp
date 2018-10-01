@@ -4,20 +4,15 @@
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: wordpress
 
-;; Ewp is free software; you can redistribute it and/or modify it
+;; ewp is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
-;; Ewp is distributed in the hope that it will be useful, but WITHOUT
+;; ewp is distributed in the hope that it will be useful, but WITHOUT
 ;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 ;; License for more details.
-
-;; You should have received a copy of the GNU General Public License
-;; along with Ewp; see the file COPYING.  If not, write to the Free
-;; Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-;; 02111-1307, USA.
 
 ;;; Commentary:
 
@@ -38,7 +33,7 @@
 ;; This means that the XML-RPC endpoint is on
 ;; "https://my.blog.com/xmlrpc.php".
 ;;
-;; `M-x ewp-list-posts' to get started.
+;; `M-x ewp' to get started.
 
 ;;; Code:
 
@@ -78,7 +73,7 @@ All normal editing commands are switched off.
   (setq truncate-lines t
 	buffer-read-only t))
 
-(defun ewp-list-posts ()
+(defun ewp ()
   "List all the posts on the blog."
   (interactive)
   (switch-to-buffer (format "*%s posts*" ewp-blog-address))
@@ -155,7 +150,7 @@ All normal editing commands are switched off.
   (interactive)
   (let* ((data (get-text-property (point) 'data))
 	 (auth (ewp-auth))
-	 (post (ewp-get-post
+	 (post (metaweblog-get-post
 		(format "https://%s/xmlrpc.php" ewp-blog-address)
 		(getf auth :user) (funcall (getf auth :secret))
 		(cdr (assoc "post_id" data)))))
@@ -224,11 +219,11 @@ All normal editing commands are switched off.
 
 (defvar ewp-edit-mode-map
   (let ((map (make-keymap)))
-    (set-keymap-parent map html-mode-map)
-    (define-key map "\C-cc" 'ewp-update-post)
+    (set-keymap-parent map text-mode-map)
+    (define-key map "\C-c\C-c" 'ewp-update-post)
     map))
 
-(define-derived-mode ewp-edit-mode html-mode "ewp"
+(define-derived-mode ewp-edit-mode text-mode "ewp"
   "Major mode for editing Wordpress posts.
 \\<ewp-mode-map>"
   (setq-local word-wrap t)
