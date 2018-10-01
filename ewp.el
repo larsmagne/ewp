@@ -160,7 +160,9 @@ which is to be returned.  Can be used with pages as well."
   "Major mode for editing Wordpress posts.
 
 All normal editing commands are switched off.
-\\<ewp-mode-map>")
+\\<ewp-mode-map>"
+  (setq-local word-wrap t)
+  (setq-local normal-auto-fill-function 'ignore))
 
 (provide 'ewp)
 
