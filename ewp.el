@@ -135,7 +135,49 @@ All normal editing commands are switched off.
     (insert "\n")
     (insert (cdr (assoc "description" post)))
     (goto-char (point-min))
+    (ewp-update-images)
     (setq-local ewp-data data)))
+
+(defun ewp-update-images ()
+  (save-excursion
+    (let ((urls nil))
+      (while (re-search-forward "<img.*src=.\\([^\"]+\\)" nil t)
+	(push (match-string 1) urls))
+      (ewp-update-image (nreverse urls) (current-buffer)))))
+
+(defun ewp-url-retrieve (url callback)
+  (let ((cache (url-cache-create-filename url)))
+    (if (file-exists-p cache)
+	(with-current-buffer (generate-new-buffer " *ewp url cache*")
+	  (erase-buffer)
+	  (set-buffer-multibyte nil)
+	  (insert-file-contents-literally cache)
+	  (funcall callback nil))
+      (url-retrieve url callback nil t t))))
+
+(defun ewp-update-image (urls buffer)
+  (when urls
+    (let ((url (pop urls)))
+      (ewp-url-retrieve
+       url
+       (lambda (_)
+	 (goto-char (point-min))
+	 (when (search-forward "\n\n" nil t)
+	   (url-store-in-cache)
+	   (let ((image (buffer-substring (point) (point-max))))
+	     (when (buffer-live-p buffer)
+	       (with-current-buffer buffer
+		 (save-excursion
+		   (when (re-search-forward
+			  (format "<img.*%s[^>]+>" (regexp-quote url))
+			  nil t)
+		     (put-text-property
+		      (match-beginning 0) (match-end 0)
+		      'display
+		      (create-image image 'imagemagick t
+				    :max-width 300))))))))
+	 (kill-buffer (current-buffer))
+	 (ewp-update-image urls buffer))))))
 
 (defun ewp-sort-date (e1 e2)
   (time-less-p (caddr (assoc "post_date" e1))
