@@ -28,6 +28,8 @@
 (require 'metaweblog)
 (require 'tabulated-list)
 
+(defvar ewp-post)
+
 (defvar ewp-blog-address nil
   "The name/address of the blog, like my.example.blog.")
 
@@ -59,9 +61,10 @@ All normal editing commands are switched off.
     (erase-buffer)
     (ewp-list-mode)
     (dolist (post
-	     (ewp-get-posts (format "https://%s/xmlrpc.php" ewp-blog-address)
-			    (getf auth :user) (funcall (getf auth :secret))
-			    ewp-blog-id 100))
+	     (ewp-get-posts
+	      (format "https://%s/xmlrpc.php" ewp-blog-address)
+	      (getf auth :user) (funcall (getf auth :secret))
+	      ewp-blog-id 100))
       (ewp-print-entry post))
     (goto-char (point-min))))
 
@@ -132,11 +135,15 @@ All normal editing commands are switched off.
     (erase-buffer)
     (ewp-edit-mode)
     (insert "Title: " (cdr (assoc "title" post)) "\n")
+    (insert "Categories: " (mapconcat 'identity (cdr (assoc "categories" post))
+				      ",")
+	    "\n")
+    (insert "Status: " (cdr (assoc "post_status" post)) "\n")
     (insert "\n")
     (insert (cdr (assoc "description" post)))
     (goto-char (point-min))
-    (ewp-update-images)
-    (setq-local ewp-data data)))
+    ;;(ewp-update-images)
+    (setq-local ewp-post post)))
 
 (defun ewp-update-images ()
   (save-excursion
@@ -183,19 +190,10 @@ All normal editing commands are switched off.
   (time-less-p (caddr (assoc "post_date" e1))
 	       (caddr (assoc "post_date" e2))))
 
-(defun ewp-get-post (blog-xmlrpc user-name password post-id)
-  "Retrieves a post from the weblog. POST-ID is the id of the post
-which is to be returned.  Can be used with pages as well."
-  (xml-rpc-method-call blog-xmlrpc
-                       "metaWeblog.getPost"
-                       post-id
-                       user-name
-                       password))
-
-(defvar ewp-list-mode-map
+(defvar ewp-edit-mode-map
   (let ((map (make-keymap)))
     (set-keymap-parent map html-mode-map)
-    (define-key map "\C-c\C-c" 'ewp-update-post)
+    (define-key map "\C-cc" 'ewp-update-post)
     map))
 
 (define-derived-mode ewp-edit-mode html-mode "ewp"
@@ -205,6 +203,50 @@ All normal editing commands are switched off.
 \\<ewp-mode-map>"
   (setq-local word-wrap t)
   (setq-local normal-auto-fill-function 'ignore))
+
+(defun ewp-update-post ()
+  "Update the post in the current buffer on Wordpress."
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (let ((headers nil)
+	  (post (or (copy-list ewp-post)
+		    `(("title")
+		      ("description")
+		      ("categories")
+		      ("date" . ,(format-time-string "%Y%m%dT%H:%M:%S")))))
+	  (auth (ewp-auth)))
+      (while (looking-at "\\([^\n:]+\\): \\(.*\\)")
+	(push (cons (match-string 1) (match-string 2)) headers)
+	(forward-line 1))
+      (setcdr (assoc "description" post) (buffer-substring (point) (point-max)))
+      (setcdr (assoc "title" post) (cdr (assoc "Title" headers)))
+      (setcdr (assoc "categories" post)
+	      (split-string (cdr (assoc "Categories" headers)) ","))
+      (funcall
+       (if ewp-post
+	   'metaweblog-edit-post
+	 'metaweblog-new-post)
+       (format "https://%s/xmlrpc.php" ewp-blog-address)
+       (getf auth :user) (funcall (getf auth :secret))
+       (cdr (assoc "postid" post))
+       post
+       ;; Publish if already published.
+       (equal (cdr (assoc "Status" headers)) "publish"))
+      (message "%s the post"
+	       (if ewp-post
+		   "Edited"
+		 "Posted")))))
+
+(defun ewp-new-post ()
+  "Start editing a new post."
+  (interactive)
+  (switch-to-buffer (generate-new-buffer "*Wordpress*"))
+  (ewp-edit-mode)
+  (setq ewp-post nil)
+  (insert "Title: \nCategories: \nStatus: draft\n\n")
+  (goto-char (point-min))
+  (end-of-line))
 
 (provide 'ewp)
 
