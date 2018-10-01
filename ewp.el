@@ -30,6 +30,9 @@
 
 ;; metaweblog from https://github.com/org2blog/metaweblog
 
+;; # apt install exiftool
+;; if you want images to be properly rotated.
+
 ;; (setq ewp-blog-address "my.blog.com")
 ;; `M-x ewp-list-posts'
 
