@@ -48,9 +48,10 @@
 (defvar ewp-list-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
-    (define-key map "\r" 'ewp-select-post)
+    (define-key map " " 'ewp-select-post)
     (define-key map "n" 'ewp-new-post)
     (define-key map "g" 'ewp-list-posts)
+    (define-key map "\r" 'ewp-browse)
     map))
 
 (define-derived-mode ewp-list-mode special-mode "ewp"
@@ -198,7 +199,8 @@ All normal editing commands are switched off.
 			(create-image image 'imagemagick t
 				      :max-width 400))))))))
 	   (kill-buffer buf))
-	 (ewp-update-image urls buffer))))))
+	 (when (buffer-live-p buffer)
+	   (ewp-update-image urls buffer)))))))
 
 (defun ewp-sort-date (e1 e2)
   (time-less-p (caddr (assoc "post_date" e1))
@@ -354,6 +356,12 @@ All normal editing commands are switched off.
 		   (eq (car props) 'image))
 	  (put-text-property (point) (1+ (point)) 'display nil)))
       (forward-char 1))))
+
+(defun ewp-browse ()
+  "Examine the blog post under point."
+  (interactive)
+  (eww (cdr (assoc "short_url" (get-text-property (point) 'data)))))
+  
 
 (provide 'ewp)
 
