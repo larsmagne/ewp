@@ -151,7 +151,7 @@ All normal editing commands are switched off.
     (insert "\n")
     (insert (cdr (assoc "description" post)))
     (goto-char (point-min))
-    ;;(ewp-update-images)
+    (ewp-update-images)
     (set-buffer-modified-p nil)
     (setq-local ewp-post post)))
 
@@ -185,14 +185,15 @@ All normal editing commands are switched off.
 	     (when (buffer-live-p buffer)
 	       (with-current-buffer buffer
 		 (save-excursion
+		   (goto-char (point-min))
 		   (when (re-search-forward
-			  (format "<img.*%s[^>]+>" (regexp-quote url))
+			  (format "<a .*<img.*%s.*</a>" (regexp-quote url))
 			  nil t)
 		     (put-text-property
 		      (match-beginning 0) (match-end 0)
 		      'display
 		      (create-image image 'imagemagick t
-				    :max-width 300))))))))
+				    :max-width 400))))))))
 	 (kill-buffer (current-buffer))
 	 (ewp-update-image urls buffer))))))
 
@@ -338,6 +339,18 @@ All normal editing commands are switched off.
 			    (otherwise 0)))
 		  "-o" "-"
 		  "-")))
+
+(defun ewp-remove-image-thumbnails ()
+  "Remove thumbnails."
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (while (not (eobp))
+      (when-let* ((props (get-text-property (point) 'display)))
+	(when (and (consp props)
+		   (eq (car props) 'image))
+	  (put-text-property (point) (1+ (point)) 'display nil)))
+      (forward-char 1))))
 
 (provide 'ewp)
 
