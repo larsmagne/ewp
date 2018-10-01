@@ -230,10 +230,7 @@ All normal editing commands are switched off.
 	(push (cons (match-string 1) (match-string 2)) headers)
 	(forward-line 1))
       (setcdr (assoc "description" post)
-	      (string-as-unibyte
-	       (encode-coding-string
-		(buffer-substring (point) (point-max))
-		'utf-8)))
+	      (buffer-substring (point) (point-max)))
       (setcdr (assoc "title" post) (cdr (assoc "Title" headers)))
       (setcdr (assoc "categories" post)
 	      (split-string (cdr (assoc "Categories" headers)) ","))
