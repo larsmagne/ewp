@@ -24,6 +24,10 @@
 ;; Install
 ;; xml-rpc from https://github.com/larsmagne/xml-rpc-el
 ;; metaweblog from https://github.com/org2blog/metaweblog
+;;
+
+;; (setq ewp-blog-address "my.blog.com")
+;; `M-x ewp-list-posts'
 
 ;;; Code:
 
