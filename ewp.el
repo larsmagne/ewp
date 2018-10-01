@@ -223,6 +223,7 @@ All normal editing commands are switched off.
 (defun ewp-update-post ()
   "Update the post in the current buffer on Wordpress."
   (interactive)
+  (run-hooks 'ewp-send-hook)
   (ewp-transform-and-upload)
   (save-excursion
     (goto-char (point-min))
@@ -256,7 +257,6 @@ All normal editing commands are switched off.
        post
        ;; Publish if already published.
        (equal (cdr (assoc "Status" headers)) "publish"))
-      (run-hooks 'ewp-send-hook)
       (set-buffer-modified-p nil)
       (message "%s the post"
 	       (if ewp-post
