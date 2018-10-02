@@ -239,10 +239,10 @@ All normal editing commands are switched off.
   (save-excursion
     (goto-char (point-min))
     (let ((headers nil)
-	  (post (or (copy-list ewp-post)
-		    `(("title")
-		      ("description")
-		      ("categories"))))
+	  (post (copy-list (or ewp-post
+			       `(("title")
+				 ("description")
+				 ("categories")))))
 	  (auth (ewp-auth)))
       (while (looking-at "\\([^\n:]+\\): \\(.*\\)")
 	(push (cons (match-string 1) (match-string 2)) headers)
@@ -261,8 +261,9 @@ All normal editing commands are switched off.
 			  ;; When posting new posts you have to use
 			  ;; the Californian time zone?  Because
 			  ;; Wordpress.com is in San Francisco?
-			  (and (caddr (assoc "dateCreated" post))
-			       "America/Los_Angeles")))))
+			  (if (caddr (assoc "dateCreated" post))
+			      nil
+			    "UTC")))))
       (funcall
        (if ewp-post
 	   'metaweblog-edit-post
