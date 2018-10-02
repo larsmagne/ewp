@@ -253,17 +253,7 @@ All normal editing commands are switched off.
       (setcdr (assoc "title" post) (cdr (assoc "Title" headers)))
       (setcdr (assoc "categories" post)
 	      (split-string (cdr (assoc "Categories" headers)) ","))
-      (nconc post
-	     (list (cons "date"
-			 (format-time-string
-			  "%Y%m%dT%H:%M:%S"
-			  (caddr (assoc "dateCreated" post))
-			  ;; When posting new posts you have to use
-			  ;; the Californian time zone?  Because
-			  ;; Wordpress.com is in San Francisco?
-			  (if (caddr (assoc "dateCreated" post))
-			      nil
-			    "UTC")))))
+      (nconc post (list (cons "date" (ewp-current-time post))))
       (funcall
        (if ewp-post
 	   'metaweblog-edit-post
@@ -280,6 +270,25 @@ All normal editing commands are switched off.
 		   "Edited"
 		 "Posted"))
       (bury-buffer))))
+
+(defun ewp-current-time (post)
+  (format-time-string
+   "%Y%m%dT%H:%M:%S"
+   (let ((time (caddr (assoc "dateCreated" post))))
+     (and time
+	  (time-subtract
+	   time
+	   ;; We get the time in the current timezone, but it's parsed
+	   ;; as UTC, so we get it back to what it should be before
+	   ;; formatting it as UTC.  *sigh*
+	   (time-subtract
+	    (date-to-time
+	     (format-time-string
+	      "%Y%m%dT%H:%M:%S"))
+	    (date-to-time
+	     (format-time-string
+	      "%Y%m%dT%H:%M:%S" nil "UTC"))))))
+   "UTC"))
 
 (defun ewp-new-post ()
   "Start editing a new post."
@@ -384,7 +393,7 @@ All normal editing commands are switched off.
   "Make a post containing the current dired-marked image files."
   (interactive (list (dired-get-marked-files nil current-prefix-arg)))
   (ewp-new-post)
-  (end-of-buffer)
+  (goto-char (point-max))
   (dolist (file files)
     (insert-image (create-image file 'imagemagick nil
 				:max-width 700)
