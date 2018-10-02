@@ -59,7 +59,7 @@
     (set-keymap-parent map tabulated-list-mode-map)
     (define-key map "e" 'ewp-select-post)
     (define-key map "n" 'ewp-new-post)
-    (define-key map "g" 'ewp-list-posts)
+    (define-key map "g" 'ewp)
     (define-key map "\r" 'ewp-browse)
     map))
 
@@ -204,11 +204,12 @@ All normal editing commands are switched off.
 		     (when (re-search-forward
 			    (format "<a .*<img.*%s.*</a>" (regexp-quote url))
 			    nil t)
-		       (put-text-property
-			(match-beginning 0) (match-end 0)
-			'display
-			(create-image image 'imagemagick t
-				      :max-width 400))))))))
+		       (with-silent-modifications
+			 (put-text-property
+			  (match-beginning 0) (match-end 0)
+			  'display
+			  (create-image image 'imagemagick t
+					:max-width 400)))))))))
 	   (kill-buffer buf))
 	 (when (buffer-live-p buffer)
 	   (ewp-update-image urls buffer)))))))
@@ -256,7 +257,12 @@ All normal editing commands are switched off.
 	     (list (cons "date"
 			 (format-time-string
 			  "%Y%m%dT%H:%M:%S"
-			  (caddr (assoc "dateCreated" post))))))
+			  (caddr (assoc "dateCreated" post))
+			  ;; When posting new posts you have to use
+			  ;; the Californian time zone?  Because
+			  ;; Wordpress.com is in San Francisco?
+			  (and (caddr (assoc "dateCreated" post))
+			       "America/Los_Angeles")))))
       (funcall
        (if ewp-post
 	   'metaweblog-edit-post
