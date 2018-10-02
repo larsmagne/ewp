@@ -99,7 +99,7 @@ All normal editing commands are switched off.
 	     (ewp-get-posts
 	      (format "https://%s/xmlrpc.php" address)
 	      (getf auth :user) (funcall (getf auth :secret))
-	      ewp-blog-id 100))
+	      ewp-blog-id 1000))
       (ewp-print-entry post))
     (goto-char (point-min))))
 
@@ -268,7 +268,8 @@ All normal editing commands are switched off.
 	      (buffer-substring (point) (point-max)))
       (setcdr (assoc "title" post) (cdr (assoc "Title" headers)))
       (setcdr (assoc "categories" post)
-	      (split-string (cdr (assoc "Categories" headers)) ","))
+	      (mapcar #'string-trim
+		      (split-string (cdr (assoc "Categories" headers)) ",")))
       (nconc post (list (cons "date" (ewp-current-time post))))
       (funcall
        (if ewp-post
@@ -390,7 +391,7 @@ All normal editing commands are switched off.
       (forward-char 1))))
 
 (defun ewp-browse ()
-  "Examine the blog post under point."
+  "Display the blog post under point with `eww'."
   (interactive)
   (let ((data (get-text-property (point) 'data)))
     (unless data
@@ -398,7 +399,7 @@ All normal editing commands are switched off.
     (eww (cdr (assoc "short_url" data)))))
 
 (defun ewp-preview ()
-  "Examine the blog post under point."
+  "Preview the blog post under point."
   (interactive)
   (let ((data (get-text-property (point) 'data)))
     (unless data
