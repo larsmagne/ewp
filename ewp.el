@@ -53,6 +53,7 @@
   "What width to tell Wordpress to resize images to when displaying on the blog.")
 
 (defvar ewp-post)
+(defvar ewp-address)
 
 (defvar ewp-list-mode-map
   (let ((map (make-sparse-keymap)))
@@ -73,17 +74,25 @@ All normal editing commands are switched off.
   (setq truncate-lines t
 	buffer-read-only t))
 
-(defun ewp ()
+(defun ewp (&optional address)
   "List all the posts on the blog."
-  (interactive)
-  (switch-to-buffer (format "*%s posts*" ewp-blog-address))
-  (let* ((auth (ewp-auth))
+  (interactive (list (cond
+		      ((and (boundp 'ewp-address)
+			    ewp-address)
+		       ewp-address)
+		      (ewp-blog-address)
+		      (t
+		       (read-string "Blog address: "
+				    nil 'ewp-history)))))
+  (switch-to-buffer (format "*%s posts*" address))
+  (let* ((auth (ewp-auth address))
 	 (inhibit-read-only t))
     (erase-buffer)
     (ewp-list-mode)
+    (setq-local ewp-address address)
     (dolist (post
 	     (ewp-get-posts
-	      (format "https://%s/xmlrpc.php" ewp-blog-address)
+	      (format "https://%s/xmlrpc.php" address)
 	      (getf auth :user) (funcall (getf auth :secret))
 	      ewp-blog-id 100))
       (ewp-print-entry post))
@@ -123,16 +132,16 @@ All normal editing commands are switched off.
       'face 'variable-pitch))
     'data post)))
 
-(defun ewp-auth ()
+(defun ewp-auth (address)
   (let ((auth
          (nth 0 (auth-source-search
 		 :max 1
-		 :host ewp-blog-address
+		 :host address
 		 :port "https"
 		 :require '(:user :secret)
 		 :create t))))
     (unless auth
-      (error "No credentials for %s in the .authinfo file" ewp-blog-address))
+      (error "No credentials for %s in the .authinfo file" address))
     auth))
 
 (defun ewp-get-posts (blog-xmlrpc user-name password blog-id posts)
@@ -149,14 +158,16 @@ All normal editing commands are switched off.
   "Edit the post under point."
   (interactive)
   (let* ((data (get-text-property (point) 'data))
-	 (auth (ewp-auth))
+	 (auth (ewp-auth ewp-address))
 	 (post (metaweblog-get-post
-		(format "https://%s/xmlrpc.php" ewp-blog-address)
+		(format "https://%s/xmlrpc.php" ewp-address)
 		(getf auth :user) (funcall (getf auth :secret))
-		(cdr (assoc "post_id" data)))))
+		(cdr (assoc "post_id" data))))
+	 (address ewp-address))
     (switch-to-buffer (format "*%s edit*" (cdr (assoc "post_id" data))))
     (erase-buffer)
     (ewp-edit-mode)
+    (setq-local ewp-address address)
     (insert "Title: " (cdr (assoc "title" post)) "\n")
     (insert "Categories: " (mapconcat 'identity (cdr (assoc "categories" post))
 				      ",")
@@ -235,7 +246,7 @@ All normal editing commands are switched off.
   (interactive)
   (run-hooks 'ewp-send-hook)
   (save-buffer)
-  (ewp-transform-and-upload)
+  (ewp-transform-and-upload ewp-address)
   (save-excursion
     (goto-char (point-min))
     (let ((headers nil)
@@ -243,7 +254,7 @@ All normal editing commands are switched off.
 			       `(("title")
 				 ("description")
 				 ("categories")))))
-	  (auth (ewp-auth)))
+	  (auth (ewp-auth ewp-address)))
       (while (looking-at "\\([^\n:]+\\): \\(.*\\)")
 	(push (cons (match-string 1) (match-string 2)) headers)
 	(forward-line 1))
@@ -258,7 +269,7 @@ All normal editing commands are switched off.
        (if ewp-post
 	   'metaweblog-edit-post
 	 'metaweblog-new-post)
-       (format "https://%s/xmlrpc.php" ewp-blog-address)
+       (format "https://%s/xmlrpc.php" ewp-address)
        (getf auth :user) (funcall (getf auth :secret))
        (format "%s" (cdr (assoc "postid" post)))
        post
@@ -280,18 +291,20 @@ All normal editing commands are switched off.
 (defun ewp-new-post ()
   "Start editing a new post."
   (interactive)
-  (switch-to-buffer (generate-new-buffer "*Wordpress*"))
-  (ewp-edit-mode)
-  (setq ewp-post nil)
-  (insert "Title: \nCategories: \nStatus: draft\n\n")
-  (goto-char (point-min))
-  (end-of-line)
-  (ewp-save-buffer))
+  (let ((address ewp-address))
+    (switch-to-buffer (generate-new-buffer "*Wordpress*"))
+    (ewp-edit-mode)
+    (setq-local ewp-post nil)
+    (setq-local ewp-address address)
+    (insert "Title: \nCategories: \nStatus: draft\n\n")
+    (goto-char (point-min))
+    (end-of-line)
+    (ewp-save-buffer)))
 
-(defun ewp-upload-media (file &optional image)
-  (let ((auth (ewp-auth)))
+(defun ewp-upload-media (address file &optional image)
+  (let ((auth (ewp-auth address)))
     (metaweblog-upload-file
-     (format "https://%s/xmlrpc.php" ewp-blog-address)
+     (format "https://%s/xmlrpc.php" address)
      (getf auth :user) (funcall (getf auth :secret))
      (format "%s" ewp-blog-id)
      `(("name" . ,(file-name-nondirectory file))
@@ -302,7 +315,7 @@ All normal editing commands are switched off.
 		    (base64-encode-region (point-min) (point-max))
 		    (buffer-string)))))))
 
-(defun ewp-transform-and-upload ()
+(defun ewp-transform-and-upload (address)
   "Look for local <img> and upload images from those to Wordpress."
   (save-excursion
     (goto-char (point-min))
@@ -313,7 +326,7 @@ All normal editing commands are switched off.
 	;; Local file.
 	(when (null (url-type (url-generic-parse-url file)))
 	  (let* ((result (ewp-upload-media
-			  file (get-text-property start 'display)))
+			  address file (get-text-property start 'display)))
 		 (size (image-size (create-image file) t))
 		 (url (cdr (assoc "url" result)))
 		 factor)
@@ -392,7 +405,7 @@ All normal editing commands are switched off.
 (defun ewp-save-buffer (&optional post-id)
   "Associate the current buffer with a file."
   (let ((file (format "~/.emacs.d/ewp/%s/%s"
-		      ewp-blog-address
+		      ewp-address
 		      (or post-id (make-temp-name "ewp-")))))
     (unless (file-exists-p (file-name-directory file))
       (make-directory (file-name-directory file) t))
