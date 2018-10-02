@@ -166,7 +166,7 @@ All normal editing commands are switched off.
     (insert (cdr (assoc "description" post)))
     (goto-char (point-min))
     (ewp-update-images)
-    (set-buffer-modified-p nil)
+    (ewp-save-buffer (cdr (assoc "post_id" data)))
     (setq-local ewp-post post)))
 
 (defun ewp-update-images ()
@@ -233,6 +233,7 @@ All normal editing commands are switched off.
   "Update the post in the current buffer on Wordpress."
   (interactive)
   (run-hooks 'ewp-send-hook)
+  (save-buffer)
   (ewp-transform-and-upload)
   (save-excursion
     (goto-char (point-min))
@@ -282,7 +283,7 @@ All normal editing commands are switched off.
   (insert "Title: \nCategories: \nStatus: draft\n\n")
   (goto-char (point-min))
   (end-of-line)
-  (set-buffer-modified-p nil))
+  (ewp-save-buffer))
 
 (defun ewp-upload-media (file &optional image)
   (let ((auth (ewp-auth)))
@@ -385,6 +386,15 @@ All normal editing commands are switched off.
   (goto-char (point-min))
   (end-of-line))
 
+(defun ewp-save-buffer (&optional post-id)
+  "Associate the current buffer with a file."
+  (let ((file (format "~/.emacs.d/ewp/%s/%s"
+		      ewp-blog-address
+		      (or post-id (make-temp-name "ewp-")))))
+    (unless (file-exists-p (file-name-directory file))
+      (make-directory (file-name-directory file) t))
+    (write-region (point-min) (point-max) file nil t)))
+    
 (provide 'ewp)
 
 ;;; ewp.el ends here
