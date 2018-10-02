@@ -43,6 +43,9 @@
 (defvar ewp-blog-address nil
   "The name/address of the blog, like my.example.blog.")
 
+(defvar ewp-blog-addresses nil
+  "A list of name/address of several blogs.")
+
 (defvar ewp-blog-id 1
   "The Wordpress ID of the blog, which is usually 1.")
 
@@ -57,7 +60,7 @@
 
 (defvar ewp-list-mode-map
   (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map tabulated-list-mode-map)
+    (set-keymap-parent map special-mode-map)
     (define-key map "e" 'ewp-select-post)
     (define-key map "n" 'ewp-new-post)
     (define-key map "g" 'ewp)
@@ -410,7 +413,46 @@ All normal editing commands are switched off.
     (unless (file-exists-p (file-name-directory file))
       (make-directory (file-name-directory file) t))
     (write-region (point-min) (point-max) file nil t)))
-    
+
+(defun ewp-blogs ()
+  "List all blogs you have.
+Uses `ewp-blog-addresses'."
+  (interactive)
+  (switch-to-buffer "*ewp*")
+  (ewp-list-blogs-mode)
+  (let ((inhibit-read-only t))
+    (erase-buffer)
+    (dolist (address ewp-blog-addresses)
+      (insert (propertize address
+			  'face 'variable-pitch
+			  'data address)
+	      "\n"))
+    (goto-char (point-min))))
+
+(defvar ewp-list-blogs-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map special-mode-map)
+    (define-key map "\r" 'ewp-list-blog)
+    (define-key map "g" 'ewp-blogs)
+    map))
+
+(define-derived-mode ewp-list-blogs-mode special-mode "ewp"
+  "Major mode for listing Wordpress blogs.
+
+All normal editing commands are switched off.
+\\<ewp-mode-map>"
+  (buffer-disable-undo)
+  (setq truncate-lines t
+	buffer-read-only t))
+
+(defun ewp-list-blog ()
+  "List the blog under point."
+  (interactive)
+  (let ((blog (get-text-property (point) 'data)))
+    (unless blog
+      (error "No blog under point"))
+    (ewp blog)))
+
 (provide 'ewp)
 
 ;;; ewp.el ends here
