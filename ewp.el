@@ -28,12 +28,13 @@
 ;; # apt install exiftool
 ;; if you want images to be properly rotated.
 
-;; (setq ewp-blog-address "my.blog.com")
-;;
-;; This means that the XML-RPC endpoint is on
-;; "https://my.blog.com/xmlrpc.php".
-;;
 ;; `M-x ewp' to get started.
+
+;; If you have several blogs,
+
+;; (setq ewp-blog-addresses '("my.example.com" "other.foo.bar"))
+;;
+;; and start with `M-x ewp-blogs'.
 
 ;;; Code:
 
@@ -85,7 +86,7 @@ All normal editing commands are switched off.
 		       ewp-address)
 		      (ewp-blog-address)
 		      (t
-		       (read-string "Blog address: "
+		       (read-string "Blog address (eg. my.example.com): "
 				    nil 'ewp-history)))))
   (switch-to-buffer (format "*%s posts*" address))
   (let* ((auth (ewp-auth address))
