@@ -274,20 +274,7 @@ All normal editing commands are switched off.
 (defun ewp-current-time (post)
   (format-time-string
    "%Y%m%dT%H:%M:%S"
-   (let ((time (caddr (assoc "dateCreated" post))))
-     (and time
-	  (time-subtract
-	   time
-	   ;; We get the time in the current timezone, but it's parsed
-	   ;; as UTC, so we get it back to what it should be before
-	   ;; formatting it as UTC.  *sigh*
-	   (time-subtract
-	    (date-to-time
-	     (format-time-string
-	      "%Y%m%dT%H:%M:%S"))
-	    (date-to-time
-	     (format-time-string
-	      "%Y%m%dT%H:%M:%S" nil "UTC"))))))
+   (caddr (assoc "dateCreated_gmt" post))
    "UTC"))
 
 (defun ewp-new-post ()
