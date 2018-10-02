@@ -63,6 +63,7 @@
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map special-mode-map)
     (define-key map "e" 'ewp-select-post)
+    (define-key map "p" 'ewp-preview)
     (define-key map "n" 'ewp-new-post)
     (define-key map "g" 'ewp)
     (define-key map "\r" 'ewp-browse)
@@ -391,7 +392,21 @@ All normal editing commands are switched off.
 (defun ewp-browse ()
   "Examine the blog post under point."
   (interactive)
-  (eww (cdr (assoc "short_url" (get-text-property (point) 'data)))))
+  (let ((data (get-text-property (point) 'data)))
+    (unless data
+      (error "No post under point"))
+    (eww (cdr (assoc "short_url" data)))))
+
+(defun ewp-preview ()
+  "Examine the blog post under point."
+  (interactive)
+  (let ((data (get-text-property (point) 'data)))
+    (unless data
+      (error "No post under point"))
+    (funcall shr-external-browser
+	     (format "https://%s/?p=%s&preview=true"
+		     ewp-address
+		     (cdr (assoc "post_id" data))))))
 
 (defun ewp-make-post-with-image-files (files)
   "Make a post containing the current dired-marked image files."
