@@ -623,6 +623,7 @@ All normal editing commands are switched off.
 (defun ewp-yank-with-href ()
   "Yank the current kill ring item as an <a href>."
   (interactive)
+  (set-mark (point))
   (insert (format "<a href=%S></a>"
                   (substring-no-properties (current-kill 0))))
   (forward-char -4))
@@ -630,6 +631,7 @@ All normal editing commands are switched off.
 (defun ewp-yank-with-blockquote ()
   "Yank the current kill ring item as a <blockquote>."
   (interactive)
+  (set-mark (point))
   (insert "<blockquote>\n")
   (insert (substring-no-properties (current-kill 0)))
   (insert "</blockquote>\n\n"))
