@@ -134,7 +134,7 @@ All normal editing commands are switched off.
       'face '(variable-pitch :foreground "#b0b0b0"))
      (propertize " " 'display '(space :align-to 40))
      (propertize
-      (cdr (assoc "post_title" post))
+      (mm-url-decode-entities-string (cdr (assoc "post_title" post)))
       'face 'variable-pitch))
     'data post)))
 
