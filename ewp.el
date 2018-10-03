@@ -270,6 +270,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-c" 'ewp-update-post)
     (define-key map "\C-c\C-a" 'ewp-yank-with-href)
     (define-key map "\C-c\C-q" 'ewp-yank-with-blockquote)
+    (define-key map "\C-c\C-h" 'ewp-yank-html)
     (define-key map "\C-c\C-b" 'ewp-insert-bold)
     (define-key map "\C-c\C-i" 'ewp-insert-img)
     (define-key map "\C-c\C-d" 'ewp-download-and-insert-image)
@@ -705,6 +706,17 @@ All normal editing commands are switched off.
 			  (base64-encode-region (point-min) (point-max) t)
 			  (buffer-string))))
 	       (insert "\n\n")))))))))
+
+(defun ewp-yank-html ()
+  "Yank the contents of the current X text/html selection, if any."
+  (interactive)
+  (let ((data (x-get-selection-internal 'PRIMARY 'text/html)))
+    (if (not data)
+	(message "No text/html data in the current selection")
+      (set-mark (point))
+      ;; Somehow the selection is UTF-16 when selecting text in
+      ;; Firefox.
+      (insert (decode-coding-string data 'utf-16-le)))))
 
 (provide 'ewp)
 
