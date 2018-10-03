@@ -209,7 +209,7 @@ All normal editing commands are switched off.
   (when urls
     (let ((url (pop urls)))
       (ewp-url-retrieve
-       url
+       (mm-url-decode-entities-string url)
        (lambda (_)
 	 (goto-char (point-min))
 	 (let ((buf (current-buffer)))
@@ -385,14 +385,15 @@ All normal editing commands are switched off.
 (defun ewp-remove-image-thumbnails ()
   "Remove thumbnails."
   (interactive)
-  (save-excursion
-    (goto-char (point-min))
-    (while (not (eobp))
-      (when-let* ((props (get-text-property (point) 'display)))
-	(when (and (consp props)
-		   (eq (car props) 'image))
-	  (put-text-property (point) (1+ (point)) 'display nil)))
-      (forward-char 1))))
+  (with-silent-modifications
+    (save-excursion
+      (goto-char (point-min))
+      (while (not (eobp))
+	(when-let* ((props (get-text-property (point) 'display)))
+	  (when (and (consp props)
+		     (eq (car props) 'image))
+	    (put-text-property (point) (1+ (point)) 'display nil)))
+	(forward-char 1)))))
 
 (defun ewp-browse ()
   "Display the blog post under point with `eww'."
