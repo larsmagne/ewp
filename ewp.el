@@ -100,7 +100,7 @@ All normal editing commands are switched off.
 	      ewp-blog-id 1000))
       (ewp-print-entry post "post"))
     (dolist (post
-	     (wp-get-pages
+	     (wp-get-pagelist
 	      (format "https://%s/xmlrpc.php" address)
 	      (getf auth :user) (funcall (getf auth :secret))
 	      ewp-blog-id))
@@ -124,7 +124,8 @@ All normal editing commands are switched off.
 			      (caddr (assoc "date_created_gmt" post))))
       'face 'variable-pitch)
      (propertize 
-      (ewp-limit-string (cdr (assoc (format "%s_status" prefix) post)) 10)
+      (ewp-limit-string (or (cdr (assoc (format "%s_status" prefix) post)) "")
+			10)
       'face '(variable-pitch :foreground "#a0a0a0"))
      (propertize " " 'display '(space :align-to 20))
      (propertize
@@ -139,8 +140,8 @@ All normal editing commands are switched off.
       'face '(variable-pitch :foreground "#b0b0b0"))
      (propertize " " 'display '(space :align-to 40))
      (propertize
-      (mm-url-decode-entities-string (or (cdr (assoc "post_title" post))
-					 (cdr (assoc "title" post))))
+      (mm-url-decode-entities-string
+       (cdr (assoc (format "%s_title" prefix) post)))
       'face 'variable-pitch))
     'data post)))
 
