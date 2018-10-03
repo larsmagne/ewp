@@ -8,9 +8,11 @@ ewp is an Emacs package to post and edit posts and pages on blogging platforms l
 
 To get started, put something like the following in your .emacs:
 
+```
    (cl-push "~/src/ewp" load-path)
    (autoload 'ewp-blogs "ewp.el" "List Wordpress blogs" t)
    (setq ewp-blog-addresses '("blog.example.org" "other.blog.com"))
+```
 
 and then `M-x ewp-blogs' to start browsing.
 
