@@ -1,5 +1,7 @@
 ewp is an Emacs package to post and edit posts and pages on blogging platforms like Wordpress.
 
+See https://lars.ingebrigtsen.no/2018/10/02/editing-wordpress-articles-in-emacs/ for details.
+
 # Requirements
 
 * A newish version of Emacs, for instance Emacs 26 or newer, and the following two repositories:
