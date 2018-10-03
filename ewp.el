@@ -173,6 +173,8 @@ All normal editing commands are switched off.
     (erase-buffer)
     (ewp-edit-mode)
     (setq-local ewp-address address)
+    (setq-local completion-at-point-functions
+		(cons 'ewp-complete-category completion-at-point-functions))
     (insert "Title: " (cdr (assoc "title" post)) "\n")
     (insert "Categories: " (mapconcat 'identity (cdr (assoc "categories" post))
 				      ",")
@@ -238,6 +240,7 @@ All normal editing commands are switched off.
   (let ((map (make-keymap)))
     (set-keymap-parent map text-mode-map)
     (define-key map "\C-c\C-c" 'ewp-update-post)
+    (define-key map "\t" 'ewp-complete)
     map))
 
 (define-derived-mode ewp-edit-mode text-mode "ewp"
@@ -469,6 +472,43 @@ All normal editing commands are switched off.
     (unless blog
       (error "No blog under point"))
     (ewp blog)))
+
+(defun ewp-complete ()
+  "Complete categories in that header."
+  (interactive)
+  (cond
+   ((let ((completion-fail-discreetly t))
+      (completion-at-point))
+    ;; Completion was performed; nothing else to do.
+    nil)
+   (t (indent-relative))))
+
+(defun ewp-complete-category ()
+  (and (save-excursion
+	 (beginning-of-line)
+	 (looking-at "Categories: "))
+       (lambda ()
+	 (let* ((auth (ewp-auth ewp-address))
+		(categories
+		 (loop for elem in
+		       (metaweblog-get-categories
+			(format "https://%s/xmlrpc.php" ewp-address)
+			(getf auth :user) (funcall (getf auth :secret))
+			ewp-blog-id)
+		       collect (cdr (assoc "categoryName" elem))))
+		(b (save-excursion
+		     (save-restriction
+		       (narrow-to-region
+			(save-excursion
+			  (beginning-of-line)
+			  (skip-chars-forward "^:")
+			  (1+ (point)))
+			(point))
+		       (skip-chars-backward "^, \t\n") (point))))
+		(completion-ignore-case t)
+		(e (progn (skip-chars-forward "^,\t\n ") (point))))
+	   (completion-in-region b e categories)
+	   'completion-attempted))))
 
 (provide 'ewp)
 
