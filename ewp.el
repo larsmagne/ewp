@@ -278,6 +278,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-t" 'ewp-insert-tag)
     (define-key map "\C-c\C-u" 'ewp-unfill-paragraph)
     (define-key map "\C-c\C-I" 'ewp-remove-image-thumbnails)
+    (define-key map "\C-c\C-l" 'ewp-remove-html-layer)
     (define-key map "\t" 'ewp-complete)
     map))
 
@@ -752,6 +753,20 @@ All normal editing commands are switched off.
       (set-mark (point))
       (ewp-insert-image-data data)
       (insert "\n\n"))))
+
+(defun ewp-remove-html-layer ()
+  "Remove one layer of HTML tagging."
+  (interactive)
+  (save-excursion
+    (unless (looking-at "<\\([^ ]+\\)[^>]+>")
+      (search-backward "<" nil t))
+    (when (looking-at "<\\([^ ]+\\)[^>]+>")
+      (let ((tag (match-string 1)))
+	(delete-region (match-beginning 0) (match-end 0))
+	(when (re-search-forward (concat "</" (regexp-quote tag)
+					 "\\(>\\| .*>\\)")
+				 nil t)
+	  (delete-region (match-beginning 0) (match-end 0)))))))
 
 (provide 'ewp)
 
