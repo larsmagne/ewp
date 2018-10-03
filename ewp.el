@@ -122,7 +122,9 @@ All normal editing commands are switched off.
     (format
      "%s %s%s%s%s%s\n"
      (propertize
-      (format-time-string "%Y-%m-%d" (caddr (assoc "date_created_gmt" post)))
+      (format-time-string "%Y-%m-%d"
+			  (or (caddr (assoc "post_date" post))
+			      (caddr (assoc "date_created_gmt" post))))
       'face 'variable-pitch)
      (propertize 
       (ewp-limit-string (cdr (assoc (format "%s_status" prefix) post)) 10)
