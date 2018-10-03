@@ -37,9 +37,9 @@ There are three different modes made available by this package:
 ## ewp-edit-mode:
 
 * C-c C-c: Post your edits to the blog.  This will update your Wordpress.
-* C-c C-a: Treat the contents of the kill ring as an URL and insert it as <a href="..."></a>
-* C-c C-q: Yank the contents of a kill ring into <blockquote>.
+* C-c C-a: Treat the contents of the kill ring as an URL and insert it as &lta href="..."&gt;&lt/a&gt;
+* C-c C-q: Yank the contents of a kill ring into &lt;blockquote&gt;.
 * C-c C-i: Insert an image into the buffer.
-* C-c C-i: Prompt for an HTML tag and insert a <tag></tag> pair.
+* C-c C-i: Prompt for an HTML tag and insert a &lttag&gt;&lt/tag&gt; pair.
 * TAB:     In the Categories header, provide category completion.
 
