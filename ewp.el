@@ -409,6 +409,7 @@ which is to be returned.  Can be used with pages as well."
 	  (setq result (ewp-upload-media
 			address file (get-text-property start 'display))
 		size (image-size (create-image file) t)))
+	 ;; data: URL where the image is in the src bit.
 	 ((and (equal type "data")
 	       (string-match "^data:\\([^;]+\\);base64," file))
 	  (let ((mime-type (match-string 1 file))
@@ -685,24 +686,25 @@ All normal editing commands are switched off.
 	 (when (and image
 		    (buffer-live-p buffer))
 	   (with-current-buffer buffer
-	     (goto-char (point-max))
-	     (insert-image
-	      (create-image image 'imagemagick t
-			    :max-width 500)
-	      (format "<img src=\"data:%s;base64,%s\">"
-		      (with-temp-buffer
-			(set-buffer-multibyte nil)
-			(insert image)
-			(call-process-region (point-min) (point-max)
-					     "file" t (current-buffer) nil
-					     "--mime-type" "-")
-			(cadr (split-string (buffer-string))))
-		      (with-temp-buffer
-			(set-buffer-multibyte nil)
-			(insert image)
-			(base64-encode-region (point-min) (point-max) t)
-			(buffer-string))))
-	     (insert "\n\n"))))))))
+	     (save-excursion
+	       (goto-char (point-max))
+	       (insert-image
+		(create-image image 'imagemagick t
+			      :max-width 500)
+		(format "<img src=\"data:%s;base64,%s\">"
+			(with-temp-buffer
+			  (set-buffer-multibyte nil)
+			  (insert image)
+			  (call-process-region (point-min) (point-max)
+					       "file" t (current-buffer) nil
+					       "--mime-type" "-")
+			  (cadr (split-string (buffer-string))))
+			(with-temp-buffer
+			  (set-buffer-multibyte nil)
+			  (insert image)
+			  (base64-encode-region (point-min) (point-max) t)
+			  (buffer-string))))
+	       (insert "\n\n")))))))))
 
 (provide 'ewp)
 
