@@ -723,11 +723,21 @@ All normal editing commands are switched off.
       (insert (decode-coding-string data 'utf-16-le)))))
 
 (defun ewp-yank-picture ()
-  "Yank the contents of the current X image/jpeg selection, if any."
+  "Yank the contents of the current X image selection/clipboard, if any."
   (interactive)
-  (let ((data (x-get-selection-internal 'PRIMARY 'image/jpeg)))
+  (let ((data
+	 (loop for type in '(PRIMARY CLIPBOARD)
+	       for data = (loop for image-type in '(image/jpeg
+						    image/png
+						    image/gif)
+				for data = (x-get-selection-internal
+					    type image-type)
+				when data
+				return data)
+	       when data
+	       return data)))
     (if (not data)
-	(message "No image/jpeg data in the current selection")
+	(message "No image data in the current selection/clipboard")
       (set-mark (point))
       (ewp-insert-image-data data)
       (insert "\n\n"))))
