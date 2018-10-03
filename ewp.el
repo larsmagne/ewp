@@ -273,6 +273,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-q" 'ewp-yank-with-blockquote)
     (define-key map "\C-c\C-b" 'ewp-insert-bold)
     (define-key map "\C-c\C-i" 'ewp-insert-img)
+    (define-key map "\C-c\C-t" 'ewp-insert-tag)
     (define-key map "\t" 'ewp-complete)
     map))
 
@@ -598,6 +599,19 @@ All normal editing commands are switched off.
   (interactive)
   (insert "<b></b>\n")
   (backward-char 5))
+
+(defun ewp-insert-tag (tag)
+  "Insert a balanced pair of tags."
+  (interactive (list (completing-read
+		      "Tag: "
+		      '("b" "blockquote" "body" "div" "em"
+			"h1" "h2" "h3" "h4" "h5" "h6"
+			"i" "img" "ul" "li" "ol" "pre" "span"
+			"table" "td" "tr" "u"))))
+  (insert "<" tag ">")
+  (let ((point (point)))
+    (insert "</" tag ">")
+    (goto-char point)))
 
 (provide 'ewp)
 
