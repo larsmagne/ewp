@@ -605,7 +605,7 @@ All normal editing commands are switched off.
   "Prompt for a file and insert an <img>."
   (interactive "fImage file: ")
   (insert-image (create-image file 'imagemagick nil :max-width 500)
-		(format "<img %S>" file))
+		(format "<img src=%S>" file))
   (insert "\n\n"))
 
 (defun ewp-insert-bold ()
