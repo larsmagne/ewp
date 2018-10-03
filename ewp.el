@@ -174,8 +174,6 @@ All normal editing commands are switched off.
     (erase-buffer)
     (ewp-edit-mode)
     (setq-local ewp-address address)
-    (setq-local completion-at-point-functions
-		(cons 'ewp-complete-category completion-at-point-functions))
     (insert "Title: " (cdr (assoc "title" post)) "\n")
     (insert "Categories: " (mapconcat 'identity (cdr (assoc "categories" post))
 				      ",")
@@ -248,7 +246,9 @@ All normal editing commands are switched off.
   "Major mode for editing Wordpress posts.
 \\<ewp-mode-map>"
   (setq-local word-wrap t)
-  (setq-local normal-auto-fill-function 'ignore))
+  (setq-local normal-auto-fill-function 'ignore)
+  (setq-local completion-at-point-functions
+	      (cons 'ewp-complete-category completion-at-point-functions)))
 
 (defun ewp-update-post ()
   "Update the post in the current buffer on Wordpress."
