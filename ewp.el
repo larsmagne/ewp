@@ -271,6 +271,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-c" 'ewp-update-post)
     (define-key map "\C-c\C-a" 'ewp-yank-with-href)
     (define-key map "\C-c\C-b" 'ewp-yank-with-blockquote)
+    (define-key map "\C-c\C-i" 'ewp-insert-img)
     (define-key map "\t" 'ewp-complete)
     map))
 
@@ -583,6 +584,13 @@ All normal editing commands are switched off.
       (fill-paragraph)
       (goto-char (point-max))))
   (insert "</blockquote>\n\n"))
+
+(defun ewp-insert-img (file)
+  "Prompt for a file and insert an <img>."
+  (interactive "fImage file: ")
+  (insert-image (create-image file 'imagemagick nil :max-width 500)
+		(format "<img %S>" file))
+  (insert "\n\n"))
 
 (provide 'ewp)
 
