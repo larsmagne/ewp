@@ -6,6 +6,8 @@ ewp is an Emacs package to post and edit posts and pages on blogging platforms l
 * https://github.com/hexmode/xml-rpc-el
 * https://github.com/org2blog/metaweblog
 
+# Set Up
+
 To get started, put something like the following in your .emacs:
 
 ```
