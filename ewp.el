@@ -239,6 +239,8 @@ All normal editing commands are switched off.
   (let ((map (make-keymap)))
     (set-keymap-parent map text-mode-map)
     (define-key map "\C-c\C-c" 'ewp-update-post)
+    (define-key map "\C-c\C-a" 'ewp-yank-with-href)
+    (define-key map "\C-c\C-b" 'ewp-yank-with-blockquote)
     (define-key map "\t" 'ewp-complete)
     map))
 
@@ -518,6 +520,28 @@ All normal editing commands are switched off.
 		  collect (cdr (assoc "categoryName" elem)))))
       (setq-local ewp-categories categories)
       categories)))
+
+(defun ewp-yank-with-href ()
+  "Yank the current kill ring item as an <a href>."
+  (interactive)
+  (insert (format "<a href=%S></a>"
+                  (substring-no-properties (current-kill 0))))
+  (forward-char -4))
+
+(defun ewp-yank-with-blockquote ()
+  "Yank the current kill ring item as a <blockquote>."
+  (interactive)
+  (insert "<blockquote>\n")
+  (save-restriction
+    (let ((start (point))
+	  (fill-paragraph-function nil))
+      (insert (substring-no-properties (current-kill 0)))
+      (insert "\n")
+      (narrow-to-region start (point))
+      (goto-char start)
+      (fill-paragraph)
+      (goto-char (point-max))))
+  (insert "</blockquote>\n\n"))
 
 (provide 'ewp)
 
