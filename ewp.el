@@ -18,11 +18,7 @@
 
 ;; Install
 
-;; xml-rpc from https://github.com/larsmagne/xml-rpc-el
-
-;; (The "official" version has problem with non-ASCII text on Emacs
-;; versions 25 and up.)
-
+;; xml-rpc from https://github.com/hexmode/xml-rpc-el
 ;; metaweblog from https://github.com/org2blog/metaweblog
 
 ;; # apt install exiftool
@@ -590,15 +586,7 @@ All normal editing commands are switched off.
   "Yank the current kill ring item as a <blockquote>."
   (interactive)
   (insert "<blockquote>\n")
-  (save-restriction
-    (let ((start (point))
-	  (fill-paragraph-function nil))
-      (insert (substring-no-properties (current-kill 0)))
-      (insert "\n")
-      (narrow-to-region start (point))
-      (goto-char start)
-      (fill-paragraph)
-      (goto-char (point-max))))
+  (insert (substring-no-properties (current-kill 0)))
   (insert "</blockquote>\n\n"))
 
 (defun ewp-insert-img (file)
