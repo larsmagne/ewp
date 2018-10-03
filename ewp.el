@@ -101,7 +101,13 @@ All normal editing commands are switched off.
 	      (format "https://%s/xmlrpc.php" address)
 	      (getf auth :user) (funcall (getf auth :secret))
 	      ewp-blog-id 1000))
-      (ewp-print-entry post))
+      (ewp-print-entry post "post"))
+    (dolist (post
+	     (wp-get-pages
+	      (format "https://%s/xmlrpc.php" address)
+	      (getf auth :user) (funcall (getf auth :secret))
+	      ewp-blog-id))
+      (ewp-print-entry post "page"))
     (goto-char (point-min))))
 
 (defun ewp-limit-string (string length)
@@ -109,17 +115,17 @@ All normal editing commands are switched off.
       string
     (substring string 0 length)))
 
-(defun ewp-print-entry (post)
+(defun ewp-print-entry (post prefix)
   "Insert a Wordpress entry at point."
   (insert
    (propertize
     (format
      "%s %s%s%s%s%s\n"
      (propertize
-      (format-time-string "%Y-%m-%d" (caddr (assoc "post_date" post)))
+      (format-time-string "%Y-%m-%d" (caddr (assoc "date_created_gmt" post)))
       'face 'variable-pitch)
      (propertize 
-      (ewp-limit-string (cdr (assoc "post_status" post)) 10)
+      (ewp-limit-string (cdr (assoc (format "%s_status" prefix) post)) 10)
       'face '(variable-pitch :foreground "#a0a0a0"))
      (propertize " " 'display '(space :align-to 20))
      (propertize
@@ -134,7 +140,8 @@ All normal editing commands are switched off.
       'face '(variable-pitch :foreground "#b0b0b0"))
      (propertize " " 'display '(space :align-to 40))
      (propertize
-      (mm-url-decode-entities-string (cdr (assoc "post_title" post)))
+      (mm-url-decode-entities-string (or (cdr (assoc "post_title" post))
+					 (cdr (assoc "title" post))))
       'face 'variable-pitch))
     'data post)))
 
@@ -160,17 +167,34 @@ All normal editing commands are switched off.
 		       `(("number" . ,posts))
 		       ["post_title" "post_date" "post_status" "terms"]))
 
+(defun ewp-get-page (blog-xmlrpc user-name password page-id)
+  "Retrieves a page from the weblog. PAGE-ID is the id of the post
+which is to be returned.  Can be used with pages as well."
+  (xml-rpc-method-call blog-xmlrpc
+                       "wp.getPage"
+		       nil
+                       page-id
+                       user-name
+                       password))
+
 (defun ewp-select-post ()
   "Edit the post under point."
   (interactive)
   (let* ((data (get-text-property (point) 'data))
+	 (pagep (assoc "page_id" data))
+	 (id (if pagep
+		 (cdr (assoc "page_id" data))
+	       (cdr (assoc "post_id" data))))
 	 (auth (ewp-auth ewp-address))
-	 (post (metaweblog-get-post
+	 (post (funcall
+		(if pagep
+		    'ewp-get-page
+		  'metaweblog-get-post)
 		(format "https://%s/xmlrpc.php" ewp-address)
 		(getf auth :user) (funcall (getf auth :secret))
-		(cdr (assoc "post_id" data))))
+		id))
 	 (address ewp-address))
-    (switch-to-buffer (format "*%s edit*" (cdr (assoc "post_id" data))))
+    (switch-to-buffer (format "*%s edit*" id))
     (erase-buffer)
     (ewp-edit-mode)
     (setq-local ewp-address address)
@@ -178,12 +202,16 @@ All normal editing commands are switched off.
     (insert "Categories: " (mapconcat 'identity (cdr (assoc "categories" post))
 				      ",")
 	    "\n")
-    (insert "Status: " (cdr (assoc "post_status" post)) "\n")
+    (insert "Status: " (cdr (assoc (if pagep
+				       "page_status"
+				     "post_status")
+				   post))
+	    "\n")
     (insert "\n")
     (insert (cdr (assoc "description" post)))
     (goto-char (point-min))
     (ewp-update-images)
-    (ewp-save-buffer (cdr (assoc "post_id" data)))
+    (ewp-save-buffer id)
     (setq-local ewp-post post)))
 
 (defun ewp-update-images ()
@@ -265,6 +293,7 @@ All normal editing commands are switched off.
 			       `(("title")
 				 ("description")
 				 ("categories")))))
+	  (pagep (assoc "page_id" ewp-post))
 	  (auth (ewp-auth ewp-address)))
       (while (looking-at "\\([^\n:]+\\): \\(.*\\)")
 	(push (cons (match-string 1) (match-string 2)) headers)
@@ -277,16 +306,26 @@ All normal editing commands are switched off.
 	      (mapcar #'string-trim
 		      (split-string (cdr (assoc "Categories" headers)) ",")))
       (nconc post (list (cons "date" (ewp-current-time post))))
-      (funcall
-       (if ewp-post
-	   'metaweblog-edit-post
-	 'metaweblog-new-post)
-       (format "https://%s/xmlrpc.php" ewp-address)
-       (getf auth :user) (funcall (getf auth :secret))
-       (format "%s" (cdr (assoc "postid" post)))
-       post
-       ;; Publish if already published.
-       (equal (cdr (assoc "Status" headers)) "publish"))
+      (apply
+       (if pagep
+	   (if ewp-post
+	       'wp-edit-page
+	     'wp-new-page)
+	 (if ewp-post
+	     'metaweblog-edit-post
+	   'metaweblog-new-post))
+       `(,(format "https://%s/xmlrpc.php" ewp-address)
+	 ,(getf auth :user)
+	 ,(funcall (getf auth :secret))
+	 ,@(if pagep
+	       (list (format "%s" ewp-blog-id))
+	     nil)
+	 ,(format "%s" (if pagep
+			   (cdr (assoc "page_id" post))
+			 (cdr (assoc "postid" post))))
+	 ,post
+	 ;; Publish if already published.
+	 ,(equal (cdr (assoc "Status" headers)) "publish")))
       (set-buffer-modified-p nil)
       (message "%s the post"
 	       (if ewp-post
