@@ -505,8 +505,8 @@ All normal editing commands are switched off.
 			  (1+ (point)))
 			(point))
 		       (skip-chars-backward "^, \t\n") (point))))
-		(completion-ignore-case t)
-		(e (progn (skip-chars-forward "^,\t\n ") (point))))
+		(e (progn (skip-chars-forward "^,\t\n ") (point)))
+		(completion-ignore-case t))
 	   (completion-in-region b e categories)
 	   'completion-attempted))))
 
