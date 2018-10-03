@@ -49,7 +49,7 @@ There are three different modes made available by this package:
 * C-c C-i: Prompt for an HTML tag and insert a &lt;tag&gt;&lt;/tag&gt; pair.
 * C-c C-I: Remove image thumbnails.
 * C-c C-d: Download the image in the kill ring and insert it.
-* C-c C-h: Yank the current text/html X selection.
+* C-c C-m: Yank the current text/html markup from the X selection.
 * C-c C-p: Yank the current text/jpeg X selection.
 * C-c C-l: Remove one layer of HTML tagging.
 * TAB:     In the Categories header, provide category completion.

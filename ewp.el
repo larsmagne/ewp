@@ -270,7 +270,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-c" 'ewp-update-post)
     (define-key map "\C-c\C-a" 'ewp-yank-with-href)
     (define-key map "\C-c\C-q" 'ewp-yank-with-blockquote)
-    (define-key map "\C-c\C-h" 'ewp-yank-html)
+    (define-key map "\C-c\C-m" 'ewp-yank-html)
     (define-key map "\C-c\C-p" 'ewp-yank-picture)
     (define-key map "\C-c\C-b" 'ewp-insert-bold)
     (define-key map "\C-c\C-i" 'ewp-insert-img)
