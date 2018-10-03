@@ -716,13 +716,22 @@ All normal editing commands are switched off.
 (defun ewp-yank-html ()
   "Yank the contents of the current X text/html selection, if any."
   (interactive)
-  (let ((data (x-get-selection-internal 'PRIMARY 'text/html)))
+  (let ((data (loop for type in '(PRIMARY CLIPBOARD)
+		    for data = (x-get-selection-internal type 'text/html)
+		    when data
+		    return data)))
     (if (not data)
 	(message "No text/html data in the current selection")
       (set-mark (point))
-      ;; Somehow the selection is UTF-16 when selecting text in
-      ;; Firefox.
-      (insert (decode-coding-string data 'utf-16-le)))))
+      (insert
+       (if (and (> (length data) 2)
+		(= (aref data 0) 255)
+		(= (aref data 1) 254))
+	   ;; Somehow the selection is UTF-16 when selecting text in
+	   ;; Firefox.
+	   (decode-coding-string data 'utf-16-le)
+	 ;; But some sources add a nul to the end of the data.
+	 (replace-regexp-in-string (string 0) "" data))))))
 
 (defun ewp-yank-picture ()
   "Yank the contents of the current X image selection/clipboard, if any."
