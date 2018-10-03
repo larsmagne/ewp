@@ -271,6 +271,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-a" 'ewp-yank-with-href)
     (define-key map "\C-c\C-q" 'ewp-yank-with-blockquote)
     (define-key map "\C-c\C-h" 'ewp-yank-html)
+    (define-key map "\C-c\C-p" 'ewp-yank-picture)
     (define-key map "\C-c\C-b" 'ewp-insert-bold)
     (define-key map "\C-c\C-i" 'ewp-insert-img)
     (define-key map "\C-c\C-d" 'ewp-download-and-insert-image)
@@ -689,23 +690,26 @@ All normal editing commands are switched off.
 	   (with-current-buffer buffer
 	     (save-excursion
 	       (goto-char (point-max))
-	       (insert-image
-		(create-image image 'imagemagick t
-			      :max-width 500)
-		(format "<img src=\"data:%s;base64,%s\">"
-			(with-temp-buffer
-			  (set-buffer-multibyte nil)
-			  (insert image)
-			  (call-process-region (point-min) (point-max)
-					       "file" t (current-buffer) nil
-					       "--mime-type" "-")
-			  (cadr (split-string (buffer-string))))
-			(with-temp-buffer
-			  (set-buffer-multibyte nil)
-			  (insert image)
-			  (base64-encode-region (point-min) (point-max) t)
-			  (buffer-string))))
+	       (ewp-insert-image-data image)
 	       (insert "\n\n")))))))))
+
+(defun ewp-insert-image-data (image)
+  (insert-image
+   (create-image image 'imagemagick t
+		 :max-width 500)
+   (format "<img src=\"data:%s;base64,%s\">"
+	   (with-temp-buffer
+	     (set-buffer-multibyte nil)
+	     (insert image)
+	     (call-process-region (point-min) (point-max)
+				  "file" t (current-buffer) nil
+				  "--mime-type" "-")
+	     (cadr (split-string (buffer-string))))
+	   (with-temp-buffer
+	     (set-buffer-multibyte nil)
+	     (insert image)
+	     (base64-encode-region (point-min) (point-max) t)
+	     (buffer-string)))))
 
 (defun ewp-yank-html ()
   "Yank the contents of the current X text/html selection, if any."
@@ -717,6 +721,16 @@ All normal editing commands are switched off.
       ;; Somehow the selection is UTF-16 when selecting text in
       ;; Firefox.
       (insert (decode-coding-string data 'utf-16-le)))))
+
+(defun ewp-yank-picture ()
+  "Yank the contents of the current X image/jpeg selection, if any."
+  (interactive)
+  (let ((data (x-get-selection-internal 'PRIMARY 'image/jpeg)))
+    (if (not data)
+	(message "No image/jpeg data in the current selection")
+      (set-mark (point))
+      (ewp-insert-image-data data)
+      (insert "\n\n"))))
 
 (provide 'ewp)
 
