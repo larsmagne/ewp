@@ -272,6 +272,8 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-b" 'ewp-insert-bold)
     (define-key map "\C-c\C-i" 'ewp-insert-img)
     (define-key map "\C-c\C-t" 'ewp-insert-tag)
+    (define-key map "\C-c\C-u" 'ewp-unfill-paragraph)
+    (define-key map "\C-c\C-I" 'ewp-remove-image-thumbnails)
     (define-key map "\t" 'ewp-complete)
     map))
 
@@ -615,6 +617,18 @@ All normal editing commands are switched off.
   (let ((point (point)))
     (insert "</" tag ">")
     (goto-char point)))
+
+(defun ewp-unfill-paragraph ()
+  "Remove newlines from the current paragraph."
+  (interactive)
+  (save-excursion
+    (let ((start (progn (forward-paragraph -1) (point)))
+	  (end (progn (forward-paragraph 1) (point))))
+      (goto-char start)
+      (unless (bobp)
+	(forward-line 1))
+      (while (re-search-forward " *\n *" end t)
+	(replace-match " " t t)))))
 
 (provide 'ewp)
 
