@@ -271,6 +271,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-q" 'ewp-yank-with-blockquote)
     (define-key map "\C-c\C-b" 'ewp-insert-bold)
     (define-key map "\C-c\C-i" 'ewp-insert-img)
+    (define-key map "\C-c\C-d" 'ewp-download-and-insert-image)
     (define-key map "\C-c\C-t" 'ewp-insert-tag)
     (define-key map "\C-c\C-u" 'ewp-unfill-paragraph)
     (define-key map "\C-c\C-I" 'ewp-remove-image-thumbnails)
@@ -389,15 +390,41 @@ which is to be returned.  Can be used with pages as well."
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward "<img.*src=\"\\([^\"]+\\).*>" nil t)
-      (let ((file (match-string 1))
-	    (start (match-beginning 0))
-	    (end (match-end 0)))
-	;; Local file.
-	(when (null (url-type (url-generic-parse-url file)))
-	  (let* ((result (ewp-upload-media
-			  address file (get-text-property start 'display)))
-		 (size (image-size (create-image file) t))
-		 (url (cdr (assoc "url" result)))
+      (let* ((file (match-string 1))
+	     (start (match-beginning 0))
+	     (end (match-end 0))
+	     (type (url-type (url-generic-parse-url file)))
+	     result size)
+	(cond
+	 ;; Local file.
+	 ((null type)
+	  (setq result (ewp-upload-media
+			address file (get-text-property start 'display))
+		size (image-size (create-image file) t)))
+	 ((and (equal type "data")
+	       (string-match "^data:\\([^;]+\\);base64,\\(.*\\)" file))
+	  (let ((mime-type (match-string 1 file))
+		(data (match-string 2 file)))
+	    (setq result
+		  (let ((auth (ewp-auth address)))
+		    (metaweblog-upload-file
+		     (format "https://%s/xmlrpc.php" address)
+		     (getf auth :user) (funcall (getf auth :secret))
+		     (format "%s" ewp-blog-id)
+		     `(("name" . ,(format "%s.%s" address
+					  (cadr (split-string mime-type "/"))))
+		       ("type" . ,mime-type)
+		       ("bits" . ,data)))))
+	    (setq size (image-size (create-image
+				    (with-temp-buffer
+				      (set-buffer-multibyte nil)
+				      (insert data)
+				      (base64-decode-region
+				       (point-min) (point-max))
+				      (buffer-string))
+				    'imagemagick t))))))
+	(when result
+	  (let* ((url (cdr (assoc "url" result)))
 		 factor)
 	    (when (> (car size) ewp-image-width)
 	      (setq factor (/ (* ewp-image-width 1.0) (car size))))
@@ -629,6 +656,41 @@ All normal editing commands are switched off.
 	(forward-line 1))
       (while (re-search-forward " *\n *" end t)
 	(replace-match " " t t)))))
+
+(defun ewp-download-and-insert-image ()
+  "Download and insert the image from the kill ring."
+  (interactive)
+  (let* ((url (substring-no-properties (current-kill 0)))
+	 (buffer (current-buffer)))
+    (url-retrieve
+     url
+     (lambda (_)
+       (goto-char (point-min))
+       (let (image)
+	 (when (search-forward "\n\n")
+	   (setq image (buffer-substring (point) (point-max))))
+	 (kill-buffer (current-buffer))
+	 (when (and image
+		    (buffer-live-p buffer))
+	   (with-current-buffer buffer
+	     (goto-char (point-max))
+	     (insert-image
+	      (create-image image 'imagemagick t
+			    :max-width 500)
+	      (format "<img src=\"data:%s;base64,%s\">"
+		      (with-temp-buffer
+			(set-buffer-multibyte nil)
+			(insert image)
+			(call-process-region (point-min) (point-max)
+					     "file" t (current-buffer) nil
+					     "--mime-type" "-")
+			(cadr (split-string (buffer-string))))
+		      (with-temp-buffer
+			(set-buffer-multibyte nil)
+			(insert image)
+			(base64-encode-region (point-min) (point-max) t)
+			(buffer-string)))
+	      (insert "\n\n")))))))))
 
 (provide 'ewp)
 

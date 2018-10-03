@@ -47,5 +47,7 @@ There are three different modes made available by this package:
 * C-c C-q: Yank the contents of a kill ring into &lt;blockquote&gt;.
 * C-c C-i: Insert an image into the buffer.
 * C-c C-i: Prompt for an HTML tag and insert a &lt;tag&gt;&lt;/tag&gt; pair.
+* C-c C-I: Remove image thumbnails.
+* C-c C-d: Download the image in the kill ring and insert it.
 * TAB:     In the Categories header, provide category completion.
 
