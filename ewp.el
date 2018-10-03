@@ -58,6 +58,7 @@
 
 (defvar ewp-post)
 (defvar ewp-address)
+(defvar ewp-categories)
 
 (defvar ewp-list-mode-map
   (let ((map (make-sparse-keymap)))
@@ -488,27 +489,34 @@ All normal editing commands are switched off.
 	 (beginning-of-line)
 	 (looking-at "Categories: "))
        (lambda ()
-	 (let* ((auth (ewp-auth ewp-address))
-		(categories
-		 (loop for elem in
-		       (metaweblog-get-categories
-			(format "https://%s/xmlrpc.php" ewp-address)
-			(getf auth :user) (funcall (getf auth :secret))
-			ewp-blog-id)
-		       collect (cdr (assoc "categoryName" elem))))
-		(b (save-excursion
-		     (save-restriction
-		       (narrow-to-region
-			(save-excursion
-			  (beginning-of-line)
-			  (skip-chars-forward "^:")
-			  (1+ (point)))
-			(point))
-		       (skip-chars-backward "^, \t\n") (point))))
-		(e (progn (skip-chars-forward "^,\t\n ") (point)))
-		(completion-ignore-case t))
+	 (let ((categories (ewp-categories))
+	       (b (save-excursion
+		    (save-restriction
+		      (narrow-to-region
+		       (save-excursion
+			 (beginning-of-line)
+			 (skip-chars-forward "^:")
+			 (1+ (point)))
+		       (point))
+		      (skip-chars-backward "^, \t\n") (point))))
+	       (e (progn (skip-chars-forward "^,\t\n ") (point)))
+	       (completion-ignore-case t))
 	   (completion-in-region b e categories)
 	   'completion-attempted))))
+
+(defun ewp-categories ()
+  (if (boundp 'ewp-categories)
+      ewp-categories
+    (let* ((auth (ewp-auth ewp-address))
+	   (categories
+	    (loop for elem in
+		  (metaweblog-get-categories
+		   (format "https://%s/xmlrpc.php" ewp-address)
+		   (getf auth :user) (funcall (getf auth :secret))
+		   ewp-blog-id)
+		  collect (cdr (assoc "categoryName" elem)))))
+      (setq-local ewp-categories categories)
+      categories)))
 
 (provide 'ewp)
 
