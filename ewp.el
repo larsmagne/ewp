@@ -36,6 +36,7 @@
 
 (require 'cl)
 (require 'metaweblog)
+(require 'mm-url)
 
 (defvar ewp-blog-address nil
   "The name/address of the blog, like my.example.blog.")
@@ -389,11 +390,18 @@ which is to be returned.  Can be used with pages as well."
   "Look for local <img> and upload images from those to Wordpress."
   (save-excursion
     (goto-char (point-min))
-    (while (re-search-forward "<img.*src=\"\\([^\"]+\\).*>" nil t)
-      (let* ((file (match-string 1))
-	     (start (match-beginning 0))
-	     (end (match-end 0))
-	     (type (url-type (url-generic-parse-url file)))
+    (while (re-search-forward "<img.*?src=\"" nil t)
+      (let* ((start (match-beginning 0))
+	     (file (buffer-substring (point)
+				     (progn
+				       (re-search-forward "\".*>" nil t)
+				       (match-beginning 0))))
+	     (end (point))
+	     ;; We're avoiding `url-generic-parse-url' and other
+	     ;; regepx-based parsers here because data: URLs can be
+	     ;; huge and blows up the regexp parser.
+	     (type (and (string-match "^[^:]+" file)
+			(match-string 0 file)))
 	     result size)
 	(cond
 	 ;; Local file.
@@ -402,9 +410,13 @@ which is to be returned.  Can be used with pages as well."
 			address file (get-text-property start 'display))
 		size (image-size (create-image file) t)))
 	 ((and (equal type "data")
-	       (string-match "^data:\\([^;]+\\);base64,\\(.*\\)" file))
+	       (string-match "^data:\\([^;]+\\);base64," file))
 	  (let ((mime-type (match-string 1 file))
-		(data (match-string 2 file)))
+		(data (with-temp-buffer
+			(insert file)
+			(goto-char (point-min))
+			(search-forward ",")
+			(buffer-substring (point) (point-max)))))
 	    (setq result
 		  (let ((auth (ewp-auth address)))
 		    (metaweblog-upload-file
@@ -689,8 +701,8 @@ All normal editing commands are switched off.
 			(set-buffer-multibyte nil)
 			(insert image)
 			(base64-encode-region (point-min) (point-max) t)
-			(buffer-string)))
-	      (insert "\n\n")))))))))
+			(buffer-string))))
+	     (insert "\n\n"))))))))
 
 (provide 'ewp)
 
