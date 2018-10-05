@@ -230,7 +230,8 @@ which is to be returned.  Can be used with pages as well."
 	  (set-buffer-multibyte nil)
 	  (insert-file-contents-literally cache)
 	  (funcall callback nil))
-      (url-retrieve url callback nil t t))))
+      (ignore-errors
+	(url-retrieve url callback nil t t)))))
 
 (defun ewp-update-image (urls buffer)
   (when urls
@@ -404,8 +405,8 @@ which is to be returned.  Can be used with pages as well."
 	     ;; We're avoiding `url-generic-parse-url' and other
 	     ;; regepx-based parsers here because data: URLs can be
 	     ;; huge and blows up the regexp parser.
-	     (type (and (string-match "^[^:]+" file)
-			(match-string 0 file)))
+	     (type (and (string-match "^[^:]+:" file)
+			(substring file 0 (1- (match-end 0)))))
 	     result size)
 	(cond
 	 ;; Local file.
@@ -742,9 +743,14 @@ All normal editing commands are switched off.
   (interactive)
   (let ((data
 	 (loop for type in '(PRIMARY CLIPBOARD)
-	       for data = (loop for image-type in '(image/jpeg
-						    image/png
-						    image/gif)
+	       for data = (loop for image-type in
+				(loop for st across
+				      (gui-get-selection type 'TARGETS)
+				      when (equal (car (split-string
+							(symbol-name st)
+							"/"))
+						  "image")
+				      collect st)
 				for data = (x-get-selection-internal
 					    type image-type)
 				when data
