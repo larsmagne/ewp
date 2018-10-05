@@ -743,18 +743,14 @@ All normal editing commands are switched off.
   (interactive)
   (let ((data
 	 (loop for type in '(PRIMARY CLIPBOARD)
-	       for data = (loop for image-type in
-				(loop for st across
+	       for data = (x-get-selection-internal
+			   type (loop for st across
 				      (gui-get-selection type 'TARGETS)
 				      when (equal (car (split-string
 							(symbol-name st)
 							"/"))
 						  "image")
-				      collect st)
-				for data = (x-get-selection-internal
-					    type image-type)
-				when data
-				return data)
+				      return st))
 	       when data
 	       return data)))
     (if (not data)
