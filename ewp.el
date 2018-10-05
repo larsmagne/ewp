@@ -733,7 +733,9 @@ All normal editing commands are switched off.
 	   ;; Firefox.
 	   (decode-coding-string data 'utf-16-le)
 	 ;; But some sources add a nul to the end of the data.
-	 (replace-regexp-in-string (string 0) "" data))))))
+	 (decode-coding-string
+	  (replace-regexp-in-string (string 0) "" data)
+	  'utf-8))))))
 
 (defun ewp-yank-picture ()
   "Yank the contents of the current X image selection/clipboard, if any."
