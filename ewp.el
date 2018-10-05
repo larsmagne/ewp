@@ -269,6 +269,7 @@ which is to be returned.  Can be used with pages as well."
     (set-keymap-parent map text-mode-map)
     (define-key map "\C-c\C-c" 'ewp-update-post)
     (define-key map "\C-c\C-a" 'ewp-yank-with-href)
+    (define-key map "\C-c\C-n" 'ewp-clean-link)
     (define-key map "\C-c\C-q" 'ewp-yank-with-blockquote)
     (define-key map "\C-c\C-m" 'ewp-yank-html)
     (define-key map "\C-c\C-p" 'ewp-yank-picture)
@@ -767,6 +768,30 @@ All normal editing commands are switched off.
 					 "\\(>\\| .*>\\)")
 				 nil t)
 	  (delete-region (match-beginning 0) (match-end 0)))))))
+
+(defun ewp-clean-link (beg end)
+  "Remove everything but the <a href=...>...</a> from the region."
+  (interactive "r")
+  (let ((a (car (dom-by-tag (libxml-parse-html-region beg end) 'a))))
+    (if (not a)
+	(error "No link in the region")
+      (dom-set-attributes a (list (cons 'href (dom-attr a 'href))))
+      (delete-region beg end)
+      (ewp-print-html a))))
+
+(defun ewp-print-html (dom)
+  "Convert DOM into a string containing the xml representation."
+  (if (stringp dom)
+      (insert dom)
+    (insert (format "<%s" (car dom)))
+    (dolist (attr (nth 1 dom))
+      ;; Ignore attributes that start with a colon.
+      (unless (= (aref (format "%s" (car attr)) 0) ?:)
+        (insert (format " %s=\"%s\"" (car attr) (cdr attr)))))
+    (insert ">")
+    (dolist (elem (nthcdr 2 dom))
+      (svg-print elem))
+    (insert (format "</%s>" (car dom)))))
 
 (provide 'ewp)
 
