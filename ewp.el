@@ -62,6 +62,7 @@
     (set-keymap-parent map special-mode-map)
     (define-key map "e" 'ewp-select-post)
     (define-key map "p" 'ewp-preview)
+    (define-key map "m" 'ewp-list-media)
     (define-key map "n" 'ewp-new-post)
     (define-key map "N" 'ewp-new-page)
     (define-key map "g" 'ewp)
@@ -158,7 +159,7 @@ All normal editing commands are switched off.
     auth))
 
 (defun ewp-get-posts (blog-xmlrpc user-name password blog-id posts)
-  "Retrieves list of posts from the weblog system. Uses wp.getPages."
+  "Retrieves list of posts from the weblog system. Uses wp.getPosts."
   (xml-rpc-method-call blog-xmlrpc
                        "wp.getPosts"
                        blog-id
@@ -796,6 +797,96 @@ All normal editing commands are switched off.
       (svg-print elem))
     (insert (format "</%s>" (car dom)))))
 
+(defun ewp-get-media-library (blog-xmlrpc user-name password blog-id count)
+  "Retrieves list of images etc from the weblog system. Uses wp.getMediaLibrary."
+  (xml-rpc-method-call blog-xmlrpc
+                       "wp.getMediaLibrary"
+                       blog-id
+                       user-name
+                       password
+		       `(("number" . ,count))))
+
+(defun ewp-list-media (&optional address)
+  "List the media on the ADDRESS blog."  
+  (interactive)
+  (switch-to-buffer (format "*%s media*" address))
+  (let* ((address (or address ewp-address))
+	 (auth (ewp-auth address))
+	 (media
+	  (ewp-get-media-library
+	   (format "https://%s/xmlrpc.php" address)
+	   (getf auth :user) (funcall (getf auth :secret))
+	   ewp-blog-id 500))
+	 (inhibit-read-only t))
+    (erase-buffer)
+    (ewp-list-media-mode)
+    (dolist (elem media)
+      (insert
+       (propertize
+	(format
+	 "%s %s %s\n"
+	 (propertize
+	  (format-time-string "%Y-%m-%d"
+			      (caddr (assoc "date_created_gmt" elem)))
+	  'face '(variable-pitch :foreground "#a0a0a0"))
+	 (propertize (cdr (assoc "title" elem))
+		     'face 'variable-pitch)
+	 (propertize
+	  (cdr (assoc "type" elem))
+	  'face '(variable-pitch :foreground "#808080")))
+	'data elem)))))
+
+(defvar ewp-list-media-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map special-mode-map)
+    (define-key map "w" 'ewp-copy-media)
+    (define-key map "\r" 'ewp-show-media)
+    map))
+
+(define-derived-mode ewp-list-media-mode special-mode "ewp"
+  "Major mode for listing Wordpress media.
+
+All normal editing commands are switched off.
+\\<ewp-mode-map>"
+  (buffer-disable-undo)
+  (setq truncate-lines t
+	buffer-read-only t))
+
+(defun ewp-show-media ()
+  "Show the media under point."
+  (interactive)
+  (let ((data (get-text-property (point) 'data)))
+    (if (not data)
+	(error "No media under point")
+      (eww (cdr (assoc "link" data))))))
+
+(defun ewp-copy-media ()
+  "Copy the media under point to the kill ring."
+  (interactive)
+  (let ((data (get-text-property (point) 'data)))
+    (if (not data)
+	(error "No media under point")
+      (url-retrieve
+       (cdr (assoc "link" data))
+       (lambda (_)
+	 (goto-char (point-min))
+	 (let (image)
+	   (when (search-forward "\n\n")
+	     (setq image (buffer-substring (point) (point-max))))
+	   (kill-buffer (current-buffer))
+	   (when image
+	     (with-temp-buffer
+	       (insert-image (create-image image 'imagemagick t
+					   :max-width 500)
+			     (format
+			      "<a href=%S><img src=%S></a>\n"
+			      (cdr (assoc "link" data))
+			      (cdr (assoc "link" data))))
+	       (insert "\n")
+	       (copy-region-as-kill (point-min) (point-max))
+	       (message "Copied %s to the kill ring"
+			(cdr (assoc "link" data)))))))))))
+			      
 (provide 'ewp)
 
 ;;; ewp.el ends here

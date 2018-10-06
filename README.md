@@ -22,7 +22,7 @@ and then `M-x ewp-blogs' to start browsing.
 
 # Modes
 
-There are three different modes made available by this package:
+There are four different modes made available by this package:
 
 ## ewp-list-blogs-mode:
 
@@ -38,6 +38,7 @@ There are three different modes made available by this package:
 * N: Create a new page.
 * p: Preview the draft under point in an external web browser.
 * g: Rescan the list of blog posts/pages on this blog.
+* m: List the media on this blog.
 
 
 ## ewp-edit-mode:
@@ -55,3 +56,7 @@ There are three different modes made available by this package:
 * C-c C-l: Remove one layer of HTML tagging.
 * TAB:     In the Categories header, provide category completion.
 
+## ewp-list-media-mode:
+
+* RET: Look at the media item (i.e., image) under point with eww
+* w: Copy the image under point to the kill ring as an &lt;img&gt; construct
