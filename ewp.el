@@ -743,16 +743,14 @@ All normal editing commands are switched off.
   (interactive)
   (let ((data
 	 (loop for type in '(PRIMARY CLIPBOARD)
-	       for data = (x-get-selection-internal
-			   type (loop for st across
-				      (gui-get-selection type 'TARGETS)
-				      when (equal (car (split-string
-							(symbol-name st)
-							"/"))
-						  "image")
-				      return st))
-	       when data
-	       return data)))
+	       for st = (loop for st across
+			      (gui-get-selection type 'TARGETS)
+			      when (equal (car (split-string
+						(symbol-name st) "/"))
+					  "image")
+			      return st)
+	       when st
+	       return (x-get-selection-internal type st))))
     (if (not data)
 	(message "No image data in the current selection/clipboard")
       (set-mark (point))
@@ -883,7 +881,26 @@ All normal editing commands are switched off.
 	       (insert "\n")
 	       (copy-region-as-kill (point-min) (point-max))
 	       (message "Copied %s to the kill ring" url)))))))))
-			      
+
+(defun ewp-insert-screenshot (delay)
+  "Take a screenshot and insert in the current buffer."
+  (interactive "p")
+  (decf delay)
+  (unless (zerop delay)
+    (dotimes (i delay)
+      (message "Sleeping %d seconds..." (- delay i))
+      (sleep-for 1)))
+  (message "Take screenshot")
+  (let ((image
+	 (with-temp-buffer
+	   (set-buffer-multibyte nil)
+	   (call-process "import" nil (current-buffer) nil "png:-")
+	   (buffer-string))))
+    (set-mark (point))
+    (ewp-insert-image-data image)
+    (insert "\n\n")
+    (message "")))
+
 (provide 'ewp)
 
 ;;; ewp.el ends here
