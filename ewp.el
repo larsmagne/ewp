@@ -279,8 +279,9 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-d" 'ewp-download-and-insert-image)
     (define-key map "\C-c\C-t" 'ewp-insert-tag)
     (define-key map "\C-c\C-u" 'ewp-unfill-paragraph)
-    (define-key map "\C-c\C-I" 'ewp-remove-image-thumbnails)
+    (define-key map "\C-c\C-q" 'ewp-remove-image-thumbnails)
     (define-key map "\C-c\C-l" 'ewp-remove-html-layer)
+    (define-key map "\C-c\C-s" 'ewp-import-screenshot)
     (define-key map "\t" 'ewp-complete)
     map))
 
@@ -882,7 +883,7 @@ All normal editing commands are switched off.
 	       (copy-region-as-kill (point-min) (point-max))
 	       (message "Copied %s to the kill ring" url)))))))))
 
-(defun ewp-insert-screenshot (delay)
+(defun ewp-import-screenshot (delay)
   "Take a screenshot and insert in the current buffer."
   (interactive "p")
   (decf delay)
