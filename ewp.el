@@ -74,7 +74,6 @@
 All normal editing commands are switched off.
 \\<ewp-mode-map>"
   (buffer-disable-undo)
-  (set-face-attribute 'variable-pitch nil :height 100)
   (setq truncate-lines t
 	buffer-read-only t))
 
