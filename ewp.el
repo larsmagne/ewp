@@ -675,7 +675,7 @@ All normal editing commands are switched off.
       (goto-char start)
       (unless (bobp)
 	(forward-line 1))
-      (while (re-search-forward " *\n *" end t)
+      (while (re-search-forward " *\n *" (1- end) t)
 	(replace-match " " t t)))))
 
 (defun ewp-download-and-insert-image ()
