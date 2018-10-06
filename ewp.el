@@ -863,11 +863,12 @@ All normal editing commands are switched off.
 (defun ewp-copy-media ()
   "Copy the media under point to the kill ring."
   (interactive)
-  (let ((data (get-text-property (point) 'data)))
+  (let* ((data (get-text-property (point) 'data))
+	 (url (cdr (assoc "link" data))))
     (if (not data)
 	(error "No media under point")
       (url-retrieve
-       (cdr (assoc "link" data))
+       url
        (lambda (_)
 	 (goto-char (point-min))
 	 (let (image)
@@ -878,14 +879,10 @@ All normal editing commands are switched off.
 	     (with-temp-buffer
 	       (insert-image (create-image image 'imagemagick t
 					   :max-width 500)
-			     (format
-			      "<a href=%S><img src=%S></a>\n"
-			      (cdr (assoc "link" data))
-			      (cdr (assoc "link" data))))
+			     (format "<a href=%S><img src=%S></a>\n" url url))
 	       (insert "\n")
 	       (copy-region-as-kill (point-min) (point-max))
-	       (message "Copied %s to the kill ring"
-			(cdr (assoc "link" data)))))))))))
+	       (message "Copied %s to the kill ring" url)))))))))
 			      
 (provide 'ewp)
 
