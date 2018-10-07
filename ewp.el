@@ -819,6 +819,7 @@ All normal editing commands are switched off.
 	 (inhibit-read-only t))
     (erase-buffer)
     (ewp-list-media-mode)
+    (setq-local ewp-address address)
     (dolist (elem media)
       (insert
        (propertize
@@ -838,6 +839,7 @@ All normal editing commands are switched off.
 (defvar ewp-list-media-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map special-mode-map)
+    (define-key map "g" 'ewp-list-media)
     (define-key map "w" 'ewp-copy-media)
     (define-key map "\r" 'ewp-show-media)
     map))
