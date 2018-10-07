@@ -47,7 +47,7 @@ There are four different modes made available by this package:
 * C-c C-a: Treat the contents of the kill ring as an URL and insert it as &lt;a href="..."&gt;&lt;/a&gt;
 * C-c C-q: Yank the contents of a kill ring into &lt;blockquote&gt;.
 * C-c C-i: Insert an image into the buffer.
-* C-c C-i: Prompt for an HTML tag and insert a &lt;tag&gt;&lt;/tag&gt; pair.
+* C-c C-t: Prompt for an HTML tag and insert a &lt;tag&gt;&lt;/tag&gt; pair.
 * C-c C-q: Remove image thumbnails.
 * C-c C-d: Download the image in the kill ring and insert it.
 * C-c C-m: Yank the current text/html markup from the X selection.
