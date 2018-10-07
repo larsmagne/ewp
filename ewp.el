@@ -322,7 +322,8 @@ which is to be returned.  Can be used with pages as well."
 	      (mapcar #'string-trim
 		      (split-string (cdr (assoc "Categories" headers)) ",")))
       (nconc post (list (cons "date" (ewp-current-time
-				      post (assoc "schedule" post)))))
+				      post
+				      (cdr (assoc "Schedule" headers))))))
       (apply
        (if pagep
 	   (if ewp-post
