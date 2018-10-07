@@ -291,7 +291,9 @@ which is to be returned.  Can be used with pages as well."
   (setq-local word-wrap t)
   (setq-local normal-auto-fill-function 'ignore)
   (setq-local completion-at-point-functions
-	      (cons 'ewp-complete-category completion-at-point-functions)))
+	      (cons
+	       'ewp-complete-status
+	       (cons 'ewp-complete-category completion-at-point-functions))))
 
 (defun ewp-update-post ()
   "Update the post in the current buffer on Wordpress."
@@ -608,6 +610,19 @@ All normal editing commands are switched off.
 	       (e (progn (skip-chars-forward "^,\t\n ") (point)))
 	       (completion-ignore-case t))
 	   (completion-in-region b e categories)
+	   'completion-attempted))))
+
+(defun ewp-complete-status ()
+  (and (save-excursion
+	 (beginning-of-line)
+	 (looking-at "Status: "))
+       (lambda ()
+	 (let ((statuses '("draft" "publish"))
+	       (b (save-excursion
+		    (beginning-of-line)
+		    (search-forward ": ")))
+	       (completion-ignore-case t))
+	   (completion-in-region b (line-end-position) statuses)
 	   'completion-attempted))))
 
 (defun ewp-categories ()
