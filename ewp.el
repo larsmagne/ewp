@@ -274,7 +274,6 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-q" 'ewp-yank-with-blockquote)
     (define-key map "\C-c\C-m" 'ewp-yank-html)
     (define-key map "\C-c\C-p" 'ewp-yank-picture)
-    (define-key map "\C-c\C-b" 'ewp-insert-bold)
     (define-key map "\C-c\C-i" 'ewp-insert-img)
     (define-key map "\C-c\C-d" 'ewp-download-and-insert-image)
     (define-key map "\C-c\C-t" 'ewp-insert-tag)
@@ -666,12 +665,6 @@ All normal editing commands are switched off.
   (insert-image (create-image file 'imagemagick nil :max-width 500)
 		(format "<img src=%S>" file))
   (insert "\n\n"))
-
-(defun ewp-insert-bold ()
-  "Insert <b> tags."
-  (interactive)
-  (insert "<b></b>\n")
-  (backward-char 5))
 
 (defun ewp-insert-tag (tag)
   "Insert a balanced pair of tags."
