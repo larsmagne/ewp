@@ -72,6 +72,7 @@
     (define-key map "N" 'ewp-new-page)
     (define-key map "g" 'ewp)
     (define-key map "\r" 'ewp-browse)
+    (define-key map "w" 'ewp-copy-link)
     map))
 
 (define-derived-mode ewp-list-mode special-mode "ewp"
@@ -950,6 +951,14 @@ starting the screenshotting process."
     (goto-char (point-min))
     (when (re-search-forward "^Status: draft" nil t)
       (replace-match "Status: publish"))))
+
+(defun ewp-copy-link ()
+  "Copy the URL of the blog post under point to the kill ring."
+  (interactive)
+  (let ((data (get-text-property (point) 'data)))
+    (unless data
+      (error "No post under point"))
+    (shr-probe-and-copy-url (cdr (assoc "short_url" data)))))
 
 (provide 'ewp)
 
