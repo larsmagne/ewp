@@ -282,6 +282,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-i" 'ewp-insert-img)
     (define-key map "\C-c\C-d" 'ewp-download-and-insert-image)
     (define-key map "\C-c\C-t" 'ewp-insert-tag)
+    (define-key map "\C-c\C-r" 'ewp-tag-region)
     (define-key map "\C-c\C-u" 'ewp-unfill-paragraph)
     (define-key map "\C-c\C-q" 'ewp-remove-image-thumbnails)
     (define-key map "\C-c\C-l" 'ewp-remove-html-layer)
@@ -678,6 +679,16 @@ All normal editing commands are switched off.
   (let ((point (point)))
     (insert "</" tag ">")
     (goto-char point)))
+
+(defun ewp-tag-region (start end tag)
+  "Insert a balanced pair of tags around the region."
+  (interactive (list (mark) (point) (completing-read "Tag: " ewp-html-tags)))
+  (insert "</" tag ">")
+  (setq end (point))
+  (goto-char start)
+  (let ((string (concat "<" tag ">")))
+    (insert string)
+    (goto-char (+ end (length string)))))
 
 (defun ewp-unfill-paragraph ()
   "Remove newlines from the current paragraph."

@@ -48,6 +48,7 @@ There are four different modes made available by this package:
 * C-c C-q: Yank the contents of a kill ring into &lt;blockquote&gt;.
 * C-c C-i: Insert an image into the buffer.
 * C-c C-t: Prompt for an HTML tag and insert a &lt;tag&gt;&lt;/tag&gt; pair.
+* C-c C-r: Prompt for an HTML tag and insert the pair around the region.
 * C-c C-q: Remove image thumbnails.
 * C-c C-d: Download the image in the kill ring and insert it.
 * C-c C-m: Yank the current text/html markup from the X selection.
