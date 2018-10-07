@@ -936,7 +936,10 @@ starting the screenshotting process."
     (goto-char (point-min))
     (search-forward "\n\n")
     (forward-line -1)
-    (insert (format-time-string "Schedule: %FT%T\n"))))
+    (insert (format-time-string "Schedule: %FT%T\n"))
+    (goto-char (point-min))
+    (when (re-search-forward "^Status: draft" nil t)
+      (replace-match "Status: publish"))))
 
 (provide 'ewp)
 
