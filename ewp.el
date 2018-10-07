@@ -98,7 +98,7 @@ All normal editing commands are switched off.
 	     (ewp-get-posts
 	      (format "https://%s/xmlrpc.php" address)
 	      (getf auth :user) (funcall (getf auth :secret))
-	      ewp-blog-id 1000))
+	      ewp-blog-id 100))
       (ewp-print-entry post "post"))
     (dolist (post
 	     (wp-get-pagelist
@@ -808,33 +808,34 @@ All normal editing commands are switched off.
 (defun ewp-list-media (&optional address)
   "List the media on the ADDRESS blog."  
   (interactive)
-  (switch-to-buffer (format "*%s media*" address))
   (let* ((address (or address ewp-address))
 	 (auth (ewp-auth address))
 	 (media
 	  (ewp-get-media-library
 	   (format "https://%s/xmlrpc.php" address)
 	   (getf auth :user) (funcall (getf auth :secret))
-	   ewp-blog-id 500))
-	 (inhibit-read-only t))
-    (erase-buffer)
-    (ewp-list-media-mode)
-    (setq-local ewp-address address)
-    (dolist (elem media)
-      (insert
-       (propertize
-	(format
-	 "%s %s %s\n"
+	   ewp-blog-id 500)))
+    (switch-to-buffer (format "*%s media*" address))
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (ewp-list-media-mode)
+      (setq-local ewp-address address)
+      (dolist (elem media)
+	(insert
 	 (propertize
-	  (format-time-string "%Y-%m-%d"
-			      (caddr (assoc "date_created_gmt" elem)))
-	  'face '(variable-pitch :foreground "#a0a0a0"))
-	 (propertize (cdr (assoc "title" elem))
-		     'face 'variable-pitch)
-	 (propertize
-	  (cdr (assoc "type" elem))
-	  'face '(variable-pitch :foreground "#808080")))
-	'data elem)))))
+	  (format
+	   "%s %s %s\n"
+	   (propertize
+	    (format-time-string "%Y-%m-%d"
+				(caddr (assoc "date_created_gmt" elem)))
+	    'face '(variable-pitch :foreground "#a0a0a0"))
+	   (propertize (cdr (assoc "title" elem))
+		       'face 'variable-pitch)
+	   (propertize
+	    (cdr (assoc "type" elem))
+	    'face '(variable-pitch :foreground "#808080")))
+	  'data elem))))
+    (goto-char (point-min))))
 
 (defvar ewp-list-media-mode-map
   (let ((map (make-sparse-keymap)))
