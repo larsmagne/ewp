@@ -282,6 +282,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-q" 'ewp-remove-image-thumbnails)
     (define-key map "\C-c\C-l" 'ewp-remove-html-layer)
     (define-key map "\C-c\C-s" 'ewp-import-screenshot)
+    (define-key map "\C-c\C-z" 'ewp-schedule)
     (define-key map "\t" 'ewp-complete)
     map))
 
@@ -320,7 +321,8 @@ which is to be returned.  Can be used with pages as well."
       (setcdr (assoc "categories" post)
 	      (mapcar #'string-trim
 		      (split-string (cdr (assoc "Categories" headers)) ",")))
-      (nconc post (list (cons "date" (ewp-current-time post))))
+      (nconc post (list (cons "date" (ewp-current-time
+				      post (assoc "schedule" post)))))
       (apply
        (if pagep
 	   (if ewp-post
@@ -348,10 +350,12 @@ which is to be returned.  Can be used with pages as well."
 		 "Posted"))
       (bury-buffer))))
 
-(defun ewp-current-time (post)
+(defun ewp-current-time (post scheduled)
   (format-time-string
    "%Y%m%dT%H:%M:%S"
-   (caddr (assoc "dateCreated_gmt" post))
+   (if (plusp (length scheduled))
+       (parse-iso8601-time-string scheduled)
+     (caddr (assoc "dateCreated_gmt" post)))
    "UTC"))
 
 (defun ewp-new-post (&optional address)
@@ -923,6 +927,15 @@ starting the screenshotting process."
     (ewp-insert-image-data image)
     (insert "\n\n")
     (message "Screenshot copied to the kill ring")))
+
+(defun ewp-schedule ()
+  "Insert a Schedule header with the current time."
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (search-forward "\n\n")
+    (forward-line -1)
+    (insert (format-time-string "Schedule: %FT%T\n"))))
 
 (provide 'ewp)
 
