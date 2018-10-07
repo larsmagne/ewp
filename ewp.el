@@ -728,6 +728,7 @@ All normal editing commands are switched off.
    (create-image image 'imagemagick t
 		 :max-width 500)
    (format "<img src=\"data:%s;base64,%s\">"
+	   ;; Get the MIME type by running "file" over it.
 	   (with-temp-buffer
 	     (set-buffer-multibyte nil)
 	     (insert image)
@@ -735,6 +736,7 @@ All normal editing commands are switched off.
 				  "file" t (current-buffer) nil
 				  "--mime-type" "-")
 	     (cadr (split-string (buffer-string))))
+	   ;; Get a base64 version of the image.
 	   (with-temp-buffer
 	     (set-buffer-multibyte nil)
 	     (insert image)
