@@ -920,7 +920,11 @@ starting the screenshotting process."
   (decf delay)
   (unless (zerop delay)
     (dotimes (i delay)
-      (message "Sleeping %d seconds..." (- delay i))
+      (message "Sleeping %d second%s..."
+	       (- delay i)
+	       (if (= (- delay i) 1)
+		   ""
+		 "s"))
       (sleep-for 1)))
   (message "Take screenshot")
   (let ((image
