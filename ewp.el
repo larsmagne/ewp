@@ -931,7 +931,7 @@ starting the screenshotting process."
     (set-mark (point))
     (ewp-insert-image-data image)
     (insert "\n\n")
-    (message "Screenshot copied to the kill ring")))
+    (message "")))
 
 (defun ewp-schedule ()
   "Insert a Schedule header with the current time."
