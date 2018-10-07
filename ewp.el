@@ -886,7 +886,9 @@ All normal editing commands are switched off.
 	       (message "Copied %s to the kill ring" url)))))))))
 
 (defun ewp-import-screenshot (delay)
-  "Take a screenshot and insert in the current buffer."
+  "Take a screenshot and insert in the current buffer.
+DELAY (the numeric prefix) says how many seconds to wait before
+starting the screenshotting process."
   (interactive "p")
   (unless (executable-find "import")
     (error "Can't find ImageMagick import command on this system"))
