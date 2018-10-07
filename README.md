@@ -45,7 +45,7 @@ There are four different modes made available by this package:
 
 * C-c C-c: Post your edits to the blog.  This will update your Wordpress.
 * C-c C-a: Treat the contents of the kill ring as an URL and insert it as &lt;a href="..."&gt;&lt;/a&gt;
-* C-c C-q: Yank the contents of a kill ring into &lt;blockquote&gt;.
+* C-c C-b: Yank the contents of a kill ring into &lt;blockquote&gt;.
 * C-c C-i: Insert an image into the buffer.
 * C-c C-t: Prompt for an HTML tag and insert a &lt;tag&gt;&lt;/tag&gt; pair.
 * C-c C-r: Prompt for an HTML tag and insert the pair around the region.
@@ -56,6 +56,7 @@ There are four different modes made available by this package:
 * C-c C-p: Yank the current text/jpeg X selection.
 * C-c C-l: Remove one layer of HTML tagging.
 * C-c C-s: Import a screenshot.
+* C-c C-o: Quote HTML entities in region.
 * TAB:     In the Categories header, provide category completion.
 
 ## ewp-list-media-mode:

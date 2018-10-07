@@ -277,7 +277,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-c" 'ewp-update-post)
     (define-key map "\C-c\C-a" 'ewp-yank-with-href)
     (define-key map "\C-c\C-n" 'ewp-clean-link)
-    (define-key map "\C-c\C-q" 'ewp-yank-with-blockquote)
+    (define-key map "\C-c\C-b" 'ewp-yank-with-blockquote)
     (define-key map "\C-c\C-m" 'ewp-yank-html)
     (define-key map "\C-c\C-p" 'ewp-yank-picture)
     (define-key map "\C-c\C-i" 'ewp-insert-img)
@@ -289,6 +289,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-l" 'ewp-remove-html-layer)
     (define-key map "\C-c\C-s" 'ewp-import-screenshot)
     (define-key map "\C-c\C-z" 'ewp-schedule)
+    (define-key map "\C-c\C-o" 'ewp-html-quote-region)
     (define-key map "\t" 'ewp-complete)
     map))
 
@@ -662,6 +663,9 @@ All normal editing commands are switched off.
   "Yank the current kill ring item as a <blockquote>."
   (interactive)
   (set-mark (point))
+  (when-let ((url (x-get-selection-internal 'PRIMARY 'text/x-moz-url-priv)))
+    (insert (format "On <a href=%S>somebody</a> wrote:\n\n"
+		    (ewp-decode-text-selection url))))
   (insert "<blockquote>\n")
   (insert (substring-no-properties (current-kill 0)))
   (insert "</blockquote>\n\n"))
@@ -754,17 +758,19 @@ All normal editing commands are switched off.
     (if (not data)
 	(message "No text/html data in the current selection")
       (set-mark (point))
-      (insert
-       (if (and (> (length data) 2)
-		(= (aref data 0) 255)
-		(= (aref data 1) 254))
-	   ;; Somehow the selection is UTF-16 when selecting text in
-	   ;; Firefox.
-	   (decode-coding-string data 'utf-16-le)
-	 ;; But some sources add a nul to the end of the data.
-	 (decode-coding-string
-	  (replace-regexp-in-string (string 0) "" data)
-	  'utf-8))))))
+      (insert (ewp-decode-text-selection data)))))
+
+(defun ewp-decode-text-selection (data)
+  (if (and (> (length data) 2)
+	   (= (aref data 0) 255)
+	   (= (aref data 1) 254))
+      ;; Somehow the selection is UTF-16 when selecting text in
+      ;; Firefox.
+      (decode-coding-string data 'utf-16-le)
+    ;; But some sources add a nul to the end of the data.
+    (decode-coding-string
+     (replace-regexp-in-string (string 0) "" data)
+     'utf-8)))
 
 (defun ewp-yank-picture ()
   "Yank the contents of the current X image selection/clipboard, if any."
@@ -959,6 +965,20 @@ starting the screenshotting process."
     (unless data
       (error "No post under point"))
     (shr-probe-and-copy-url (cdr (assoc "short_url" data)))))
+
+(defun ewp-html-quote-region (start end)
+  "Quote some HTML entities in the region."
+  (interactive "r")
+  (save-excursion
+    (save-restriction
+      (goto-char start)
+      (narrow-to-region start end)
+      (while (re-search-forward "[<>&]" nil t)
+	(replace-match
+	 (pcase (match-string 0)
+	   ("<" "&lt;")
+	   (">" "&gt;")
+	   ("&" "&amp;")))))))
 
 (provide 'ewp)
 
