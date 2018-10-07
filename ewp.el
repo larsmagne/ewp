@@ -888,6 +888,8 @@ All normal editing commands are switched off.
 (defun ewp-import-screenshot (delay)
   "Take a screenshot and insert in the current buffer."
   (interactive "p")
+  (unless (executable-find "import")
+    (error "Can't find ImageMagick import command on this system"))
   (decf delay)
   (unless (zerop delay)
     (dotimes (i delay)
