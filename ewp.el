@@ -53,6 +53,11 @@
 (defvar ewp-image-width 840
   "What width to tell Wordpress to resize images to when displaying on the blog.")
 
+(defvar ewp-html-tags
+  '("b" "blockquote" "body" "div" "em" "h1" "h2" "h3" "h4" "h5" "h6"
+    "i" "img" "ul" "li" "ol" "pre" "span" "table" "td" "tr" "u")
+  "A list of HTML tags that you might want to complete over.")
+
 (defvar ewp-post)
 (defvar ewp-address)
 (defvar ewp-categories)
@@ -668,12 +673,7 @@ All normal editing commands are switched off.
 
 (defun ewp-insert-tag (tag)
   "Insert a balanced pair of tags."
-  (interactive (list (completing-read
-		      "Tag: "
-		      '("b" "blockquote" "body" "div" "em"
-			"h1" "h2" "h3" "h4" "h5" "h6"
-			"i" "img" "ul" "li" "ol" "pre" "span"
-			"table" "td" "tr" "u"))))
+  (interactive (list (completing-read "Tag: " ewp-html-tags)))
   (insert "<" tag ">")
   (let ((point (point)))
     (insert "</" tag ">")
