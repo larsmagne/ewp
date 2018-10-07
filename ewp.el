@@ -703,7 +703,7 @@ All normal editing commands are switched off.
 	(replace-match " " t t)))))
 
 (defun ewp-download-and-insert-image ()
-  "Download and insert the image from the kill ring."
+  "Download and insert the image from the URL in the kill ring."
   (interactive)
   (let* ((url (substring-no-properties (current-kill 0)))
 	 (buffer (current-buffer)))
