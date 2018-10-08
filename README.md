@@ -39,7 +39,8 @@ There are five different modes made available by this package:
 * p: Preview the draft under point in an external web browser.
 * g: Rescan the list of blog posts/pages on this blog.
 * m: List the media on this blog.
-* c: List the comments on this blog.
+* C: List the comments on this blog.
+* c: Make a comment.
 
 
 ## ewp-edit-mode:
@@ -73,4 +74,5 @@ There are five different modes made available by this package:
 * a: Approve the comment under point.
 * h: Hold (unapprove) the comment under point.
 * d: Delete (trash) the comment under point.
+* r: Reply to a comment.
 * RET: Display the comment under point.

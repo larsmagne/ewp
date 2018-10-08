@@ -61,6 +61,7 @@
 (defvar ewp-post)
 (defvar ewp-address)
 (defvar ewp-categories)
+(defvar ewp-comment)
 
 (defvar ewp-list-mode-map
   (let ((map (make-sparse-keymap)))
@@ -73,7 +74,8 @@
     (define-key map "g" 'ewp)
     (define-key map "\r" 'ewp-browse)
     (define-key map "w" 'ewp-copy-link)
-    (define-key map "c" 'ewp-list-comments)
+    (define-key map "c" 'ewp-make-comment)
+    (define-key map "C" 'ewp-list-comments)
     map))
 
 (define-derived-mode ewp-list-mode special-mode "ewp"
@@ -308,56 +310,60 @@ which is to be returned.  Can be used with pages as well."
   "Update the post in the current buffer on Wordpress."
   (interactive)
   (run-hooks 'ewp-send-hook)
-  (save-buffer)
+  (when (buffer-file-name)
+    (save-buffer))
   (ewp-transform-and-upload ewp-address)
-  (save-excursion
-    (goto-char (point-min))
-    (let ((headers nil)
-	  (post (copy-list (or ewp-post
-			       `(("title")
-				 ("description")
-				 ("categories")))))
-	  (pagep (assoc "page_id" ewp-post))
-	  (auth (ewp-auth ewp-address)))
-      (while (looking-at "\\([^\n:]+\\): \\(.*\\)")
-	(push (cons (match-string 1) (match-string 2)) headers)
-	(forward-line 1))
-      (forward-line 1)
-      (setcdr (assoc "description" post)
-	      (buffer-substring (point) (point-max)))
-      (setcdr (assoc "title" post) (cdr (assoc "Title" headers)))
-      (setcdr (assoc "categories" post)
-	      (mapcar #'string-trim
-		      (split-string (cdr (assoc "Categories" headers)) ",")))
-      (nconc post (list (cons "date" (ewp-current-time
-				      post
-				      (cdr (assoc "Schedule" headers))))))
-      (apply
-       (if pagep
+  (if (and (boundp 'ewp-comment)
+	   ewp-comment)
+      (ewp-send-comment)
+    (save-excursion
+      (goto-char (point-min))
+      (let ((headers nil)
+	    (post (copy-list (or ewp-post
+				 `(("title")
+				   ("description")
+				   ("categories")))))
+	    (pagep (assoc "page_id" ewp-post))
+	    (auth (ewp-auth ewp-address)))
+	(while (looking-at "\\([^\n:]+\\): \\(.*\\)")
+	  (push (cons (match-string 1) (match-string 2)) headers)
+	  (forward-line 1))
+	(forward-line 1)
+	(setcdr (assoc "description" post)
+		(buffer-substring (point) (point-max)))
+	(setcdr (assoc "title" post) (cdr (assoc "Title" headers)))
+	(setcdr (assoc "categories" post)
+		(mapcar #'string-trim
+			(split-string (cdr (assoc "Categories" headers)) ",")))
+	(nconc post (list (cons "date" (ewp-current-time
+					post
+					(cdr (assoc "Schedule" headers))))))
+	(apply
+	 (if pagep
+	     (if ewp-post
+		 'wp-edit-page
+	       'wp-new-page)
 	   (if ewp-post
-	       'wp-edit-page
-	     'wp-new-page)
-	 (if ewp-post
-	     'metaweblog-edit-post
-	   'metaweblog-new-post))
-       `(,(format "https://%s/xmlrpc.php" ewp-address)
-	 ,(getf auth :user)
-	 ,(funcall (getf auth :secret))
-	 ,@(if pagep
-	       (list (format "%s" ewp-blog-id))
-	     nil)
-	 ,(format "%s" (if pagep
-			   (cdr (assoc "page_id" post))
-			 (cdr (assoc "postid" post))))
-	 ,post
-	 ;; Publish if already published.
-	 ,(equal (cdr (assoc "Status" headers)) "publish")))
-      (set-buffer-modified-p nil)
-      (message "%s the post"
-	       (if ewp-post
-		   "Edited"
-		 "Posted"))
-      (bury-buffer))))
+	       'metaweblog-edit-post
+	     'metaweblog-new-post))
+	 `(,(format "https://%s/xmlrpc.php" ewp-address)
+	   ,(getf auth :user)
+	   ,(funcall (getf auth :secret))
+	   ,@(if pagep
+		 (list (format "%s" ewp-blog-id))
+	       nil)
+	   ,(format "%s" (if pagep
+			     (cdr (assoc "page_id" post))
+			   (cdr (assoc "postid" post))))
+	   ,post
+	   ;; Publish if already published.
+	   ,(equal (cdr (assoc "Status" headers)) "publish")))
+	(set-buffer-modified-p nil)
+	(message "%s the post"
+		 (if ewp-post
+		     "Edited"
+		   "Posted"))
+	(bury-buffer)))))
 
 (defun ewp-external-time (time)
   (format-time-string "%Y%m%dT%H:%M:%S" time "UTC"))
@@ -1017,6 +1023,7 @@ starting the screenshotting process."
     (define-key map "a" 'ewp-approve-comment)
     (define-key map "h" 'ewp-hold-comment)
     (define-key map "d" 'ewp-trash-comment)
+    (define-key map "r" 'ewp-make-comment)
     map))
 
 (define-derived-mode ewp-list-comments-mode special-mode "ewp"
@@ -1196,6 +1203,74 @@ All normal editing commands are switched off.
 	  (let ((inhibit-read-only t))
 	    (delete-region (line-beginning-position)
 			   (line-beginning-position 2))))))))
+
+(defun ewp-make-comment ()
+  "Post a new comment or a reply to the comment under point."
+  (interactive)
+  (let ((data (get-text-property (point) 'data))
+	(address ewp-address))
+    (unless data
+      (error "No comment under point"))
+    (switch-to-buffer (format "*comment %s*" (cdr (assoc "post_id" data))))
+    (erase-buffer)
+    (ewp-edit-mode)
+    (setq-local ewp-comment data)
+    (setq-local ewp-post data)
+    (setq-local ewp-address address)))
+
+(defun ewp-send-comment ()
+  (let* ((auth (ewp-auth ewp-address))
+	 (result
+	  (ewp-new-comment
+	   (format "https://%s/xmlrpc.php" ewp-address)
+	   (getf auth :user) (funcall (getf auth :secret))
+	   (format "%s" ewp-blog-id)
+	   (cdr (assoc "post_id" ewp-post))
+	   `(("content" . ,(buffer-string))
+	     ("author" . ,user-full-name))
+	   (cdr (assoc "comment_id" ewp-comment)))))
+    (if (numberp result)
+	(progn
+	  (message "Comment posted")
+	  (bury-buffer))
+      (message "Error while posting: %s" result))))
+
+(defun ewp-new-comment (blog-xmlrpc user-name password blog-id post-id
+				    data &optional comment-parent)
+  "Edits an exiting comment."
+  (xml-rpc-xml-to-response
+   (xml-rpc-request
+    blog-xmlrpc
+    `((methodCall
+       nil
+       (methodName nil "wp.newComment")
+       (params
+	nil
+        (param nil (value nil (string nil ,blog-id)))
+        (param nil (value nil (string nil ,user-name)))
+        (param nil (value nil (string nil ,password)))
+        (param nil (value nil (string nil ,post-id)))
+        (param
+	 nil
+	 (value
+	  nil
+          (struct
+           nil
+           (member nil
+                   (name nil "comment_parent")
+                   (value nil ,comment-parent))
+           (member nil
+                   (name nil "content")
+                   (value nil ,(cdr (assoc "content" data))))
+           (member nil
+                   (name nil "author")
+                   (value nil ,(cdr (assoc "author" data))))
+           (member nil
+                   (name nil "author_url")
+                   (value nil ,(cdr (assoc "author_url" data))))
+           (member nil
+                   (name nil "author_email")
+                   (value nil ,(cdr (assoc "author_email" data)))))))))))))
 
 (provide 'ewp)
 
