@@ -1277,7 +1277,22 @@ All normal editing commands are switched off.
 	     (length files) (if (= (length files) 1)
 				""
 			      "s"))))
-      
+
+(defun ewp-dired-upload-media (files)
+  "Upload media files to Wordpress."
+  (interactive (list (dired-get-marked-files nil current-prefix-arg)))
+  (let ((address
+	 (if (> (length ewp-blog-addresses) 1)
+	     (completing-read "Upload to blog: " ewp-blog-addresses nil t)
+	   (car ewp-blog-addresses))))
+    (dolist (file files)
+      (ewp-upload-media address file))
+    (message "Uploaded %s file%s to %s"
+	     (length files)
+	     (if (= (length files) 1)
+		 ""
+	       "s")
+	     address)))
 
 (provide 'ewp)
 

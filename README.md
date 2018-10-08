@@ -80,3 +80,4 @@ There are five different modes made available by this package:
 ## Commands in Dired buffers
 
 * `M-x ewp-dired-copy-as-kill'
+* `M-x ewp-dired-upload-media'
