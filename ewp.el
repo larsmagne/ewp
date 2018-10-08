@@ -73,13 +73,14 @@
     (define-key map "g" 'ewp)
     (define-key map "\r" 'ewp-browse)
     (define-key map "w" 'ewp-copy-link)
+    (define-key map "c" 'ewp-list-comments)
     map))
 
 (define-derived-mode ewp-list-mode special-mode "ewp"
   "Major mode for listing Wordpress posts.
 
 All normal editing commands are switched off.
-\\<ewp-mode-map>"
+\\<ewp-list-mode-map>"
   (buffer-disable-undo)
   (setq truncate-lines t
 	buffer-read-only t))
@@ -358,13 +359,14 @@ which is to be returned.  Can be used with pages as well."
 		 "Posted"))
       (bury-buffer))))
 
+(defun ewp-external-time (time)
+  (format-time-string "%Y%m%dT%H:%M:%S" time "UTC"))
+
 (defun ewp-current-time (post scheduled)
-  (format-time-string
-   "%Y%m%dT%H:%M:%S"
+  (ewp-external-time
    (if (plusp (length scheduled))
        (parse-iso8601-time-string scheduled)
-     (caddr (assoc "dateCreated_gmt" post)))
-   "UTC"))
+     (caddr (assoc "dateCreated_gmt" post)))))
 
 (defun ewp-new-post (&optional address)
   "Start editing a new post."
@@ -979,6 +981,219 @@ starting the screenshotting process."
 	   ("<" "&lt;")
 	   (">" "&gt;")
 	   ("&" "&amp;")))))))
+
+(defun ewp-get-comments (blog-xmlrpc user-name password blog-id comments)
+  "Retrieves list of posts from the weblog system. Uses wp.getComments."
+  (xml-rpc-method-call blog-xmlrpc
+                       "wp.getComments"
+                       blog-id
+                       user-name
+                       password
+		       `(("number" . ,comments))))
+
+(defun ewp-list-comments (&optional address)
+  "List the recent comments for the blog."
+  (interactive)
+  (let* ((address (or address ewp-address))
+	 (auth (ewp-auth address)))
+    (switch-to-buffer (format "%s comments*" address))
+    (ewp-list-comments-mode)
+    (setq-local ewp-address address)
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (dolist (comment 
+	       (ewp-get-comments
+		(format "https://%s/xmlrpc.php" address)
+		(getf auth :user) (funcall (getf auth :secret))
+		ewp-blog-id 10))
+	(ewp-print-comment comment))
+      (goto-char (point-min)))))
+
+(defvar ewp-list-comments-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map special-mode-map)
+    (define-key map "g" 'ewp-list-comments)
+    (define-key map "\r" 'ewp-display-comment)
+    (define-key map "a" 'ewp-approve-comment)
+    (define-key map "h" 'ewp-hold-comment)
+    (define-key map "d" 'ewp-trash-comment)
+    map))
+
+(define-derived-mode ewp-list-comments-mode special-mode "ewp"
+  "Major mode for listing Wordpress comments.
+
+All normal editing commands are switched off.
+\\<ewp-list-comments-mode-map>"
+  (buffer-disable-undo)
+  (setq truncate-lines t
+	buffer-read-only t))
+
+(defun ewp-print-comment (comment)
+  "Insert a Wordpress entry at point."
+  (insert
+   (propertize
+    (format
+     "%s %s%s%s%s%s%s %s\n"
+     (propertize
+      (format-time-string "%Y-%m-%d"
+			  (caddr (assoc "date_created_gmt" comment)))
+      'face 'variable-pitch)
+     (propertize (cdr (assoc "status" comment))
+		 'face '(variable-pitch :foreground "#a0a0a0"))
+     (propertize " " 'display '(space :align-to 20))
+     (propertize
+      (ewp-limit-string (cdr (assoc "author" comment)) 15)
+      'face `(variable-pitch :foreground "#b0b0b0"
+			     ,@(if (not (equal (cdr (assoc "type" comment))
+					       "pingback"))
+				   (list :background "#505050"))))
+     (propertize " " 'display '(space :align-to 35))
+     (propertize
+      (ewp-limit-string
+       (mm-url-decode-entities-string (cdr (assoc "post_title" comment)))
+       15)
+      'face '(variable-pitch :foreground "#b0b0b0"))
+     (propertize " " 'display '(space :align-to 50))
+     (propertize
+      (mm-url-decode-entities-string
+       (replace-regexp-in-string "[\n ]+" " " (cdr (assoc "content" comment))))
+      'face 'variable-pitch))
+    'data comment)))
+
+(defun ewp-display-comment ()
+  "Display the comment under point."
+  (interactive)
+  (let ((data (get-text-property (point) 'data)))
+    (unless data
+      (error "No comment under point"))
+    (switch-to-buffer (format "*%s comment*" (cdr (assoc "comment_id" data))))
+    (ewp-comment-mode)
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (shr-insert-document
+       (with-temp-buffer
+	 (insert
+	  (if (cdr (assoc "author_url" data))
+	      (format "<a href=%S>%s</a>"
+		      (cdr (assoc "author_url" data))
+		      (cdr (assoc "author" data)))
+	    (format "%s" (cdr (assoc "author" data)))))
+	 (insert (format " writes as a comment to <a href=%S>%s</a>:<p>"
+			 (cdr (assoc "link" data))
+			 (cdr (assoc "post_title" data))))
+	 (insert (cdr (assoc "content" data)))
+	 (libxml-parse-html-region (point-min) (point-max))))
+      (goto-char (point-min)))))
+
+(defvar ewp-comment-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map special-mode-map)
+    map))
+
+(define-derived-mode ewp-comment-mode special-mode "ewp"
+  "Major mode for displaying a Wordpress comment.
+
+All normal editing commands are switched off.
+\\<ewp-comment-mode-map>"
+  (buffer-disable-undo)
+  (setq truncate-lines t
+	buffer-read-only t))
+
+(defun ewp-edit-comment (blog-xmlrpc user-name password blog-id comment-id data)
+  "Edits an exiting comment."
+  (xml-rpc-xml-to-response
+   (xml-rpc-request
+    blog-xmlrpc
+    `((methodCall
+       nil
+       (methodName nil "wp.editComment")
+       (params
+	nil
+        (param nil (value nil (string nil ,blog-id)))
+        (param nil (value nil (string nil ,user-name)))
+        (param nil (value nil (string nil ,password)))
+        (param nil (value nil (string nil ,comment-id)))
+        (param
+	 nil
+	 (value
+	  nil
+          (struct
+           nil
+           (member nil
+                   (name nil "status")
+                   (value nil ,(cdr (assoc "status" data))))
+           (member nil
+                   (name nil "dateCreated")
+                   (value nil ,(ewp-external-time
+				(caddr (assoc "date_created_gmt" data)))))
+           (member nil
+                   (name nil "content")
+                   (value nil ,(cdr (assoc "content" data))))
+           (member nil
+                   (name nil "author")
+                   (value nil ,(cdr (assoc "author" data))))
+           (member nil
+                   (name nil "author_url")
+                   (value nil ,(cdr (assoc "author_url" data))))
+           (member nil
+                   (name nil "author_email")
+                   (value nil ,(cdr (assoc "author_email" data)))))))))))))
+
+(defun ewp-approve-comment ()
+  "Approve the comment under point."
+  (interactive)
+  (ewp-change-status "approve"))
+
+(defun ewp-hold-comment ()
+  "Unapprove the comment under point."
+  (interactive)
+  (ewp-change-status "hold"))
+
+(defun ewp-change-status (status)
+  (let ((data (get-text-property (point) 'data))
+	(auth (ewp-auth ewp-address)))
+    (unless data
+      (error "No comment under point"))
+    (setcdr (assoc "status" data) status)
+    (let ((result
+	   (ewp-edit-comment
+	    (format "https://%s/xmlrpc.php" ewp-address)
+	    (getf auth :user) (funcall (getf auth :secret))
+	    (format "%s" ewp-blog-id)
+	    (cdr (assoc "comment_id" data)) data)))
+      (if (eq result t)
+	  (message "Updated comment successfully")
+	(message "Got an error: %s" result)))))
+
+(defun ewp-delete-comment (blog-xmlrpc user-name password blog-id comment-id)
+  "Deletes a comment system. Uses wp.deleteComment."
+  (xml-rpc-method-call blog-xmlrpc
+                       "wp.deleteComment"
+                       blog-id
+                       user-name
+                       password
+		       comment-id))
+
+(defun ewp-trash-comment ()
+  "Trash (i.e., delete) the comment under point."
+  (interactive)
+  (let ((data (get-text-property (point) 'data))
+	(auth (ewp-auth ewp-address)))
+    (unless data
+      (error "No comment under point"))
+    (when (y-or-n-p "Really delete this comment?")
+      (let ((result
+	     (ewp-delete-comment
+	      (format "https://%s/xmlrpc.php" ewp-address)
+	      (getf auth :user) (funcall (getf auth :secret))
+	      (format "%s" ewp-blog-id)
+	      (cdr (assoc "comment_id" data)))))
+	(if (not (eq result t))
+	    (message "Got an error: %s" result)
+	  (message "Comment deleted")
+	  (let ((inhibit-read-only t))
+	    (delete-region (line-beginning-position)
+			   (line-end-position 2))))))))
 
 (provide 'ewp)
 
