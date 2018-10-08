@@ -1260,7 +1260,7 @@ All normal editing commands are switched off.
 
 (defun ewp-new-comment (blog-xmlrpc user-name password blog-id post-id
 				    data &optional comment-parent)
-  "Edits an exiting comment."
+  "Edits an existing comment."
   (xml-rpc-xml-to-response
    (xml-rpc-request
     blog-xmlrpc
