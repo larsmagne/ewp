@@ -1254,7 +1254,7 @@ All normal editing commands are switched off.
     (apply func
 	   (format "https://%s/xmlrpc.php" address)
 	   (getf auth :user) (funcall (getf auth :secret))
-	   ewp-blog-id
+	   (format "%s" ewp-blog-id)
 	   args)))
 
 (provide 'ewp)
