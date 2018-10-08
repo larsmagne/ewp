@@ -37,6 +37,7 @@
 (require 'cl)
 (require 'metaweblog)
 (require 'mm-url)
+(require 'dired)
 
 (defvar ewp-blog-address nil
   "The name/address of the blog, like my.example.blog.")
@@ -698,23 +699,27 @@ All normal editing commands are switched off.
 (defun ewp-download-and-insert-image ()
   "Download and insert the image from the URL in the kill ring."
   (interactive)
-  (let* ((url (substring-no-properties (current-kill 0)))
-	 (buffer (current-buffer)))
-    (url-retrieve
-     url
-     (lambda (_)
-       (goto-char (point-min))
-       (let (image)
-	 (when (search-forward "\n\n")
-	   (setq image (buffer-substring (point) (point-max))))
-	 (kill-buffer (current-buffer))
-	 (when (and image
-		    (buffer-live-p buffer))
-	   (with-current-buffer buffer
-	     (save-excursion
-	       (goto-char (point-max))
-	       (ewp-insert-image-data image)
-	       (insert "\n\n")))))))))
+  (let ((url (substring-no-properties (current-kill 0))))
+    (ewp-download-and-insert-image-1 url (current-buffer))))
+
+(defun ewp-download-and-insert-image-1 (url buffer &optional callback)
+  (url-retrieve
+   url
+   (lambda (_)
+     (goto-char (point-min))
+     (let (image)
+       (when (search-forward "\n\n")
+	 (setq image (buffer-substring (point) (point-max))))
+       (kill-buffer (current-buffer))
+       (when (and image
+		  (buffer-live-p buffer))
+	 (with-current-buffer buffer
+	   (save-excursion
+	     (goto-char (point-max))
+	     (ewp-insert-image-data image)
+	     (insert "\n\n"))
+	   (when callback
+	     (funcall callback))))))))
 
 (defun ewp-insert-image-data (image)
   (insert-image
@@ -1256,6 +1261,23 @@ All normal editing commands are switched off.
 	   (getf auth :user) (funcall (getf auth :secret))
 	   (format "%s" ewp-blog-id)
 	   args)))
+
+(defun ewp-dired-copy-as-kill (files)
+  "Copy the marked images to the kill ring."
+  (interactive (list (dired-get-marked-files nil current-prefix-arg)))
+  (with-temp-buffer
+    (dolist (file files)
+      (ewp-insert-image-data (with-temp-buffer
+			       (set-buffer-multibyte nil)
+			       (insert-file-contents-literally file)
+			       (buffer-string)))
+      (insert "\n\n"))
+    (copy-region-as-kill (point-min) (point-max))
+    (message "Copied %s image%s to the kill ring"
+	     (length files) (if (= (length files) 1)
+				""
+			      "s"))))
+      
 
 (provide 'ewp)
 

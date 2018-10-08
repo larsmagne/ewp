@@ -76,3 +76,7 @@ There are five different modes made available by this package:
 * d: Delete (trash) the comment under point.
 * r: Reply to a comment.
 * RET: Display the comment under point.
+
+## Commands in Dired buffers
+
+* `M-x ewp-dired-copy-as-kill'
