@@ -62,6 +62,7 @@
 (defvar ewp-address)
 (defvar ewp-categories)
 (defvar ewp-comment)
+(defvar ewp-edit)
 
 (defvar ewp-list-mode-map
   (let ((map (make-sparse-keymap)))
@@ -1024,6 +1025,7 @@ starting the screenshotting process."
     (define-key map "h" 'ewp-hold-comment)
     (define-key map "d" 'ewp-trash-comment)
     (define-key map "r" 'ewp-make-comment)
+    (define-key map "e" 'ewp-make-comment-edit)
     map))
 
 (define-derived-mode ewp-list-comments-mode special-mode "ewp"
@@ -1204,7 +1206,7 @@ All normal editing commands are switched off.
 	    (delete-region (line-beginning-position)
 			   (line-beginning-position 2))))))))
 
-(defun ewp-make-comment ()
+(defun ewp-make-comment (&optional editp)
   "Post a new comment or a reply to the comment under point."
   (interactive)
   (let ((data (get-text-property (point) 'data))
@@ -1214,24 +1216,41 @@ All normal editing commands are switched off.
     (switch-to-buffer (format "*comment %s*" (cdr (assoc "post_id" data))))
     (erase-buffer)
     (ewp-edit-mode)
+    (when editp
+      (setq-local ewp-edit data)
+      (insert (cdr (assoc "content" data)))
+      (goto-char (point-min)))
     (setq-local ewp-comment data)
     (setq-local ewp-post data)
     (setq-local ewp-address address)))
 
+(defun ewp-make-comment-edit (&optional editp)
+  "Edit a comment."
+  (interactive)
+  (ewp-make-comment t))
+
 (defun ewp-send-comment ()
   (let* ((auth (ewp-auth ewp-address))
+	 (editp (and (boundp 'ewp-edit)
+		     ewp-edit))
+	 (data
+	  (if editp
+	      (progn
+		(setcdr (assoc "content" ewp-edit) (buffer-string))
+		ewp-edit)
+	    `(("content" . ,(buffer-string))
+	      ("author" . ,user-full-name))))
 	 (result
 	  (ewp-new-comment
 	   (format "https://%s/xmlrpc.php" ewp-address)
 	   (getf auth :user) (funcall (getf auth :secret))
 	   (format "%s" ewp-blog-id)
 	   (cdr (assoc "post_id" ewp-post))
-	   `(("content" . ,(buffer-string))
-	     ("author" . ,user-full-name))
+	   data
 	   (cdr (assoc "comment_id" ewp-comment)))))
     (if (numberp result)
 	(progn
-	  (message "Comment posted")
+	  (message "Comment %s" (if editp "edited" "posted"))
 	  (bury-buffer))
       (message "Error while posting: %s" result))))
 
