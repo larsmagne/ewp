@@ -1005,7 +1005,7 @@ starting the screenshotting process."
 	       (ewp-get-comments
 		(format "https://%s/xmlrpc.php" address)
 		(getf auth :user) (funcall (getf auth :secret))
-		ewp-blog-id 10))
+		ewp-blog-id 100))
 	(ewp-print-comment comment))
       (goto-char (point-min)))))
 
@@ -1042,7 +1042,7 @@ All normal editing commands are switched off.
 		 'face '(variable-pitch :foreground "#a0a0a0"))
      (propertize " " 'display '(space :align-to 20))
      (propertize
-      (ewp-limit-string (cdr (assoc "author" comment)) 15)
+      (ewp-limit-string (or (cdr (assoc "author" comment)) "") 15)
       'face `(variable-pitch :foreground "#b0b0b0"
 			     ,@(if (not (equal (cdr (assoc "type" comment))
 					       "pingback"))
@@ -1076,8 +1076,8 @@ All normal editing commands are switched off.
 	  (if (cdr (assoc "author_url" data))
 	      (format "<a href=%S>%s</a>"
 		      (cdr (assoc "author_url" data))
-		      (cdr (assoc "author" data)))
-	    (format "%s" (cdr (assoc "author" data)))))
+		      (or (cdr (assoc "author" data)) "Somebody"))
+	    (format "%s" (or (cdr (assoc "author" data)) "Somebody"))))
 	 (insert (format " writes as a comment to <a href=%S>%s</a>:<p>"
 			 (cdr (assoc "link" data))
 			 (cdr (assoc "post_title" data))))
