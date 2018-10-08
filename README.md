@@ -13,7 +13,7 @@ See https://lars.ingebrigtsen.no/2018/10/02/editing-wordpress-articles-in-emacs/
 To get started, put something like the following in your .emacs:
 
 ```
-   (cl-push "~/src/ewp" load-path)
+   (push "~/src/ewp" load-path)
    (autoload 'ewp-blogs "ewp.el" "List Wordpress blogs" t)
    (setq ewp-blog-addresses '("blog.example.org" "other.blog.com"))
 ```
