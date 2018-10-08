@@ -637,7 +637,8 @@ All normal editing commands are switched off.
   (if (boundp 'ewp-categories)
       ewp-categories
     (setq-local ewp-categories
-		(loop for elem in (ewp-call 'metaweblog-get-categories address)
+		(loop for elem in (ewp-call 'metaweblog-get-categories
+					    ewp-address)
 		      collect (cdr (assoc "categoryName" elem))))))
 
 (defun ewp-yank-with-href ()
@@ -1190,7 +1191,7 @@ All normal editing commands are switched off.
     (setq-local ewp-post data)
     (setq-local ewp-address address)))
 
-(defun ewp-make-comment-edit (&optional editp)
+(defun ewp-make-comment-edit ()
   "Edit a comment."
   (interactive)
   (ewp-make-comment t))
