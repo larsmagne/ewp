@@ -1067,10 +1067,11 @@ All normal editing commands are switched off.
     (unless data
       (error "No comment under point"))
     (switch-to-buffer (format "*%s comment*" (cdr (assoc "comment_id" data))))
-    (ewp-comment-mode)
+    (eww-mode)
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (shr-insert-document
+      (eww-display-html
+       'utf-8 "data:" 
        (with-temp-buffer
 	 (insert
 	  (if (cdr (assoc "author_url" data))
@@ -1082,7 +1083,8 @@ All normal editing commands are switched off.
 			 (cdr (assoc "link" data))
 			 (cdr (assoc "post_title" data))))
 	 (insert (cdr (assoc "content" data)))
-	 (libxml-parse-html-region (point-min) (point-max))))
+	 (libxml-parse-html-region (point-min) (point-max)))
+       (point-min) (current-buffer))
       (goto-char (point-min)))))
 
 (defvar ewp-comment-mode-map
