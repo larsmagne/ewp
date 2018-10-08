@@ -1204,7 +1204,7 @@ All normal editing commands are switched off.
 	  (message "Comment deleted")
 	  (let ((inhibit-read-only t))
 	    (delete-region (line-beginning-position)
-			   (line-beginning-position 2))))))))
+			   (progn (forward-line 1) (point)))))))))
 
 (defun ewp-make-comment (&optional editp)
   "Post a new comment or a reply to the comment under point."
@@ -1233,22 +1233,26 @@ All normal editing commands are switched off.
   (let* ((auth (ewp-auth ewp-address))
 	 (editp (and (boundp 'ewp-edit)
 		     ewp-edit))
-	 (data
+	 (result
 	  (if editp
 	      (progn
 		(setcdr (assoc "content" ewp-edit) (buffer-string))
-		ewp-edit)
-	    `(("content" . ,(buffer-string))
-	      ("author" . ,user-full-name))))
-	 (result
-	  (ewp-new-comment
-	   (format "https://%s/xmlrpc.php" ewp-address)
-	   (getf auth :user) (funcall (getf auth :secret))
-	   (format "%s" ewp-blog-id)
-	   (cdr (assoc "post_id" ewp-post))
-	   data
-	   (cdr (assoc "comment_id" ewp-comment)))))
-    (if (numberp result)
+		(ewp-edit-comment
+		 (format "https://%s/xmlrpc.php" ewp-address)
+		 (getf auth :user) (funcall (getf auth :secret))
+		 (format "%s" ewp-blog-id)
+		 (cdr (assoc "comment_id" ewp-edit))
+		 ewp-edit))
+	    (ewp-new-comment
+	     (format "https://%s/xmlrpc.php" ewp-address)
+	     (getf auth :user) (funcall (getf auth :secret))
+	     (format "%s" ewp-blog-id)
+	     (cdr (assoc "post_id" ewp-post))
+	     `(("content" . ,(buffer-string))
+	       ("author" . ,user-full-name))
+	     (cdr (assoc "comment_id" ewp-comment))))))
+    (if (or (numberp result)
+	    (eq result t))
 	(progn
 	  (message "Comment %s" (if editp "edited" "posted"))
 	  (bury-buffer))
