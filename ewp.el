@@ -867,6 +867,7 @@ All normal editing commands are switched off.
     (define-key map "w" 'ewp-copy-media)
     (define-key map "u" 'ewp-copy-url)
     (define-key map "\r" 'ewp-show-media)
+    (define-key map "n" 'ewp-show-media-goto-next)
     map))
 
 (define-derived-mode ewp-list-media-mode special-mode "ewp"
@@ -877,6 +878,12 @@ All normal editing commands are switched off.
   (buffer-disable-undo)
   (setq truncate-lines t
 	buffer-read-only t))
+
+(defun ewp-show-media-goto-next ()
+  "Show the media under point and goto next line."
+  (interactive)
+  (ewp-show-media)
+  (forward-line 1))
 
 (defun ewp-show-media ()
   "Show the media under point."

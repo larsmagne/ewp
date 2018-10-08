@@ -65,7 +65,8 @@ There are five different modes made available by this package:
 
 ## ewp-list-media-mode:
 
-* RET: Look at the media item (i.e., image) under point with eww
+* RET: Look at the media item (i.e., image) under point
+* n: Look at the image under point and goto next line
 * w: Copy the image under point to the kill ring as an &lt;img&gt; construct
 * u: Copy the URL under point to the kill ring.
 * g: Rescan the media list.
