@@ -99,22 +99,13 @@ All normal editing commands are switched off.
 		       (read-string "Blog address (eg. my.example.com): "
 				    nil 'ewp-history)))))
   (switch-to-buffer (format "*%s posts*" address))
-  (let* ((auth (ewp-auth address))
-	 (inhibit-read-only t))
+  (let* ((inhibit-read-only t))
     (erase-buffer)
     (ewp-list-mode)
     (setq-local ewp-address address)
-    (dolist (post
-	     (ewp-get-posts
-	      (format "https://%s/xmlrpc.php" address)
-	      (getf auth :user) (funcall (getf auth :secret))
-	      ewp-blog-id 100))
+    (dolist (post (ewp-call 'ewp-get-posts address 100))
       (ewp-print-entry post "post"))
-    (dolist (post
-	     (wp-get-pagelist
-	      (format "https://%s/xmlrpc.php" address)
-	      (getf auth :user) (funcall (getf auth :secret))
-	      ewp-blog-id))
+    (dolist (post (ewp-call 'wp-get-pagelist address))
       (ewp-print-entry post "page"))
     (goto-char (point-min))))
 
@@ -402,18 +393,16 @@ which is to be returned.  Can be used with pages as well."
     (ewp-save-buffer)))
 
 (defun ewp-upload-media (address file &optional image)
-  (let ((auth (ewp-auth address)))
-    (metaweblog-upload-file
-     (format "https://%s/xmlrpc.php" address)
-     (getf auth :user) (funcall (getf auth :secret))
-     (format "%s" ewp-blog-id)
-     `(("name" . ,(file-name-nondirectory file))
-       ("type" . ,(mailcap-file-name-to-mime-type file))
-       ("bits" . ,(with-temp-buffer
-		    (set-buffer-multibyte nil)
-		    (ewp-possibly-rotate-image file image)
-		    (base64-encode-region (point-min) (point-max))
-		    (buffer-string)))))))
+  (ewp-call
+   'metaweblog-upload-file
+   address
+   `(("name" . ,(file-name-nondirectory file))
+     ("type" . ,(mailcap-file-name-to-mime-type file))
+     ("bits" . ,(with-temp-buffer
+		  (set-buffer-multibyte nil)
+		  (ewp-possibly-rotate-image file image)
+		  (base64-encode-region (point-min) (point-max))
+		  (buffer-string))))))
 
 (defun ewp-transform-and-upload (address)
   "Look for local <img> and upload images from those to Wordpress."
@@ -448,15 +437,12 @@ which is to be returned.  Can be used with pages as well."
 			(search-forward ",")
 			(buffer-substring (point) (point-max)))))
 	    (setq result
-		  (let ((auth (ewp-auth address)))
-		    (metaweblog-upload-file
-		     (format "https://%s/xmlrpc.php" address)
-		     (getf auth :user) (funcall (getf auth :secret))
-		     (format "%s" ewp-blog-id)
-		     `(("name" . ,(format "%s.%s" address
-					  (cadr (split-string mime-type "/"))))
-		       ("type" . ,mime-type)
-		       ("bits" . ,data)))))
+		  (ewp-call
+		   'metaweblog-upload-file address
+		   `(("name" . ,(format "%s.%s" address
+					(cadr (split-string mime-type "/"))))
+		     ("type" . ,mime-type)
+		     ("bits" . ,data))))
 	    (setq size (image-size (create-image
 				    (with-temp-buffer
 				      (set-buffer-multibyte nil)
@@ -649,16 +635,9 @@ All normal editing commands are switched off.
 (defun ewp-categories ()
   (if (boundp 'ewp-categories)
       ewp-categories
-    (let* ((auth (ewp-auth ewp-address))
-	   (categories
-	    (loop for elem in
-		  (metaweblog-get-categories
-		   (format "https://%s/xmlrpc.php" ewp-address)
-		   (getf auth :user) (funcall (getf auth :secret))
-		   ewp-blog-id)
-		  collect (cdr (assoc "categoryName" elem)))))
-      (setq-local ewp-categories categories)
-      categories)))
+    (setq-local ewp-categories
+		(loop for elem in (ewp-call 'metaweblog-get-categories address)
+		      collect (cdr (assoc "categoryName" elem))))))
 
 (defun ewp-yank-with-href ()
   "Yank the current kill ring item as an <a href>."
@@ -851,12 +830,8 @@ All normal editing commands are switched off.
   "List the media on the ADDRESS blog."  
   (interactive)
   (let* ((address (or address ewp-address))
-	 (auth (ewp-auth address))
 	 (media
-	  (ewp-get-media-library
-	   (format "https://%s/xmlrpc.php" address)
-	   (getf auth :user) (funcall (getf auth :secret))
-	   ewp-blog-id 500)))
+	  (ewp-call 'ewp-get-media-library address 500)))
     (switch-to-buffer (format "*%s media*" address))
     (let ((inhibit-read-only t))
       (erase-buffer)
@@ -1001,18 +976,13 @@ starting the screenshotting process."
 (defun ewp-list-comments (&optional address)
   "List the recent comments for the blog."
   (interactive)
-  (let* ((address (or address ewp-address))
-	 (auth (ewp-auth address)))
+  (let ((address (or address ewp-address)))
     (switch-to-buffer (format "*%s comments*" address))
     (ewp-list-comments-mode)
     (setq-local ewp-address address)
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (dolist (comment 
-	       (ewp-get-comments
-		(format "https://%s/xmlrpc.php" address)
-		(getf auth :user) (funcall (getf auth :secret))
-		ewp-blog-id 100))
+      (dolist (comment (ewp-call 'ewp-get-comments address 100))
 	(ewp-print-comment comment))
       (goto-char (point-min)))))
 
@@ -1161,17 +1131,13 @@ All normal editing commands are switched off.
   (ewp-change-status "hold"))
 
 (defun ewp-change-status (status)
-  (let ((data (get-text-property (point) 'data))
-	(auth (ewp-auth ewp-address)))
+  (let ((data (get-text-property (point) 'data)))
     (unless data
       (error "No comment under point"))
     (setcdr (assoc "status" data) status)
     (let ((result
-	   (ewp-edit-comment
-	    (format "https://%s/xmlrpc.php" ewp-address)
-	    (getf auth :user) (funcall (getf auth :secret))
-	    (format "%s" ewp-blog-id)
-	    (cdr (assoc "comment_id" data)) data)))
+	   (ewp-call 'ewp-edit-comment ewp-address
+		     (cdr (assoc "comment_id" data)) data)))
       (if (eq result t)
 	  (message "Updated comment successfully")
 	(message "Got an error: %s" result)))))
@@ -1188,17 +1154,12 @@ All normal editing commands are switched off.
 (defun ewp-trash-comment ()
   "Trash (i.e., delete) the comment under point."
   (interactive)
-  (let ((data (get-text-property (point) 'data))
-	(auth (ewp-auth ewp-address)))
+  (let ((data (get-text-property (point) 'data)))
     (unless data
       (error "No comment under point"))
     (when (y-or-n-p "Really delete this comment?")
-      (let ((result
-	     (ewp-delete-comment
-	      (format "https://%s/xmlrpc.php" ewp-address)
-	      (getf auth :user) (funcall (getf auth :secret))
-	      (format "%s" ewp-blog-id)
-	      (cdr (assoc "comment_id" data)))))
+      (let ((result (ewp-call 'ewp-delete-comment ewp-address
+			      (cdr (assoc "comment_id" data)))))
 	(if (not (eq result t))
 	    (message "Got an error: %s" result)
 	  (message "Comment deleted")
@@ -1230,27 +1191,20 @@ All normal editing commands are switched off.
   (ewp-make-comment t))
 
 (defun ewp-send-comment ()
-  (let* ((auth (ewp-auth ewp-address))
-	 (editp (and (boundp 'ewp-edit)
+  (let* ((editp (and (boundp 'ewp-edit)
 		     ewp-edit))
 	 (result
 	  (if editp
 	      (progn
 		(setcdr (assoc "content" ewp-edit) (buffer-string))
-		(ewp-edit-comment
-		 (format "https://%s/xmlrpc.php" ewp-address)
-		 (getf auth :user) (funcall (getf auth :secret))
-		 (format "%s" ewp-blog-id)
-		 (cdr (assoc "comment_id" ewp-edit))
-		 ewp-edit))
-	    (ewp-new-comment
-	     (format "https://%s/xmlrpc.php" ewp-address)
-	     (getf auth :user) (funcall (getf auth :secret))
-	     (format "%s" ewp-blog-id)
-	     (cdr (assoc "post_id" ewp-post))
-	     `(("content" . ,(buffer-string))
-	       ("author" . ,user-full-name))
-	     (cdr (assoc "comment_id" ewp-comment))))))
+		(ewp-call 'ewp-edit-comment ewp-address
+			  (cdr (assoc "comment_id" ewp-edit))
+			  ewp-edit))
+	    (ewp-call 'ewp-new-comment ewp-address
+		      (cdr (assoc "post_id" ewp-post))
+		      `(("content" . ,(buffer-string))
+			("author" . ,user-full-name))
+		      (cdr (assoc "comment_id" ewp-comment))))))
     (if (or (numberp result)
 	    (eq result t))
 	(progn
@@ -1294,6 +1248,14 @@ All normal editing commands are switched off.
            (member nil
                    (name nil "author_email")
                    (value nil ,(cdr (assoc "author_email" data)))))))))))))
+
+(defun ewp-call (func address &rest args)
+  (let ((auth (ewp-auth address)))
+    (apply func
+	   (format "https://%s/xmlrpc.php" address)
+	   (getf auth :user) (funcall (getf auth :secret))
+	   ewp-blog-id
+	   args)))
 
 (provide 'ewp)
 
