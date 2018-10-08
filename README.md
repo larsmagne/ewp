@@ -67,6 +67,8 @@ There are five different modes made available by this package:
 
 * RET: Look at the media item (i.e., image) under point with eww
 * w: Copy the image under point to the kill ring as an &lt;img&gt; construct
+* u: Copy the URL under point to the kill ring.
+* g: Rescan the media list.
 
 ## ewp-list-comments-mode:
 

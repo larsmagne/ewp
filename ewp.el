@@ -865,6 +865,7 @@ All normal editing commands are switched off.
     (set-keymap-parent map special-mode-map)
     (define-key map "g" 'ewp-list-media)
     (define-key map "w" 'ewp-copy-media)
+    (define-key map "u" 'ewp-copy-url)
     (define-key map "\r" 'ewp-show-media)
     map))
 
@@ -922,6 +923,18 @@ All normal editing commands are switched off.
 	       (insert "\n")
 	       (copy-region-as-kill (point-min) (point-max))
 	       (message "Copied %s to the kill ring" url)))))))))
+
+(defun ewp-copy-url ()
+  "Copy the URL under point to the kill ring."
+  (interactive)
+  (let* ((data (get-text-property (point) 'data))
+	 (url (cdr (assoc "link" data))))
+    (if (not data)
+	(error "No media under point")
+      (with-temp-buffer
+	(insert url)
+	(copy-region-as-kill (point-min) (point-max))
+	(message "Copied %s to the kill ring" url)))))
 
 (defun ewp-import-screenshot (delay)
   "Take a screenshot and insert in the current buffer.
