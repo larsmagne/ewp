@@ -880,10 +880,24 @@ All normal editing commands are switched off.
 (defun ewp-show-media ()
   "Show the media under point."
   (interactive)
-  (let ((data (get-text-property (point) 'data)))
+  (let* ((data (get-text-property (point) 'data))
+	 (url (cdr (assoc "link" data))))
     (if (not data)
 	(error "No media under point")
-      (eww (cdr (assoc "link" data))))))
+      (url-retrieve
+       url
+       (lambda (_)
+	 (goto-char (point-min))
+	 (let (image)
+	   (when (search-forward "\n\n")
+	     (setq image (buffer-substring (point) (point-max))))
+	   (kill-buffer (current-buffer))
+	   (when image
+	     (with-temp-buffer
+	       (insert-image (create-image image 'imagemagick t
+					   :max-width 800))
+	       (let ((max-mini-window-height 0.9))
+		 (message "%s" (buffer-string)))))))))))
 
 (defun ewp-copy-media ()
   "Copy the media under point to the kill ring."
