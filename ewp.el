@@ -996,7 +996,7 @@ starting the screenshotting process."
   (interactive)
   (let* ((address (or address ewp-address))
 	 (auth (ewp-auth address)))
-    (switch-to-buffer (format "%s comments*" address))
+    (switch-to-buffer (format "*%s comments*" address))
     (ewp-list-comments-mode)
     (setq-local ewp-address address)
     (let ((inhibit-read-only t))
@@ -1195,7 +1195,7 @@ All normal editing commands are switched off.
 	  (message "Comment deleted")
 	  (let ((inhibit-read-only t))
 	    (delete-region (line-beginning-position)
-			   (line-end-position 2))))))))
+			   (line-beginning-position 2))))))))
 
 (provide 'ewp)
 
