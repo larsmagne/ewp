@@ -78,6 +78,7 @@ There are five different modes made available by this package:
 * a: Approve the comment under point.
 * h: Hold (unapprove) the comment under point.
 * d: Delete (trash) the comment under point.
+* u: Undelete a previously deleted comment.
 * r: Reply to a comment.
 * RET: Display the comment under point.
 

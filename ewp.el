@@ -65,6 +65,7 @@
 (defvar ewp-comment)
 (defvar ewp-edit)
 (defvar ewp-marks)
+(defvar ewp-deleted-comments)
 
 (defvar ewp-list-mode-map
   (let ((map (make-sparse-keymap)))
@@ -1053,6 +1054,7 @@ starting the screenshotting process."
     (define-key map "a" 'ewp-approve-comment)
     (define-key map "h" 'ewp-hold-comment)
     (define-key map "d" 'ewp-trash-comment)
+    (define-key map "u" 'ewp-undelete-comment)
     (define-key map "r" 'ewp-make-comment)
     (define-key map "e" 'ewp-make-comment-edit)
     map))
@@ -1063,6 +1065,7 @@ starting the screenshotting process."
 All normal editing commands are switched off.
 \\<ewp-list-comments-mode-map>"
   (buffer-disable-undo)
+  (setq-local ewp-deleted-comments nil)
   (setq truncate-lines t
 	buffer-read-only t))
 
@@ -1216,16 +1219,35 @@ All normal editing commands are switched off.
   (let ((data (get-text-property (point) 'data)))
     (unless data
       (error "No comment under point"))
-    (when (y-or-n-p "Really delete this comment?")
-      (let ((result (ewp-call 'ewp-delete-comment ewp-address
-			      (cdr (assoc "comment_id" data)))))
-	(if (not (eq result t))
-	    (message "Got an error: %s" result)
-	  (message "Comment deleted")
-	  (let ((inhibit-read-only t))
-	    (delete-region (line-beginning-position)
-			   (progn (forward-line 1) (point)))))))))
+    (let ((result (ewp-call 'ewp-delete-comment ewp-address
+			    (cdr (assoc "comment_id" data)))))
+      (if (not (eq result t))
+	  (message "Got an error: %s" result)
+	(message "Comment deleted")
+	(let ((inhibit-read-only t))
+	  (push (buffer-substring (line-beginning-position)
+				  (progn (forward-line 1) (point)))
+		ewp-deleted-comments)
+	  (delete-region (line-beginning-position)
+			 (progn (forward-line 1) (point))))))))
 
+(defun ewp-undelete-comment ()
+  "Ressurrect the previously deleted comment."
+  (interactive)
+  (unless ewp-deleted-comments
+    (error "No deleted comments in the undo queue"))
+  (let* ((line (pop ewp-deleted-comments))
+	 (data (get-text-property 1 'data line))
+	 (inhibit-read-only t)
+	 (result
+	  (ewp-call 'ewp-edit-comment ewp-address
+		    (cdr (assoc "comment_id" data))
+		    data)))
+    (if (not (eq result t))
+	(message "Error: %s" result)
+      (beginning-of-line)
+      (insert line))))
+  
 (defun ewp-make-comment (&optional editp)
   "Post a new comment or a reply to the comment under point."
   (interactive)
