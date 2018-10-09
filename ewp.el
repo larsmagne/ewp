@@ -104,8 +104,8 @@ All normal editing commands are switched off.
 		       (read-string "Blog address (eg. my.example.com): "
 				    nil 'ewp-history)))))
   (switch-to-buffer (format "*%s posts*" address))
-  (let* ((inhibit-read-only t)
-	 lines data)
+  (let ((inhibit-read-only t)
+	lines data)
     (erase-buffer)
     (ewp-list-mode)
     (setq-local ewp-address address)
@@ -451,8 +451,8 @@ which is to be returned.  Can be used with pages as well."
 				      (buffer-string))
 				    'imagemagick t))))))
 	(when result
-	  (let* ((url (cdr (assoc "url" result)))
-		 factor)
+	  (let ((url (cdr (assoc "url" result)))
+		factor)
 	    (when (> (car size) ewp-image-width)
 	      (setq factor (/ (* ewp-image-width 1.0) (car size))))
 	    (when url
@@ -834,8 +834,7 @@ All normal editing commands are switched off.
   "List the media on the ADDRESS blog."  
   (interactive)
   (let* ((address (or address ewp-address))
-	 (media
-	  (ewp-call 'ewp-get-media-library address 500))
+	 (media (ewp-call 'ewp-get-media-library address 500))
 	 marks data lines)
     (switch-to-buffer (format "*%s media*" address))
     (setq marks (and (boundp 'ewp-marks)
