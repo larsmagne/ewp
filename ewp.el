@@ -20,6 +20,7 @@
 
 ;; xml-rpc from https://github.com/hexmode/xml-rpc-el
 ;; metaweblog from https://github.com/org2blog/metaweblog
+;; vpt from https://github.com/larsmagne/vpt.el
 
 ;; # apt install exiftool
 ;; if you want images to be properly rotated.
