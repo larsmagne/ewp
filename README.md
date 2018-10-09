@@ -4,9 +4,10 @@ See https://lars.ingebrigtsen.no/2018/10/02/editing-wordpress-articles-in-emacs/
 
 # Requirements
 
-* A newish version of Emacs, for instance Emacs 26 or newer, and the following two repositories:
+* A newish version of Emacs, for instance Emacs 26 or newer, and the following three repositories:
 * https://github.com/hexmode/xml-rpc-el
 * https://github.com/org2blog/metaweblog
+* https://github.com/larsmagne/vpt.el
 
 # Set Up
 
