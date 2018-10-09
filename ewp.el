@@ -122,17 +122,14 @@ All normal editing commands are switched off.
   (insert
    (propertize
     (format
-     "%s %s%s%s%s%s\n"
-     (propertize
-      (format-time-string "%Y-%m-%d"
-			  (or (caddr (assoc "post_date" post))
-			      (caddr (assoc "date_created_gmt" post))))
-      'face 'variable-pitch)
+     "%s %-10s%-20s%s\n"
+     (format-time-string "%Y-%m-%d"
+			 (or (caddr (assoc "post_date" post))
+			     (caddr (assoc "date_created_gmt" post))))
      (propertize 
       (ewp-limit-string (or (cdr (assoc (format "%s_status" prefix) post)) "")
 			10)
-      'face '(variable-pitch :foreground "#a0a0a0"))
-     (propertize " " 'display '(space :align-to 20))
+      'face '(:foreground "#a0a0a0"))
      (propertize
       (ewp-limit-string
        (mapconcat
@@ -142,12 +139,9 @@ All normal editing commands are switched off.
 	      collect (cdr (assoc "name" term)))
 	",")
        20)
-      'face '(variable-pitch :foreground "#b0b0b0"))
-     (propertize " " 'display '(space :align-to 40))
-     (propertize
-      (mm-url-decode-entities-string
-       (cdr (assoc (format "%s_title" prefix) post)))
-      'face 'variable-pitch))
+      'face '(:foreground "#b0b0b0"))
+     (mm-url-decode-entities-string
+      (cdr (assoc (format "%s_title" prefix) post))))
     'data post)))
 
 (defun ewp-auth (address)
@@ -1074,31 +1068,24 @@ All normal editing commands are switched off.
   (insert
    (propertize
     (format
-     "%s %s%s%s%s%s%s %s\n"
-     (propertize
-      (format-time-string "%Y-%m-%d"
-			  (caddr (assoc "date_created_gmt" comment)))
-      'face 'variable-pitch)
+     "%s %-10s %-15s %-15s %s\n"
+     (format-time-string "%Y-%m-%d"
+			 (caddr (assoc "date_created_gmt" comment)))
      (propertize (cdr (assoc "status" comment))
-		 'face '(variable-pitch :foreground "#a0a0a0"))
-     (propertize " " 'display '(space :align-to 20))
+		 'face '(:foreground "#a0a0a0"))
      (propertize
       (ewp-limit-string (or (cdr (assoc "author" comment)) "") 15)
-      'face `(variable-pitch :foreground "#b0b0b0"
-			     ,@(if (not (equal (cdr (assoc "type" comment))
-					       "pingback"))
-				   (list :background "#505050"))))
-     (propertize " " 'display '(space :align-to 35))
+      'face `(:foreground "#b0b0b0"
+			  ,@(if (not (equal (cdr (assoc "type" comment))
+					    "pingback"))
+				(list :background "#505050"))))
      (propertize
       (ewp-limit-string
        (mm-url-decode-entities-string (cdr (assoc "post_title" comment)))
        15)
-      'face '(variable-pitch :foreground "#b0b0b0"))
-     (propertize " " 'display '(space :align-to 50))
-     (propertize
-      (mm-url-decode-entities-string
-       (replace-regexp-in-string "[\n ]+" " " (cdr (assoc "content" comment))))
-      'face 'variable-pitch))
+      'face '(:foreground "#b0b0b0"))
+     (mm-url-decode-entities-string
+      (replace-regexp-in-string "[\n ]+" " " (cdr (assoc "content" comment)))))
     'data comment)))
 
 (defun ewp-display-comment ()
