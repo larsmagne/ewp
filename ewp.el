@@ -1091,7 +1091,7 @@ All normal editing commands are switched off.
    (propertize (cdr (assoc "status" comment))
 	       'face '(variable-pitch :foreground "#a0a0a0"))
    (propertize
-    (or (cdr (assoc "author" comment)) "") 
+    (mm-url-decode-entities-string (or (cdr (assoc "author" comment)) ""))
     'face `(variable-pitch
 	    :foreground "#b0b0b0"
 	    ,@(if (not (equal (cdr (assoc "type" comment))
