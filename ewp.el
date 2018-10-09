@@ -38,6 +38,7 @@
 (require 'metaweblog)
 (require 'mm-url)
 (require 'dired)
+(require 'vpt)
 
 (defvar ewp-blog-address nil
   "The name/address of the blog, like my.example.blog.")
@@ -102,14 +103,23 @@ All normal editing commands are switched off.
 		       (read-string "Blog address (eg. my.example.com): "
 				    nil 'ewp-history)))))
   (switch-to-buffer (format "*%s posts*" address))
-  (let* ((inhibit-read-only t))
+  (let* ((inhibit-read-only t)
+	 lines data)
     (erase-buffer)
     (ewp-list-mode)
     (setq-local ewp-address address)
     (dolist (post (ewp-call 'ewp-get-posts address 100))
-      (ewp-print-entry post "post"))
+      (push post data)
+      (push (ewp-make-entry post "post") lines))
     (dolist (post (ewp-call 'wp-get-pagelist address))
-      (ewp-print-entry post "page"))
+      (push post data)
+      (push (ewp-make-entry post "page") lines))
+    (variable-pitch-table '((:name "Date" :width 10)
+			    (:name "Status" :width 10)
+			    (:name "Categories" :width 15)
+			    (:name "Title"))
+			  (nreverse lines)
+			  (nreverse data))
     (goto-char (point-min))))
 
 (defun ewp-limit-string (string length)
@@ -117,32 +127,28 @@ All normal editing commands are switched off.
       string
     (substring string 0 length)))
 
-(defun ewp-print-entry (post prefix)
-  "Insert a Wordpress entry at point."
-  (insert
+(defun ewp-make-entry (post prefix)
+  (list
    (propertize
-    (format
-     "%s %-10s%-20s%s\n"
-     (format-time-string "%Y-%m-%d"
-			 (or (caddr (assoc "post_date" post))
-			     (caddr (assoc "date_created_gmt" post))))
-     (propertize 
-      (ewp-limit-string (or (cdr (assoc (format "%s_status" prefix) post)) "")
-			10)
-      'face '(:foreground "#a0a0a0"))
-     (propertize
-      (ewp-limit-string
-       (mapconcat
-	'identity
-	(loop for term in (cdr (assoc "terms" post))
-	      when (equal (cdr (assoc "taxonomy" term)) "category")
-	      collect (cdr (assoc "name" term)))
-	",")
-       20)
-      'face '(:foreground "#b0b0b0"))
-     (mm-url-decode-entities-string
-      (cdr (assoc (format "%s_title" prefix) post))))
-    'data post)))
+    (format-time-string "%Y-%m-%d"
+			(or (caddr (assoc "post_date" post))
+			    (caddr (assoc "date_created_gmt" post))))
+    'face 'variable-pitch)
+   (propertize 
+    (or (cdr (assoc (format "%s_status" prefix) post)) "")
+    'face '(variable-pitch :foreground "#a0a0a0"))
+   (propertize
+    (mapconcat
+     'identity
+     (loop for term in (cdr (assoc "terms" post))
+	   when (equal (cdr (assoc "taxonomy" term)) "category")
+	   collect (cdr (assoc "name" term)))
+     ",")
+    'face '(variable-pitch :foreground "#b0b0b0"))
+   (propertize
+    (mm-url-decode-entities-string
+     (cdr (assoc (format "%s_title" prefix) post)))
+    'face 'variable-pitch)))
 
 (defun ewp-auth (address)
   (let ((auth
@@ -834,7 +840,7 @@ All normal editing commands are switched off.
   (let* ((address (or address ewp-address))
 	 (media
 	  (ewp-call 'ewp-get-media-library address 500))
-	 marks)
+	 marks data lines)
     (switch-to-buffer (format "*%s media*" address))
     (setq marks (and (boundp 'ewp-marks)
 		     ewp-marks))
@@ -844,23 +850,28 @@ All normal editing commands are switched off.
       (setq ewp-marks marks)
       (setq-local ewp-address address)
       (dolist (elem media)
-	(insert
-	 (propertize
-	  (format
-	   "%s %s %s %s\n"
-	   (if (ewp-find-mark (cdr (assoc "attachment_id" elem)))
-	       "*"
-	     " ")
-	   (propertize
-	    (format-time-string "%Y-%m-%d"
-				(caddr (assoc "date_created_gmt" elem)))
-	    'face '(variable-pitch :foreground "#a0a0a0"))
-	   (propertize (cdr (assoc "title" elem))
-		       'face 'variable-pitch)
-	   (propertize
-	    (cdr (assoc "type" elem))
-	    'face '(variable-pitch :foreground "#808080")))
-	  'data elem))))
+	(push
+	 (list
+	  (if (ewp-find-mark (cdr (assoc "attachment_id" elem)))
+	      "*"
+	    " ")
+	  (propertize
+	   (format-time-string "%Y-%m-%d"
+			       (caddr (assoc "date_created_gmt" elem)))
+	   'face '(variable-pitch :foreground "#a0a0a0"))
+	  (propertize
+	   (cdr (assoc "type" elem))
+	   'face '(variable-pitch :foreground "#808080"))
+	  (propertize (cdr (assoc "title" elem))
+		      'face 'variable-pitch))
+	 lines)
+	(push elem data))
+      (variable-pitch-table '((:name "" :width 1)
+			      (:name "Date" :width 10)
+			      (:name "Type" :width 20)
+			      (:name "Name"))
+			    (nreverse lines)
+			    (nreverse data)))
     (goto-char (point-min))))
 
 (defvar ewp-list-media-mode-map
@@ -1030,14 +1041,23 @@ starting the screenshotting process."
 (defun ewp-list-comments (&optional address)
   "List the recent comments for the blog."
   (interactive)
-  (let ((address (or address ewp-address)))
+  (let ((address (or address ewp-address))
+	lines data)
     (switch-to-buffer (format "*%s comments*" address))
     (ewp-list-comments-mode)
     (setq-local ewp-address address)
     (let ((inhibit-read-only t))
       (erase-buffer)
       (dolist (comment (ewp-call 'ewp-get-comments address 100))
-	(ewp-print-comment comment))
+	(push comment data)
+	(push (ewp-print-comment comment) lines))
+      (variable-pitch-table '((:name "Date" :width 10)
+			      (:name "Status" :width 10)
+			      (:name "Author" :width 15)
+			      (:name "Title" :width 20)
+			      (:name "Comment" :width 100))
+			    (nreverse lines)
+			    (nreverse data))
       (goto-char (point-min)))))
 
 (defvar ewp-list-comments-mode-map
@@ -1065,28 +1085,27 @@ All normal editing commands are switched off.
 
 (defun ewp-print-comment (comment)
   "Insert a Wordpress entry at point."
-  (insert
+  (list
    (propertize
-    (format
-     "%s %-10s %-15s %-15s %s\n"
-     (format-time-string "%Y-%m-%d"
-			 (caddr (assoc "date_created_gmt" comment)))
-     (propertize (cdr (assoc "status" comment))
-		 'face '(:foreground "#a0a0a0"))
-     (propertize
-      (ewp-limit-string (or (cdr (assoc "author" comment)) "") 15)
-      'face `(:foreground "#b0b0b0"
-			  ,@(if (not (equal (cdr (assoc "type" comment))
-					    "pingback"))
-				(list :background "#505050"))))
-     (propertize
-      (ewp-limit-string
-       (mm-url-decode-entities-string (cdr (assoc "post_title" comment)))
-       15)
-      'face '(:foreground "#b0b0b0"))
-     (mm-url-decode-entities-string
-      (replace-regexp-in-string "[\n ]+" " " (cdr (assoc "content" comment)))))
-    'data comment)))
+    (format-time-string "%Y-%m-%d"
+			(caddr (assoc "date_created_gmt" comment)))
+    'face 'variable-pitch)
+   (propertize (cdr (assoc "status" comment))
+	       'face '(variable-pitch :foreground "#a0a0a0"))
+   (propertize
+    (or (cdr (assoc "author" comment)) "") 
+    'face `(variable-pitch
+	    :foreground "#b0b0b0"
+	    ,@(if (not (equal (cdr (assoc "type" comment))
+			      "pingback"))
+		  (list :background "#505050"))))
+   (propertize
+    (mm-url-decode-entities-string (cdr (assoc "post_title" comment)))
+    'face '(variable-pitch :foreground "#b0b0b0"))
+   (propertize
+    (mm-url-decode-entities-string
+     (replace-regexp-in-string "[\n ]+" " " (cdr (assoc "content" comment))))
+    'face 'variable-pitch)))
 
 (defun ewp-display-comment ()
   "Display the comment under point."
