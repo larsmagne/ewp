@@ -1253,10 +1253,12 @@ All normal editing commands are switched off.
 	(message "Comment deleted")
 	(let ((inhibit-read-only t))
 	  (push (buffer-substring (line-beginning-position)
-				  (progn (forward-line 1) (point)))
+				  (save-excursion
+				    (forward-line 1) (point)))
 		ewp-deleted-comments)
 	  (delete-region (line-beginning-position)
-			 (progn (forward-line 1) (point))))))))
+			 (save-excursion
+			   (forward-line 1) (point))))))))
 
 (defun ewp-undelete-comment ()
   "Ressurrect the previously deleted comment."
