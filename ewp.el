@@ -1338,15 +1338,21 @@ All normal editing commands are switched off.
   (let ((address
 	 (if (> (length ewp-blog-addresses) 1)
 	     (completing-read "Upload to blog: " ewp-blog-addresses nil t)
-	   (car ewp-blog-addresses))))
+	   (car ewp-blog-addresses)))
+	(results nil))
     (dolist (file files)
-      (ewp-upload-media address file))
-    (message "Uploaded %s file%s to %s"
+      (push (ewp-upload-media address file) results))
+    (message "Uploaded %s file%s to %s (copied to clipboard)"
 	     (length files)
 	     (if (= (length files) 1)
 		 ""
 	       "s")
-	     address)))
+	     address)
+    (with-temp-buffer
+      (dolist (result (reverse results))
+	(insert (cdr (assoc "url" result)) "\n"))
+      (delete-char -1)
+      (copy-region-as-kill (point-min) (point-max)))))
 
 (defun ewp-toggle-media-mark ()
   "Toggle the mark on the media under point."
