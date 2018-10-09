@@ -123,11 +123,6 @@ All normal editing commands are switched off.
 			  (nreverse data))
     (goto-char (point-min))))
 
-(defun ewp-limit-string (string length)
-  (if (< (length string) length)
-      string
-    (substring string 0 length)))
-
 (defun ewp-make-entry (post prefix)
   (list
    (propertize
