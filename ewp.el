@@ -1201,12 +1201,36 @@ All normal editing commands are switched off.
     (unless data
       (error "No comment under point"))
     (setcdr (assoc "status" data) status)
-    (let ((result
-	   (ewp-call 'ewp-edit-comment ewp-address
-		     (cdr (assoc "comment_id" data)) data)))
-      (if (eq result t)
-	  (message "Updated comment successfully")
-	(message "Got an error: %s" result)))))
+    (let ((result (ewp-call 'ewp-edit-comment ewp-address
+			    (cdr (assoc "comment_id" data)) data))
+	  (inhibit-read-only t))
+      (if (not (eq result t))
+	  (message "Got an error: %s" result)
+	(message "Updated comment successfully")
+	(ewp-update-field status 2)))))
+
+(defun ewp-update-field (string field)
+  (save-excursion
+    (beginning-of-line)
+    (let ((count 1)
+	  prop)
+      (while (and (not (eolp))
+		  (< count field))
+	(forward-char 1)
+	(let ((prop (get-text-property (point) 'display)))
+	  (when (and prop
+		     (consp prop)
+		     (eq (car prop) 'space))
+	    (incf count))))
+      (forward-char 1)
+      (let ((start (point))
+	    (face (get-text-property (point) 'face)))
+	(while (not (get-text-property (point) 'display))
+	  (forward-char))
+	(delete-region start (point))
+	(insert string)
+	(put-text-property start (point) 'face face)
+	(put-text-property start (point) 'vtp-value string)))))
 
 (defun ewp-delete-comment (blog-xmlrpc user-name password blog-id comment-id)
   "Deletes a comment system. Uses wp.deleteComment."
