@@ -121,7 +121,8 @@ All normal editing commands are switched off.
 			    (:name "Title"))
 			  (nreverse lines)
 			  (nreverse data))
-    (goto-char (point-min))))
+    (goto-char (point-min))
+    (forward-line 1)))
 
 (defun ewp-make-entry (post prefix)
   (list
@@ -867,7 +868,8 @@ All normal editing commands are switched off.
 			      (:name "Name"))
 			    (nreverse lines)
 			    (nreverse data)))
-    (goto-char (point-min))))
+    (goto-char (point-min))
+    (forward-line 1)))
 
 (defvar ewp-list-media-mode-map
   (let ((map (make-sparse-keymap)))
@@ -1053,7 +1055,8 @@ starting the screenshotting process."
 			      (:name "Comment" :width 100))
 			    (nreverse lines)
 			    (nreverse data))
-      (goto-char (point-min)))))
+      (goto-char (point-min))
+      (forward-line 1))))
 
 (defvar ewp-list-comments-mode-map
   (let ((map (make-sparse-keymap)))
