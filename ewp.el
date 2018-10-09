@@ -1212,8 +1212,7 @@ All normal editing commands are switched off.
 (defun ewp-update-field (string field)
   (save-excursion
     (beginning-of-line)
-    (let ((count 1)
-	  prop)
+    (let ((count 1))
       (while (and (not (eolp))
 		  (< count field))
 	(forward-char 1)
