@@ -64,6 +64,7 @@
 (defvar ewp-categories)
 (defvar ewp-comment)
 (defvar ewp-edit)
+(defvar ewp-marks)
 
 (defvar ewp-list-mode-map
   (let ((map (make-sparse-keymap)))
@@ -837,17 +838,24 @@ All normal editing commands are switched off.
   (interactive)
   (let* ((address (or address ewp-address))
 	 (media
-	  (ewp-call 'ewp-get-media-library address 500)))
+	  (ewp-call 'ewp-get-media-library address 500))
+	 marks)
     (switch-to-buffer (format "*%s media*" address))
+    (setq marks (and (boundp 'ewp-marks)
+		     ewp-marks))
     (let ((inhibit-read-only t))
       (erase-buffer)
       (ewp-list-media-mode)
+      (setq ewp-marks marks)
       (setq-local ewp-address address)
       (dolist (elem media)
 	(insert
 	 (propertize
 	  (format
-	   "%s %s %s\n"
+	   "%s %s %s %s\n"
+	   (if (ewp-find-mark (cdr (assoc "attachment_id" elem)))
+	       "*"
+	     " ")
 	   (propertize
 	    (format-time-string "%Y-%m-%d"
 				(caddr (assoc "date_created_gmt" elem)))
@@ -868,6 +876,7 @@ All normal editing commands are switched off.
     (define-key map "u" 'ewp-copy-url)
     (define-key map "\r" 'ewp-show-media)
     (define-key map "n" 'ewp-show-media-goto-next)
+    (define-key map " " 'ewp-toggle-media-mark)
     map))
 
 (define-derived-mode ewp-list-media-mode special-mode "ewp"
@@ -877,7 +886,8 @@ All normal editing commands are switched off.
 \\<ewp-mode-map>"
   (buffer-disable-undo)
   (setq truncate-lines t
-	buffer-read-only t))
+	buffer-read-only t)
+  (setq-local ewp-marks nil))
 
 (defun ewp-show-media-goto-next ()
   "Show the media under point and goto next line."
@@ -910,26 +920,35 @@ All normal editing commands are switched off.
 (defun ewp-copy-media ()
   "Copy the media under point to the kill ring."
   (interactive)
-  (let* ((data (get-text-property (point) 'data))
-	 (url (cdr (assoc "link" data))))
-    (if (not data)
+  (let ((data (get-text-property (point) 'data)))
+    (if (not (or ewp-marks data))
 	(error "No media under point")
-      (url-retrieve
-       url
-       (lambda (_)
-	 (goto-char (point-min))
-	 (let (image)
-	   (when (search-forward "\n\n")
-	     (setq image (buffer-substring (point) (point-max))))
-	   (kill-buffer (current-buffer))
-	   (when image
-	     (with-temp-buffer
-	       (insert-image (create-image image 'imagemagick t
-					   :max-width 500)
-			     (format "<a href=%S><img src=%S></a>\n" url url))
-	       (insert "\n")
+      (ewp-copy-media-1 (or ewp-marks (list data))
+			(length (or ewp-marks (list data)))))))
+
+(defun ewp-copy-media-1 (elems length &optional prev)
+  (let ((url (cdr (assoc "link" (pop elems)))))
+    (url-retrieve
+     url
+     (lambda (_)
+       (goto-char (point-min))
+       (let (image)
+	 (when (search-forward "\n\n")
+	   (setq image (buffer-substring (point) (point-max))))
+	 (kill-buffer (current-buffer))
+	 (when image
+	   (with-temp-buffer
+	     (when prev
+	       (insert prev))
+	     (insert-image (create-image image 'imagemagick t
+					 :max-width 500)
+			   (format "<a href=%S><img src=%S></a>\n" url url))
+	     (insert "\n\n")
+	     (if elems
+		 (ewp-copy-media-1 elems length (buffer-string))
 	       (copy-region-as-kill (point-min) (point-max))
-	       (message "Copied %s to the kill ring" url)))))))))
+	       (message "Copied %s image%s to the kill ring"
+			length (if (= length 1) "" "s"))))))))))
 
 (defun ewp-copy-url ()
   "Copy the URL under point to the kill ring."
@@ -1328,6 +1347,32 @@ All normal editing commands are switched off.
 		 ""
 	       "s")
 	     address)))
+
+(defun ewp-toggle-media-mark ()
+  "Toggle the mark on the media under point."
+  (interactive)
+  (let* ((data (get-text-property (point) 'data))
+	 (id (cdr (assoc "attachment_id" data)))
+	 (inhibit-read-only t))
+    (unless data
+      (error "No comment under point"))
+    (save-excursion
+      (beginning-of-line)
+      (delete-char 1)
+      (insert
+       (propertize
+	(if (ewp-find-mark id)
+	    (progn
+	      (setq ewp-marks (delq (ewp-find-mark id) ewp-marks))
+	      " ")
+	  (push data ewp-marks)
+	  "*")
+	'data data)))))
+
+(defun ewp-find-mark (id)
+  (loop for elem in ewp-marks
+	when (equal (cdr (assoc "attachment_id" elem)) id)
+	return elem))
 
 (provide 'ewp)
 
