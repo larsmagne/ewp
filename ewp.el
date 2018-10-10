@@ -74,7 +74,7 @@
     (set-keymap-parent map special-mode-map)
     (define-key map "e" 'ewp-select-post)
     (define-key map "p" 'ewp-preview)
-    (define-key map "m" 'ewp-list-media)
+    (define-key map "M" 'ewp-list-media)
     (define-key map "n" 'ewp-new-post)
     (define-key map "N" 'ewp-new-page)
     (define-key map "g" 'ewp)
