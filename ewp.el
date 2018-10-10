@@ -893,10 +893,13 @@ All normal editing commands are switched off.
   (setq-local ewp-marks nil))
 
 (defun ewp-show-media-goto-next ()
-  "Show the media under point and goto next line."
+  "Show the media under point.
+If media is currently shown, advance to the next line and show
+the media there instead."
   (interactive)
-  (ewp-show-media)
-  (forward-line 1))
+  (when (eq last-command 'ewp-show-media-goto-next)
+    (forward-line 1))
+  (ewp-show-media))
 
 (defun ewp-show-media ()
   "Show the media under point."
