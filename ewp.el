@@ -120,13 +120,20 @@ All normal editing commands are switched off.
    ((getf loc :data)
     (goto-char (point-min))
     (while (and (not (eobp))
-		(not (equal (getf loc :data)
-			    (get-text-property (point) 'data))))
+		(not (ewp-item-equal
+		      (getf loc :data) (get-text-property (point) 'data))))
       (forward-line 1)))
    ;; Go to the same numeric line.
    (t
     (goto-char (point-min))
     (forward-line (getf loc :line)))))
+
+(defun ewp-item-equal (e1 e2)
+  (loop for name in '("page_id" "post_id" "comment_id" "attachment_id")
+	for v1 = (cdr (assoc name e1))
+	for v2 = (cdr (assoc name e2))
+	if (and v1 v2)
+	return (equal v1 v2)))
 
 (defun ewp (&optional address old-data)
   "List all the posts on the blog."
