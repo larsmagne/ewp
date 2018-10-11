@@ -132,6 +132,7 @@ All normal editing commands are switched off.
   (loop for name in '("page_id" "post_id" "comment_id" "attachment_id")
 	for v1 = (cdr (assoc name e1))
 	for v2 = (cdr (assoc name e2))
+	;; We found the right type to compare.
 	if (and v1 v2)
 	return (equal v1 v2)))
 
