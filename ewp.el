@@ -82,6 +82,7 @@
     (define-key map "w" 'ewp-copy-link)
     (define-key map "c" 'ewp-make-comment)
     (define-key map "C" 'ewp-list-comments)
+    (define-key map ">" 'ewp-load-more-posts)
     map))
 
 (define-derived-mode ewp-list-mode special-mode "ewp"
@@ -93,7 +94,7 @@ All normal editing commands are switched off.
   (setq truncate-lines t
 	buffer-read-only t))
 
-(defun ewp (&optional address)
+(defun ewp (&optional address old-data)
   "List all the posts on the blog."
   (interactive (list (cond
 		      ((and (boundp 'ewp-address)
@@ -109,12 +110,15 @@ All normal editing commands are switched off.
     (erase-buffer)
     (ewp-list-mode)
     (setq-local ewp-address address)
-    (dolist (post (ewp-call 'ewp-get-posts address 100))
+    (dolist (post (nconc old-data
+			 (ewp-call 'ewp-get-posts address 100
+				   (length old-data))))
       (push post data)
-      (push (ewp-make-entry post "post") lines))
-    (dolist (post (ewp-call 'wp-get-pagelist address))
-      (push post data)
-      (push (ewp-make-entry post "page") lines))
+      (push (ewp-make-entry post) lines))
+    (unless old-data
+      (dolist (post (ewp-call 'wp-get-pagelist address))
+	(push post data)
+	(push (ewp-make-entry post) lines)))
     (variable-pitch-table '((:name "Date" :width 10)
 			    (:name "Status" :width 10)
 			    (:name "Categories" :width 15)
@@ -124,28 +128,36 @@ All normal editing commands are switched off.
     (goto-char (point-min))
     (forward-line 1)))
 
-(defun ewp-make-entry (post prefix)
-  (list
-   (propertize
-    (format-time-string "%Y-%m-%d"
-			(or (caddr (assoc "post_date" post))
-			    (caddr (assoc "date_created_gmt" post))))
-    'face 'variable-pitch)
-   (propertize 
-    (or (cdr (assoc (format "%s_status" prefix) post)) "")
-    'face '(variable-pitch :foreground "#a0a0a0"))
-   (propertize
-    (mapconcat
-     'identity
-     (loop for term in (cdr (assoc "terms" post))
-	   when (equal (cdr (assoc "taxonomy" term)) "category")
-	   collect (cdr (assoc "name" term)))
-     ",")
-    'face '(variable-pitch :foreground "#b0b0b0"))
-   (propertize
-    (mm-url-decode-entities-string
-     (cdr (assoc (format "%s_title" prefix) post)))
-    'face 'variable-pitch)))
+(defun ewp-load-more-posts ()
+  "Load more posts from the blog."
+  (interactive)
+  (ewp ewp-address (ewp-current-data)))
+
+(defun ewp-make-entry (post)
+  (let ((prefix (if (assoc "page_title" post)
+		    "page"
+		  "post")))
+    (list
+     (propertize
+      (format-time-string "%Y-%m-%d"
+			  (or (caddr (assoc "post_date" post))
+			      (caddr (assoc "date_created_gmt" post))))
+      'face 'variable-pitch)
+     (propertize 
+      (or (cdr (assoc (format "%s_status" prefix) post)) "")
+      'face '(variable-pitch :foreground "#a0a0a0"))
+     (propertize
+      (mapconcat
+       'identity
+       (loop for term in (cdr (assoc "terms" post))
+	     when (equal (cdr (assoc "taxonomy" term)) "category")
+	     collect (cdr (assoc "name" term)))
+       ",")
+      'face '(variable-pitch :foreground "#b0b0b0"))
+     (propertize
+      (mm-url-decode-entities-string
+       (cdr (assoc (format "%s_title" prefix) post)))
+      'face 'variable-pitch))))
 
 (defun ewp-auth (address)
   (let ((auth
@@ -159,14 +171,16 @@ All normal editing commands are switched off.
       (error "No credentials for %s in the .authinfo file" address))
     auth))
 
-(defun ewp-get-posts (blog-xmlrpc user-name password blog-id posts)
+(defun ewp-get-posts (blog-xmlrpc user-name password blog-id posts
+				  &optional offset)
   "Retrieves list of posts from the weblog system. Uses wp.getPosts."
   (xml-rpc-method-call blog-xmlrpc
                        "wp.getPosts"
                        blog-id
                        user-name
                        password
-		       `(("number" . ,posts))
+		       `(("number" . ,posts)
+			 ("offset" . ,(or offset 0)))
 		       ["post_title" "post_date" "post_status" "terms"]))
 
 (defun ewp-get-page (blog-xmlrpc user-name password page-id)
@@ -822,20 +836,24 @@ All normal editing commands are switched off.
       (svg-print elem))
     (insert (format "</%s>" (car dom)))))
 
-(defun ewp-get-media-library (blog-xmlrpc user-name password blog-id count)
+(defun ewp-get-media-library (blog-xmlrpc user-name password blog-id count
+					  &optional offset)
   "Retrieves list of images etc from the weblog system. Uses wp.getMediaLibrary."
   (xml-rpc-method-call blog-xmlrpc
                        "wp.getMediaLibrary"
                        blog-id
                        user-name
                        password
-		       `(("number" . ,count))))
+		       `(("number" . ,count)
+			 ("offset" . ,(or offset 0)))))
 
-(defun ewp-list-media (&optional address)
+(defun ewp-list-media (&optional address old-media)
   "List the media on the ADDRESS blog."  
   (interactive)
   (let* ((address (or address ewp-address))
-	 (media (ewp-call 'ewp-get-media-library address 500))
+	 (media (nconc old-media
+		       (ewp-call 'ewp-get-media-library address 500
+				 (length old-media))))
 	 marks data lines)
     (switch-to-buffer (format "*%s media*" address))
     (setq marks (and (boundp 'ewp-marks)
@@ -871,6 +889,11 @@ All normal editing commands are switched off.
     (goto-char (point-min))
     (forward-line 1)))
 
+(defun ewp-load-more-media ()
+  "Load more media from the blog."
+  (interactive)
+  (ewp-list-media ewp-address (ewp-current-data)))
+
 (defvar ewp-list-media-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map special-mode-map)
@@ -880,6 +903,7 @@ All normal editing commands are switched off.
     (define-key map "\r" 'ewp-show-media)
     (define-key map "n" 'ewp-show-media-goto-next)
     (define-key map " " 'ewp-toggle-media-mark)
+    (define-key map ">" 'ewp-load-more-media)
     map))
 
 (define-derived-mode ewp-list-media-mode special-mode "ewp"
@@ -1029,16 +1053,18 @@ starting the screenshotting process."
 	   (">" "&gt;")
 	   ("&" "&amp;")))))))
 
-(defun ewp-get-comments (blog-xmlrpc user-name password blog-id comments)
+(defun ewp-get-comments (blog-xmlrpc user-name password blog-id comments
+				     &optional offset)
   "Retrieves list of posts from the weblog system. Uses wp.getComments."
   (xml-rpc-method-call blog-xmlrpc
                        "wp.getComments"
                        blog-id
                        user-name
                        password
-		       `(("number" . ,comments))))
+		       `(("number" . ,comments)
+			 ("offset" . ,(or offset 0)))))
 
-(defun ewp-list-comments (&optional address)
+(defun ewp-list-comments (&optional address old-data)
   "List the recent comments for the blog."
   (interactive)
   (let ((address (or address ewp-address))
@@ -1048,7 +1074,9 @@ starting the screenshotting process."
     (setq-local ewp-address address)
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (dolist (comment (ewp-call 'ewp-get-comments address 100))
+      (dolist (comment (nconc old-data
+			      (ewp-call 'ewp-get-comments address 100
+					(length old-data))))
 	(push comment data)
 	(push (ewp-print-comment comment) lines))
       (variable-pitch-table '((:name "Date")
@@ -1061,6 +1089,21 @@ starting the screenshotting process."
       (goto-char (point-min))
       (forward-line 1))))
 
+(defun ewp-load-more-comments ()
+  "Load more comments from the blog."
+  (interactive)
+  (ewp-list-comments nil (ewp-current-data)))
+
+(defun ewp-current-data ()
+  (let ((data nil))
+    (save-excursion
+      (goto-char (point-min))
+      (while (not (eobp))
+	(when-let ((elem (get-text-property (point) 'data)))
+	  (push elem data))
+	(forward-line 1)))
+    (nreverse data)))
+
 (defvar ewp-list-comments-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map special-mode-map)
@@ -1072,6 +1115,7 @@ starting the screenshotting process."
     (define-key map "u" 'ewp-undelete-comment)
     (define-key map "r" 'ewp-make-comment)
     (define-key map "e" 'ewp-make-comment-edit)
+    (define-key map ">" 'ewp-load-more-comments)
     map))
 
 (define-derived-mode ewp-list-comments-mode special-mode "ewp"
