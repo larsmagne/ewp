@@ -94,6 +94,40 @@ All normal editing commands are switched off.
   (setq truncate-lines t
 	buffer-read-only t))
 
+(defmacro ewp-save-excursion (&rest body)
+  (declare (indent 0))
+  (let ((location (gensym)))
+    `(let ((,location (ewp-get-location)))
+       (prog1
+	   ,@body
+	 (ewp-restore-location ,location)))))
+
+(defun ewp-get-location ()
+  (list :point (point)
+	:data (get-text-property (point) 'data)
+	:size (buffer-size)
+	:line (count-lines (point-min) (point))))
+
+(defun ewp-restore-location (loc)
+  (cond
+   ;; We started with an empty buffer, so place point after the header
+   ;; line.
+   ((zerop (getf loc :size))
+    (goto-char (point-min))
+    (unless (eobp)
+      (forward-line 1)))
+   ;; Find a specific element we were on.
+   ((getf loc :data)
+    (goto-char (point-min))
+    (while (and (not (eobp))
+		(not (equal (getf loc :data)
+			    (get-text-property (point) 'data))))
+      (forward-line 1)))
+   ;; Go to the same numeric line.
+   (t
+    (goto-char (point-min))
+    (forward-line (getf loc :line)))))
+
 (defun ewp (&optional address old-data)
   "List all the posts on the blog."
   (interactive (list (cond
@@ -105,28 +139,27 @@ All normal editing commands are switched off.
 		       (read-string "Blog address (eg. my.example.com): "
 				    nil 'ewp-history)))))
   (switch-to-buffer (format "*%s posts*" address))
-  (let ((inhibit-read-only t)
-	lines data)
-    (erase-buffer)
-    (ewp-list-mode)
-    (setq-local ewp-address address)
-    (dolist (post (nconc old-data
-			 (ewp-call 'ewp-get-posts address 100
-				   (length old-data))))
-      (push post data)
-      (push (ewp-make-entry post) lines))
-    (unless old-data
-      (dolist (post (ewp-call 'wp-get-pagelist address))
+  (ewp-save-excursion
+    (let ((inhibit-read-only t)
+	  lines data)
+      (erase-buffer)
+      (ewp-list-mode)
+      (setq-local ewp-address address)
+      (dolist (post (nconc old-data
+			   (ewp-call 'ewp-get-posts address 100
+				     (length old-data))))
 	(push post data)
-	(push (ewp-make-entry post) lines)))
-    (variable-pitch-table '((:name "Date" :width 10)
-			    (:name "Status" :width 10)
-			    (:name "Categories" :width 15)
-			    (:name "Title"))
-			  (nreverse lines)
-			  (nreverse data))
-    (goto-char (point-min))
-    (forward-line 1)))
+	(push (ewp-make-entry post) lines))
+      (unless old-data
+	(dolist (post (ewp-call 'wp-get-pagelist address))
+	  (push post data)
+	  (push (ewp-make-entry post) lines)))
+      (variable-pitch-table '((:name "Date" :width 10)
+			      (:name "Status" :width 10)
+			      (:name "Categories" :width 15)
+			      (:name "Title"))
+			    (nreverse lines)
+			    (nreverse data)))))
 
 (defun ewp-load-more-posts ()
   "Load more posts from the blog."
@@ -858,36 +891,35 @@ All normal editing commands are switched off.
     (switch-to-buffer (format "*%s media*" address))
     (setq marks (and (boundp 'ewp-marks)
 		     ewp-marks))
-    (let ((inhibit-read-only t))
-      (erase-buffer)
-      (ewp-list-media-mode)
-      (setq ewp-marks marks)
-      (setq-local ewp-address address)
-      (dolist (elem media)
-	(push
-	 (list
-	  (if (ewp-find-mark (cdr (assoc "attachment_id" elem)))
-	      "*"
-	    " ")
-	  (propertize
-	   (format-time-string "%Y-%m-%d"
-			       (caddr (assoc "date_created_gmt" elem)))
-	   'face '(variable-pitch :foreground "#a0a0a0"))
-	  (propertize
-	   (cdr (assoc "type" elem))
-	   'face '(variable-pitch :foreground "#808080"))
-	  (propertize (cdr (assoc "title" elem))
-		      'face 'variable-pitch))
-	 lines)
-	(push elem data))
-      (variable-pitch-table '((:name "" :width 1)
-			      (:name "Date" :width 10)
-			      (:name "Type" :width 20)
-			      (:name "Name"))
-			    (nreverse lines)
-			    (nreverse data)))
-    (goto-char (point-min))
-    (forward-line 1)))
+    (ewp-save-excursion
+      (let ((inhibit-read-only t))
+	(erase-buffer)
+	(ewp-list-media-mode)
+	(setq ewp-marks marks)
+	(setq-local ewp-address address)
+	(dolist (elem media)
+	  (push
+	   (list
+	    (if (ewp-find-mark (cdr (assoc "attachment_id" elem)))
+		"*"
+	      " ")
+	    (propertize
+	     (format-time-string "%Y-%m-%d"
+				 (caddr (assoc "date_created_gmt" elem)))
+	     'face '(variable-pitch :foreground "#a0a0a0"))
+	    (propertize
+	     (cdr (assoc "type" elem))
+	     'face '(variable-pitch :foreground "#808080"))
+	    (propertize (cdr (assoc "title" elem))
+			'face 'variable-pitch))
+	   lines)
+	  (push elem data))
+	(variable-pitch-table '((:name "" :width 1)
+				(:name "Date" :width 10)
+				(:name "Type" :width 20)
+				(:name "Name"))
+			      (nreverse lines)
+			      (nreverse data))))))
 
 (defun ewp-load-more-media ()
   "Load more media from the blog."
@@ -1072,22 +1104,23 @@ starting the screenshotting process."
     (switch-to-buffer (format "*%s comments*" address))
     (ewp-list-comments-mode)
     (setq-local ewp-address address)
-    (let ((inhibit-read-only t))
-      (erase-buffer)
-      (dolist (comment (nconc old-data
-			      (ewp-call 'ewp-get-comments address 100
-					(length old-data))))
-	(push comment data)
-	(push (ewp-print-comment comment) lines))
-      (variable-pitch-table '((:name "Date")
-			      (:name "Status" :width 10)
-			      (:name "Author" :width 10)
-			      (:name "Title" :width 15)
-			      (:name "Comment" :width 100))
-			    (nreverse lines)
-			    (nreverse data))
-      (goto-char (point-min))
-      (forward-line 1))))
+    (ewp-save-excursion
+      (let ((inhibit-read-only t))
+	(erase-buffer)
+	(dolist (comment (nconc old-data
+				(ewp-call 'ewp-get-comments address 100
+					  (length old-data))))
+	  (push comment data)
+	  (push (ewp-print-comment comment) lines))
+	(variable-pitch-table '((:name "Date")
+				(:name "Status" :width 10)
+				(:name "Author" :width 10)
+				(:name "Title" :width 15)
+				(:name "Comment" :width 100))
+			      (nreverse lines)
+			      (nreverse data))
+	(goto-char (point-min))
+	(forward-line 1)))))
 
 (defun ewp-load-more-comments ()
   "Load more comments from the blog."
