@@ -419,7 +419,8 @@ which is to be returned.  Can be used with pages as well."
   (ewp-external-time
    (if (plusp (length scheduled))
        (parse-iso8601-time-string scheduled)
-     (caddr (assoc "dateCreated_gmt" post)))))
+     (or (caddr (assoc "date_created_gmt" post))
+	 (caddr (assoc "dateCreated_gmt" post))))))
 
 (defun ewp-new-post (&optional address)
   "Start editing a new post."
