@@ -756,9 +756,9 @@ All normal editing commands are switched off.
   "Download and insert the image from the URL in the kill ring."
   (interactive)
   (let ((url (substring-no-properties (current-kill 0))))
-    (ewp-download-and-insert-image-1 url (current-buffer))))
+    (ewp-download-and-insert-image-1 url (current-buffer) (point))))
 
-(defun ewp-download-and-insert-image-1 (url buffer &optional callback)
+(defun ewp-download-and-insert-image-1 (url buffer point &optional callback)
   (url-retrieve
    url
    (lambda (_)
@@ -771,7 +771,7 @@ All normal editing commands are switched off.
 		  (buffer-live-p buffer))
 	 (with-current-buffer buffer
 	   (save-excursion
-	     (goto-char (point-max))
+	     (goto-char (min point (point-max)))
 	     (ewp-insert-image-data image)
 	     (insert "\n\n"))
 	   (when callback
