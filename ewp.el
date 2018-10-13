@@ -1278,12 +1278,14 @@ All normal editing commands are switched off.
 (defun ewp-approve-comment ()
   "Approve the comment under point."
   (interactive)
-  (ewp-change-status "approve"))
+  (ewp-change-status "approve")
+  (forward-line 1))
 
 (defun ewp-hold-comment ()
   "Unapprove the comment under point."
   (interactive)
-  (ewp-change-status "hold"))
+  (ewp-change-status "hold")
+  (forward-line 1))
 
 (defun ewp-change-status (status)
   (let ((data (get-text-property (point) 'data)))
