@@ -276,7 +276,11 @@ which is to be returned.  Can be used with pages as well."
     (let ((urls nil))
       (while (re-search-forward "<img.*src=.\\([^\"]+\\)" nil t)
 	(push (match-string 1) urls))
-      (ewp-update-image (nreverse urls) (current-buffer)))))
+      (setq urls (nreverse urls))
+      ;; Don't insert more than a 100 images.
+      (when (> (length urls) 100)
+	(setcdr (nthcdr 100 urls) nil))
+      (ewp-update-image urls (current-buffer)))))
 
 (defun ewp-url-retrieve (url callback)
   (let ((cache (url-cache-create-filename url)))
