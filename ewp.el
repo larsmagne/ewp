@@ -530,7 +530,7 @@ which is to be returned.  Can be used with pages as well."
 		    ewp-image-width
 		  (car size))
 		(if factor
-		    (* (cdr size) ewp-image-width)
+		    (* (cdr size) factor)
 		  (cdr size))
 		(cdr (assoc "id" result)))))))))))
 
