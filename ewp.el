@@ -499,7 +499,8 @@ which is to be returned.  Can be used with pages as well."
 	    (setq result
 		  (ewp-call
 		   'metaweblog-upload-file address
-		   `(("name" . ,(format "%s.%s" address
+		   `(("name" . ,(format "%s.%s"
+					(format-time-string "%F")
 					(cadr (split-string mime-type "/"))))
 		     ("type" . ,mime-type)
 		     ("bits" . ,data))))
