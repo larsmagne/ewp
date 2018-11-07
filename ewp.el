@@ -267,7 +267,6 @@ which is to be returned.  Can be used with pages as well."
     (insert "\n")
     (insert (cdr (assoc "description" post)))
     (goto-char (point-min))
-    (ewp-update-images)
     (ewp-save-buffer id)
     (setq-local ewp-post post)))
 
@@ -370,10 +369,10 @@ which is to be returned.  Can be used with pages as well."
     (save-excursion
       (goto-char (point-min))
       (let ((headers nil)
-	    (post (copy-list (or ewp-post
-				 `(("title")
-				   ("description")
-				   ("categories")))))
+	    (post (copy-list (append ewp-post
+				     `(("title")
+				       ("description")
+				       ("categories")))))
 	    (pagep (assoc "page_id" ewp-post))
 	    (auth (ewp-auth ewp-address)))
 	(while (looking-at "\\([^\n:]+\\): \\(.*\\)")
@@ -384,14 +383,16 @@ which is to be returned.  Can be used with pages as well."
 		(buffer-substring (point) (point-max)))
 	(setcdr (assoc "title" post) (cdr (assoc "Title" headers)))
 	(setcdr (assoc "categories" post)
-		(mapcar #'string-trim
-			(split-string (cdr (assoc "Categories" headers)) ",")))
+		(and (cdr (assoc "Categories" headers))
+		     (mapcar #'string-trim
+			     (split-string (cdr (assoc "Categories" headers))
+					   ","))))
 	(nconc post (list (cons "date" (ewp-current-time
 					post
 					(cdr (assoc "Schedule" headers))))))
 	(apply
 	 (if pagep
-	     (if ewp-post
+	     (if (cdr (assoc "page_id" post))
 		 'wp-edit-page
 	       'wp-new-page)
 	   (if ewp-post
@@ -403,9 +404,12 @@ which is to be returned.  Can be used with pages as well."
 	   ,@(if pagep
 		 (list (format "%s" ewp-blog-id))
 	       nil)
-	   ,(format "%s" (if pagep
-			     (cdr (assoc "page_id" post))
-			   (cdr (assoc "postid" post))))
+	   ,@(if (or (not pagep)
+		     (cdr (assoc "page_id" post)))
+		 (list (format "%s" (if pagep
+					(cdr (assoc "page_id" post))
+				      (cdr (assoc "postid" post)))))
+	       nil)
 	   ,post
 	   ;; Publish if already published.
 	   ,(equal (cdr (assoc "Status" headers)) "publish")))
