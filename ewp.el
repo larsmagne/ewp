@@ -338,6 +338,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-o" 'ewp-html-quote-region)
     (define-key map "\C-c\C-p" 'ewp-yank-picture)
     (define-key map "\C-c\C-q" 'ewp-remove-image-thumbnails)
+    (define-key map "\C-c\C-w" 'ewp-insert-image-thumbnails)
     (define-key map "\C-c\C-r" 'ewp-tag-region)
     (define-key map "\C-c\C-s" 'ewp-import-screenshot)
     (define-key map "\C-c\C-t" 'ewp-insert-tag)
@@ -560,6 +561,13 @@ which is to be returned.  Can be used with pages as well."
 			    (otherwise 0)))
 		  "-o" "-"
 		  "-")))
+
+(defun ewp-insert-image-thumbnails ()
+  "Insert thumbnails."
+  (interactive)
+  (ewp-remove-image-thumbnails)
+  (ewp-update-images)
+  (message "Inserting image thumbnails..."))
 
 (defun ewp-remove-image-thumbnails ()
   "Remove thumbnails."
