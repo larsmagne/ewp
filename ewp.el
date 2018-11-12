@@ -56,6 +56,9 @@
 (defvar ewp-image-width 840
   "What width to tell Wordpress to resize images to when displaying on the blog.")
 
+(defvar ewp-display-width 800
+  "Max width of imaged when editing.")
+
 (defvar ewp-html-tags
   '("b" "blockquote" "body" "div" "em" "h1" "h2" "h3" "h4" "h5" "h6"
     "i" "img" "ul" "li" "ol" "pre" "span" "table" "td" "tr" "u")
@@ -323,7 +326,7 @@ which is to be returned.  Can be used with pages as well."
 			  (match-beginning 0) (match-end 0)
 			  'display
 			  (create-image image 'imagemagick t
-					:max-width 400
+					:max-width ewp-display-width
 					:format content-type)))))))))
 	   (kill-buffer buf))
 	 (when (buffer-live-p buffer)
@@ -475,7 +478,8 @@ which is to be returned.  Can be used with pages as well."
      ("type" . ,(mailcap-file-name-to-mime-type file))
      ("bits" . ,(with-temp-buffer
 		  (set-buffer-multibyte nil)
-		  (ewp-possibly-rotate-image file image)
+		  (insert-file-contents-literally file)
+		  (ewp-possibly-rotate-image image)
 		  (base64-encode-region (point-min) (point-max))
 		  (buffer-string))))))
 
@@ -550,27 +554,25 @@ which is to be returned.  Can be used with pages as well."
 		  (cdr size))
 		(cdr (assoc "id" result)))))))))))
 
-(defun ewp-possibly-rotate-image (file-name image)
-  (if (or (null image)
-	  (not (consp image))
-	  (not (eq (car image) 'image))
-	  (not (image-property image :rotation))
-	  (not (executable-find "exiftool")))
-      (insert-file-contents-literally file-name)
-    (call-process "exiftool"
-		  file-name
-		  (list (current-buffer) nil)
-		  nil
-		  (format "-Orientation#=%d"
-			  (cl-case (truncate
-				    (image-property image :rotation))
-			    (0 0)
-			    (90 6)
-			    (180 3)
-			    (270 8)
-			    (otherwise 0)))
-		  "-o" "-"
-		  "-")))
+(defun ewp-possibly-rotate-image (image)
+  (when (and image
+	     (consp image)
+	     (eq (car image) 'image)
+	     (image-property image :rotation)
+	     (executable-find "exiftool"))
+    (call-process-region "exiftool"
+			 (point-min) (point-max)
+			 t (current-buffer) nil
+			 (format "-Orientation#=%d"
+				 (cl-case (truncate
+					   (image-property image :rotation))
+				   (0 0)
+				   (90 6)
+				   (180 3)
+				   (270 8)
+				   (otherwise 0)))
+			 "-o" "-"
+			 "-")))
 
 (defun ewp-insert-image-thumbnails ()
   "Insert thumbnails."
@@ -618,7 +620,7 @@ which is to be returned.  Can be used with pages as well."
   (goto-char (point-max))
   (dolist (file files)
     (insert-image (create-image file 'imagemagick nil
-				:max-width 700)
+				:max-width ewp-display-width)
 		  (format "<img src=%S>" file))
     (insert "\n\n"))
   (goto-char (point-min))
@@ -743,7 +745,8 @@ All normal editing commands are switched off.
 (defun ewp-insert-img (file)
   "Prompt for a file and insert an <img>."
   (interactive "fImage file: ")
-  (insert-image (create-image file 'imagemagick nil :max-width 500)
+  (insert-image (create-image file 'imagemagick nil
+			      :max-width ewp-display-width)
 		(format "<img src=%S>" file))
   (insert "\n\n"))
 
@@ -805,7 +808,7 @@ All normal editing commands are switched off.
 (defun ewp-insert-image-data (image)
   (insert-image
    (create-image image 'imagemagick t
-		 :max-width 500)
+		 :max-width ewp-display-width)
    (format "<img src=\"data:%s;base64,%s\">"
 	   ;; Get the MIME type by running "file" over it.
 	   (with-temp-buffer
@@ -1352,7 +1355,9 @@ All normal editing commands are switched off.
       (delete-region (line-beginning-position)
 		     (line-end-position))
       (svg-insert-image svg)
-      (let ((area (ewp-crop-image-1 svg)))
+      (let ((area (save-excursion
+		    (forward-line 1)
+		    (ewp-crop-image-1 svg))))
 	(if (not area)
 	    (progn
 	      (delete-region (line-beginning-position)
@@ -1452,13 +1457,13 @@ All normal editing commands are switched off.
 	  (svg-line svg (getf area :right) (getf area :top)
 		    (getf area :right) (getf area :bottom)
 		    :id "right-line" :stroke-color "white")
-	  while (or (consp event)
-		    (not (member event '(return ?q))))
+	  while (not (member event '(return ?q)))
 	  finally (return (and (eq event 'return)
 			       area)))))
 
 (defun ewp-find-corner (area pos corners)
   (loop for corner in corners
+	;; We accept 10 pixels off.
 	when (and (< (- (car pos) 10)
 		     (getf area (car corner))
 		     (+ (car pos) 10))
