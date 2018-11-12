@@ -42,7 +42,7 @@ There are five different modes made available by this package:
 * M: List the media on this blog.
 * C: List the comments on this blog.
 * c: Make a comment.
-* >: Load more posts.
+* &gt;: Load more posts.
 
 
 ## ewp-edit-mode:
@@ -73,7 +73,7 @@ There are five different modes made available by this package:
 * w: Copy the image under point to the kill ring as an &lt;img&gt; construct
 * u: Copy the URL under point to the kill ring.
 * g: Rescan the media list.
-* >: Load more media.
+* &gt;: Load more media.
 
 ## ewp-list-comments-mode:
 
@@ -84,7 +84,7 @@ There are five different modes made available by this package:
 * u: Undelete a previously deleted comment.
 * r: Reply to a comment.
 * RET: Display the comment under point.
-* >: Load more comments.
+* &gt;: Load more comments.
 
 ## Commands in Dired buffers
 
