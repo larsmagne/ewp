@@ -499,22 +499,27 @@ which is to be returned.  Can be used with pages as well."
 	     ;; huge and blows up the regexp parser.
 	     (type (and (string-match "^[^:]+:" file)
 			(substring file 0 (1- (match-end 0)))))
+	     (image (get-text-property start 'display))
 	     result size)
 	(cond
 	 ;; Local file.
 	 ((null type)
-	  (setq result (ewp-upload-media
-			address file (get-text-property start 'display))
+	  (setq result (ewp-upload-media address file image)
 		size (image-size (create-image file) t)))
 	 ;; data: URL where the image is in the src bit.
 	 ((and (equal type "data")
 	       (string-match "^data:\\([^;]+\\);base64," file))
 	  (let ((mime-type (match-string 1 file))
 		(data (with-temp-buffer
-			(insert file)
+			(set-buffer-multibyte nil)
+			(insert (substring-no-properties file))
 			(goto-char (point-min))
 			(search-forward ",")
-			(buffer-substring (point) (point-max)))))
+			(delete-region (point-min) (point))
+			(base64-decode-region (point-min) (point-max))
+			(ewp-possibly-rotate-image image)
+			(base64-encode-region (point-min) (point-max))
+			(buffer-string))))
 	    (setq result
 		  (ewp-call
 		   'metaweblog-upload-file address
@@ -558,21 +563,27 @@ which is to be returned.  Can be used with pages as well."
   (when (and image
 	     (consp image)
 	     (eq (car image) 'image)
-	     (image-property image :rotation)
+	     (image-property image :rotation))
+    (let ((content-type (ewp-content-type (buffer-string))))
+      (cond
+       ((and (equal content-type "image/jpeg")
 	     (executable-find "exiftool"))
-    (call-process-region "exiftool"
-			 (point-min) (point-max)
-			 t (current-buffer) nil
-			 (format "-Orientation#=%d"
-				 (cl-case (truncate
-					   (image-property image :rotation))
-				   (0 0)
-				   (90 6)
-				   (180 3)
-				   (270 8)
-				   (otherwise 0)))
-			 "-o" "-"
-			 "-")))
+	(call-process-region
+	 (point-min) (point-max) "exiftool" t (list (current-buffer) nil) nil
+	 (format "-Orientation#=%d"
+		 (cl-case (truncate (image-property image :rotation))
+		   (0 0)
+		   (90 6)
+		   (180 3)
+		   (270 8)
+		   (otherwise 0)))
+	 "-o" "-"
+	 "-"))
+       ((executable-find "convert")
+	(call-process-region
+	 (point-min) (point-max) "convert" t (list (current-buffer) nil) nil
+	 "-rotate" (format "%s" (truncate (image-property image :rotation)))
+	 "-" "-"))))))	
 
 (defun ewp-insert-image-thumbnails ()
   "Insert thumbnails."
@@ -810,20 +821,23 @@ All normal editing commands are switched off.
    (create-image image 'imagemagick t
 		 :max-width ewp-display-width)
    (format "<img src=\"data:%s;base64,%s\">"
-	   ;; Get the MIME type by running "file" over it.
-	   (with-temp-buffer
-	     (set-buffer-multibyte nil)
-	     (insert image)
-	     (call-process-region (point-min) (point-max)
-				  "file" t (current-buffer) nil
-				  "--mime-type" "-")
-	     (cadr (split-string (buffer-string))))
+	   (ewp-content-type image)
 	   ;; Get a base64 version of the image.
 	   (with-temp-buffer
 	     (set-buffer-multibyte nil)
 	     (insert image)
 	     (base64-encode-region (point-min) (point-max) t)
 	     (buffer-string)))))
+
+(defun ewp-content-type (image)
+  ;; Get the MIME type by running "file" over it.
+  (with-temp-buffer
+    (set-buffer-multibyte nil)
+    (insert image)
+    (call-process-region (point-min) (point-max)
+			 "file" t (current-buffer) nil
+			 "--mime-type" "-")
+    (cadr (split-string (buffer-string)))))
 
 (defun ewp-yank-html ()
   "Yank the contents of the current X text/html selection, if any."
