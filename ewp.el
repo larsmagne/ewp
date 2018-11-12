@@ -488,13 +488,13 @@ which is to be returned.  Can be used with pages as well."
   "Look for local <img> and upload images from those to Wordpress."
   (save-excursion
     (goto-char (point-min))
-    (while (re-search-forward "\\(<a [^>]+>.*?\\)\\(<img.*?src=\"\\)" nil t)
+    (while (re-search-forward "\\(<a [^>]+>.*?\\)?\\(<img.*?src=\"\\)" nil t)
       (let* ((link-start (match-beginning 1))
 	     (start (match-beginning 2))
-	     (file (buffer-substring (point)
-				     (progn
-				       (re-search-forward "\".*?>" nil t)
-				       (match-beginning 0))))
+	     (file (buffer-substring-no-properties
+		    (point) (progn
+			      (re-search-forward "\".*?>" nil t)
+			      (match-beginning 0))))
 	     (end (point))
 	     (link-end (and (looking-at "</a>")
 			    (match-end 0)))
@@ -1421,9 +1421,9 @@ All normal editing commands are switched off.
       (set-buffer-multibyte nil)
       (insert data)
       (call-process-region (point-min) (point-max) "convert"
-			   t  (current-buffer)
+			   t (current-buffer) 
 			   nil
-			   "-crop"
+			   "+repage" "-crop"
 			   (format
 			    "%dx%d+%d+%d"
 			    (abs (truncate (* factor (- (getf area :right)
