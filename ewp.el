@@ -300,7 +300,17 @@ which is to be returned.  Can be used with pages as well."
 	 (let ((buf (current-buffer)))
 	   (when (search-forward "\n\n" nil t)
 	     (url-store-in-cache)
-	     (let ((image (buffer-substring (point) (point-max))))
+	     (let ((image (buffer-substring (point) (point-max)))
+		   (content-type
+		    (save-excursion
+		      (save-restriction
+			(narrow-to-region (point-min) (point))
+			(let ((content-type (mail-fetch-field "content-type")))
+			  (and content-type
+			       ;; Remove any comments in the type string.
+			       (intern
+				(replace-regexp-in-string ";.*" "" content-type)
+				obarray)))))))
 	       (when (buffer-live-p buffer)
 		 (with-current-buffer buffer
 		   (save-excursion
@@ -313,7 +323,8 @@ which is to be returned.  Can be used with pages as well."
 			  (match-beginning 0) (match-end 0)
 			  'display
 			  (create-image image 'imagemagick t
-					:max-width 400)))))))))
+					:max-width 400
+					:format content-type)))))))))
 	   (kill-buffer buf))
 	 (when (buffer-live-p buffer)
 	   (ewp-update-image urls buffer)))))))
@@ -1317,6 +1328,109 @@ All normal editing commands are switched off.
 	when (equal (cdr (assoc "attachment_id" elem)) id)
 	return elem))
 
+(defun ewp-crop-image ()
+  "Crop the image under point."
+  (interactive)
+  (let ((image (get-text-property (point) 'display)))
+    (when (or (not image)
+	      (not (consp image))
+	      (not (eq (car image) 'image)))
+      (error "No image under point"))
+    (let* ((data (getf (cdr image) :data))
+	   (type (getf (cdr image) :format))
+	   (size (image-size image t))
+	   (svg (svg-create (car size) (cdr size)
+			    :xmlns:xlink "http://www.w3.org/1999/xlink"
+			    :stroke-width 5))
+	   (text (buffer-substring (line-beginning-position)
+				   (line-end-position)))
+	   (inhibit-read-only t))
+      (svg-embed svg data (format "%s" type) t
+		 :width (car size)
+		 :height (cdr size))
+      (delete-region (line-beginning-position)
+		     (line-end-position))
+      (svg-insert-image svg)
+      svg)))
+      
+(defun ewp-crop-image-1 (svg)
+  (track-mouse
+    (loop with prompt = "Set start point"
+	  and state = 'begin
+	  and area = (list :left 0
+			   :top 0
+			   :right 0
+			   :bottom 0)
+	  and corner = nil
+	  for event = (read-event prompt)
+	  do (if (or (not (consp event))
+		     (not (nth 7 (cadr event)))
+		     (not (eq (getf (cdr (nth 7 (cadr event))) :type) 'svg)))
+		 ()
+	       (let ((pos (nth 8 (cadr event))))
+		 (cl-case state
+		   ('begin
+		    (cond
+		     ((eq (car event) 'down-mouse-1)
+		      (setq state 'stretch
+			    prompt "Stretch to end point")
+		      (setf (getf area :left) (car pos)
+			    (getf area :top) (cdr pos)
+			    (getf area :right) (car pos)
+			    (getf area :bottom) (cdr pos)))))
+		   ('stretch
+		    (cond
+		     ((eq (car event) 'mouse-movement)
+		      (setf (getf area :right) (car pos)
+			    (getf area :bottom) (cdr pos)))
+		     ((memq (car event) '(mouse-1 drag-mouse-1))
+		      (setq state 'corner
+			    prompt "Choose corner to adjust"))))
+		   ('corner
+		    (cond
+		     ((eq (car event) 'down-mouse-1)
+		      ;; Find out what corner we're close to.
+		      (setq corner (ewp-find-corner
+				    area pos
+				    '((:left :top)
+				      (:left :bottom)
+				      (:right :top)
+				      (:right :bottom))))
+		      (when corner
+			(setq state 'adjust
+			      prompt "Adjust crop")))))
+		   ('adjust
+		    (cond
+		     ((memq (car event) '(mouse drag-mouse-1))
+		      (setq state 'corner
+			    primtp "Choose corner to adjust"))
+		     ((eq (car event) 'mouse-movement)
+		      (setf (getf area (car corner)) (car pos)
+			    (getf area (cadr corner)) (cdr pos))))))))
+	  do (svg-line svg (getf area :left) (getf area :top)
+		       (getf area :right) (getf area :top)
+		       :id "top-line" :stroke-color "white")
+	  (svg-line svg (getf area :left) (getf area :bottom)
+		    (getf area :right) (getf area :bottom)
+		    :id "bottom-line" :stroke-color "white")
+	  (svg-line svg (getf area :left) (getf area :top)
+		    (getf area :left) (getf area :bottom)
+		    :id "left-line" :stroke-color "white")
+	  (svg-line svg (getf area :right) (getf area :top)
+		    (getf area :right) (getf area :bottom)
+		    :id "right-line" :stroke-color "white")
+	  )))
+
+(defun ewp-find-corner (area pos corners)
+  (loop for corner in corners
+	when (and (< (- (car pos) 10)
+		     (getf area (car corner))
+		     (+ (car pos) 10))
+		  (< (- (cdr pos) 10)
+		     (getf area (cadr corner))
+		     (+ (cdr pos) 10)))
+	return corner))
+  
 (provide 'ewp)
 
 ;;; ewp.el ends here
