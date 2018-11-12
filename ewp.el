@@ -90,9 +90,7 @@
 
 All normal editing commands are switched off.
 \\<ewp-list-mode-map>"
-  (buffer-disable-undo)
-  (setq truncate-lines t
-	buffer-read-only t))
+  (setq truncate-lines t))
 
 (defmacro ewp-save-excursion (&rest body)
   (declare (indent 0))
@@ -650,9 +648,7 @@ Uses `ewp-blog-addresses'."
 
 All normal editing commands are switched off.
 \\<ewp-mode-map>"
-  (buffer-disable-undo)
-  (setq truncate-lines t
-	buffer-read-only t))
+  (setq truncate-lines t))
 
 (defun ewp-list-blog ()
   "List the blog under point."
@@ -969,223 +965,7 @@ All normal editing commands are switched off.
 
 All normal editing commands are switched off.
 \\<ewp-mode-map>"
-  (buffer-disable-undo)
-  (setq truncate-lines t
-	buffer-read-only t)
-  (setq-local ewp-marks nil))
-
-(defun ewp-show-media-goto-next ()
-  "Show the media under point.
-If media is currently shown, advance to the next line and show
-the media there instead."
-  (interactive)
-  (when (eq last-command 'ewp-show-media-goto-next)
-    (forward-line 1))
-  (ewp-show-media))
-
-(defun ewp-show-media ()
-  "Show the media under point."
-  (interactive)
-  (let* ((data (get-text-property (point) 'data))
-	 (url (cdr (assoc "link" data))))
-    (if (not data)
-	(error "No media under point")
-      (url-retrieve
-       url
-       (lambda (_)
-	 (goto-char (point-min))
-	 (let (image)
-	   (when (search-forward "\n\n")
-	     (setq image (buffer-substring (point) (point-max))))
-	   (kill-buffer (current-buffer))
-	   (when image
-	     (with-temp-buffer
-	       (insert-image (create-image image 'imagemagick t
-					   :max-width 800))
-	       (let ((max-mini-window-height 0.9))
-		 (message "%s" (buffer-string)))))))))))
-
-(defun ewp-copy-media ()
-  "Copy the media under point to the kill ring."
-  (interactive)
-  (let ((data (get-text-property (point) 'data)))
-    (if (not (or ewp-marks data))
-	(error "No media under point")
-      (ewp-copy-media-1 (or ewp-marks (list data))
-			(length (or ewp-marks (list data)))))))
-
-(defun ewp-copy-media-1 (elems length &optional prev)
-  (let ((url (cdr (assoc "link" (pop elems)))))
-    (url-retrieve
-     url
-     (lambda (_)
-       (goto-char (point-min))
-       (let (image)
-	 (when (search-forward "\n\n")
-	   (setq image (buffer-substring (point) (point-max))))
-	 (kill-buffer (current-buffer))
-	 (when image
-	   (with-temp-buffer
-	     (when prev
-	       (insert prev))
-	     (insert-image (create-image image 'imagemagick t
-					 :max-width 500)
-			   (format "<a href=%S><img src=%S></a>\n" url url))
-	     (insert "\n\n")
-	     (if elems
-		 (ewp-copy-media-1 elems length (buffer-string))
-	       (copy-region-as-kill (point-min) (point-max))
-	       (message "Copied %s image%s to the kill ring"
-			length (if (= length 1) "" "s"))))))))))
-
-(defun ewp-copy-url ()
-  "Copy the URL under point to the kill ring."
-  (interactive)
-  (let* ((data (get-text-property (point) 'data))
-	 (url (cdr (assoc "link" data))))
-    (if (not data)
-	(error "No media under point")
-      (with-temp-buffer
-	(insert url)
-	(copy-region-as-kill (point-min) (point-max))
-	(message "Copied %s to the kill ring" url)))))
-
-(defun ewp-import-screenshot (delay)
-  "Take a screenshot and insert in the current buffer.
-DELAY (the numeric prefix) says how many seconds to wait before
-starting the screenshotting process."
-  (interactive "p")
-  (unless (executable-find "import")
-    (error "Can't find ImageMagick import command on this system"))
-  (decf delay)
-  (unless (zerop delay)
-    (dotimes (i delay)
-      (message "Sleeping %d second%s..."
-	       (- delay i)
-	       (if (= (- delay i) 1)
-		   ""
-		 "s"))
-      (sleep-for 1)))
-  (message "Take screenshot")
-  (let ((image
-	 (with-temp-buffer
-	   (set-buffer-multibyte nil)
-	   (call-process "import" nil (current-buffer) nil "png:-")
-	   (buffer-string))))
-    (set-mark (point))
-    (ewp-insert-image-data image)
-    (insert "\n\n")
-    (message "")))
-
-(defun ewp-schedule ()
-  "Insert a Schedule header with the current time."
-  (interactive)
-  (save-excursion
-    (goto-char (point-min))
-    (search-forward "\n\n")
-    (forward-line -1)
-    (insert (format-time-string "Schedule: %FT%T\n"))
-    (goto-char (point-min))
-    (when (re-search-forward "^Status: draft" nil t)
-      (replace-match "Status: publish"))))
-
-(defun ewp-copy-link ()
-  "Copy the URL of the blog post under point to the kill ring."
-  (interactive)
-  (let ((data (get-text-property (point) 'data)))
-    (unless data
-      (error "No post under point"))
-    (shr-probe-and-copy-url (cdr (assoc "short_url" data)))))
-
-(defun ewp-html-quote-region (start end)
-  "Quote some HTML entities in the region."
-  (interactive "r")
-  (save-excursion
-    (save-restriction
-      (goto-char start)
-      (narrow-to-region start end)
-      (while (re-search-forward "[<>&]" nil t)
-	(replace-match
-	 (pcase (match-string 0)
-	   ("<" "&lt;")
-	   (">" "&gt;")
-	   ("&" "&amp;")))))))
-
-(defun ewp-get-comments (blog-xmlrpc user-name password blog-id comments
-				     &optional offset)
-  "Retrieves list of posts from the weblog system. Uses wp.getComments."
-  (xml-rpc-method-call blog-xmlrpc
-                       "wp.getComments"
-                       blog-id
-                       user-name
-                       password
-		       `(("number" . ,comments)
-			 ("offset" . ,(or offset 0)))))
-
-(defun ewp-list-comments (&optional address old-data)
-  "List the recent comments for the blog."
-  (interactive)
-  (let ((address (or address ewp-address))
-	lines data)
-    (switch-to-buffer (format "*%s comments*" address))
-    (ewp-list-comments-mode)
-    (setq-local ewp-address address)
-    (ewp-save-excursion
-      (let ((inhibit-read-only t))
-	(erase-buffer)
-	(dolist (comment (nconc old-data
-				(ewp-call 'ewp-get-comments address 100
-					  (length old-data))))
-	  (push comment data)
-	  (push (ewp-print-comment comment) lines))
-	(variable-pitch-table '((:name "Date")
-				(:name "Status" :width 10)
-				(:name "Author" :width 10)
-				(:name "Title" :width 15)
-				(:name "Comment" :width 100))
-			      (nreverse lines)
-			      (nreverse data))
-	(goto-char (point-min))
-	(forward-line 1)))))
-
-(defun ewp-load-more-comments ()
-  "Load more comments from the blog."
-  (interactive)
-  (ewp-list-comments nil (ewp-current-data)))
-
-(defun ewp-current-data ()
-  (let ((data nil))
-    (save-excursion
-      (goto-char (point-min))
-      (while (not (eobp))
-	(when-let ((elem (get-text-property (point) 'data)))
-	  (push elem data))
-	(forward-line 1)))
-    (nreverse data)))
-
-(defvar ewp-list-comments-mode-map
-  (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map special-mode-map)
-    (define-key map "g" 'ewp-list-comments)
-    (define-key map "\r" 'ewp-display-comment)
-    (define-key map "a" 'ewp-approve-comment)
-    (define-key map "h" 'ewp-hold-comment)
-    (define-key map "d" 'ewp-trash-comment)
-    (define-key map "u" 'ewp-undelete-comment)
-    (define-key map "r" 'ewp-make-comment)
-    (define-key map "e" 'ewp-make-comment-edit)
-    (define-key map ">" 'ewp-load-more-comments)
-    map))
-
-(define-derived-mode ewp-list-comments-mode special-mode "ewp"
-  "Major mode for listing Wordpress comments.
-
-All normal editing commands are switched off.
-\\<ewp-list-comments-mode-map>"
-  (buffer-disable-undo)
-  (setq-local ewp-deleted-comments nil)
-  (setq truncate-lines t
-	buffer-read-only t))
+  (setq truncate-lines t))
 
 (defun ewp-print-comment (comment)
   "Insert a Wordpress entry at point."
@@ -1248,9 +1028,7 @@ All normal editing commands are switched off.
 
 All normal editing commands are switched off.
 \\<ewp-comment-mode-map>"
-  (buffer-disable-undo)
-  (setq truncate-lines t
-	buffer-read-only t))
+  (setq truncate-lines t))
 
 (defun ewp-edit-comment (blog-xmlrpc user-name password blog-id comment-id data)
   "Edits an exiting comment."
