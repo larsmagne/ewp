@@ -535,7 +535,30 @@ which is to be returned.  Can be used with pages as well."
 				      (base64-decode-region
 				       (point-min) (point-max))
 				      (buffer-string))
-				    'imagemagick t))))))
+				    'imagemagick t)))))
+	 ;; We have a normal <img src="http..."> image, but it's been
+	 ;; rotated.
+	 ((and image
+	       (consp image)
+	       (eq (car image) 'image)
+	       (image-property image :rotation))
+	  (let* ((data
+		  (with-temp-buffer
+		    (set-buffer-multibyte nil)
+		    (insert (getf (cdr image) :data))
+		    (ewp-possibly-rotate-image image)
+		    (buffer-string)))
+		 (content-type (ewp-content-type data)))
+	    (setq result
+		  (ewp-call
+		   'metaweblog-upload-file address
+		   `(("name" . ,(format "%s.%s"
+					(format-time-string "%F")
+					(cadr (split-string content-type "/"))))
+		     ("type" . ,content-type)
+		     ("bits" . ,(base64-encode-string data)))))
+	    (setq size (image-size image t)))))
+	  
 	(when result
 	  (let ((url (cdr (assoc "url" result)))
 		factor)
