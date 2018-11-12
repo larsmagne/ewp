@@ -322,12 +322,13 @@ which is to be returned.  Can be used with pages as well."
 			    (format "<a .*<img.*%s.*</a>" (regexp-quote url))
 			    nil t)
 		       (with-silent-modifications
-			 (put-text-property
+			 (add-text-properties
 			  (match-beginning 0) (match-end 0)
-			  'display
-			  (create-image image 'imagemagick t
-					:max-width ewp-display-width
-					:format content-type)))))))))
+			  (list 'display
+				(create-image image 'imagemagick t
+					      :max-width ewp-display-width
+					      :format content-type)
+				'keymap image-map)))))))))
 	   (kill-buffer buf))
 	 (when (buffer-live-p buffer)
 	   (ewp-update-image urls buffer)))))))
@@ -487,13 +488,16 @@ which is to be returned.  Can be used with pages as well."
   "Look for local <img> and upload images from those to Wordpress."
   (save-excursion
     (goto-char (point-min))
-    (while (re-search-forward "<img.*?src=\"" nil t)
-      (let* ((start (match-beginning 0))
+    (while (re-search-forward "\\(<a [^>]+>.*?\\)\\(<img.*?src=\"\\)" nil t)
+      (let* ((link-start (match-beginning 1))
+	     (start (match-beginning 2))
 	     (file (buffer-substring (point)
 				     (progn
-				       (re-search-forward "\".*>" nil t)
+				       (re-search-forward "\".*?>" nil t)
 				       (match-beginning 0))))
 	     (end (point))
+	     (link-end (and (looking-at "</a>")
+			    (match-end 0)))
 	     ;; We're avoiding `url-generic-parse-url' and other
 	     ;; regepx-based parsers here because data: URLs can be
 	     ;; huge and blows up the regexp parser.
@@ -535,7 +539,8 @@ which is to be returned.  Can be used with pages as well."
 				      (base64-decode-region
 				       (point-min) (point-max))
 				      (buffer-string))
-				    'imagemagick t)))))
+				    'imagemagick t)
+				   t))))
 	 ;; We have a normal <img src="http..."> image, but it's been
 	 ;; rotated.
 	 ((and image
@@ -557,7 +562,12 @@ which is to be returned.  Can be used with pages as well."
 					(cadr (split-string content-type "/"))))
 		     ("type" . ,content-type)
 		     ("bits" . ,(base64-encode-string data)))))
-	    (setq size (image-size image t)))))
+	    (setq size (image-size image t))
+	    ;; Remove the <a> that we slap around images.
+	    (when (and link-start
+		       link-end)
+	      (setq start link-start
+		    end link-end)))))
 	  
 	(when result
 	  (let ((url (cdr (assoc "url" result)))
