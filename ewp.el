@@ -353,6 +353,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-t" 'ewp-insert-tag)
     (define-key map "\C-c\C-u" 'ewp-unfill-paragraph)
     (define-key map "\C-c\C-z" 'ewp-schedule)
+    (define-key map "\C-c\C-k" 'ewp-crop-image)
     (define-key map "\t" 'ewp-complete)
     map))
 
@@ -1337,7 +1338,7 @@ All normal editing commands are switched off.
 	      (not (eq (car image) 'image)))
       (error "No image under point"))
     (let* ((data (getf (cdr image) :data))
-	   (type (getf (cdr image) :format))
+	   (type (format "%s" (getf (cdr image) :format)))
 	   (size (image-size image t))
 	   (svg (svg-create (car size) (cdr size)
 			    :xmlns:xlink "http://www.w3.org/1999/xlink"
@@ -1345,13 +1346,45 @@ All normal editing commands are switched off.
 	   (text (buffer-substring (line-beginning-position)
 				   (line-end-position)))
 	   (inhibit-read-only t))
-      (svg-embed svg data (format "%s" type) t
+      (svg-embed svg data type t
 		 :width (car size)
 		 :height (cdr size))
       (delete-region (line-beginning-position)
 		     (line-end-position))
       (svg-insert-image svg)
-      svg)))
+      (let ((area (ewp-crop-image-1 svg)))
+	(if (not area)
+	    (progn
+	      (delete-region (line-beginning-position)
+			     (line-end-position))
+	      (insert text))
+	  (ewp-crop-image-update area data size type))))))
+
+(defun ewp-crop-image-update (area data size type)
+  (let* ((image-scaling-factor 1)
+	 (osize (image-size (create-image data 'imagemagick t) t))
+	 (factor (/ (float (car osize)) (car size)))
+	 cropped-data)
+    (with-temp-buffer
+      (set-buffer-multibyte nil)
+      (insert data)
+      (call-process-region (point-min) (point-max) "convert"
+			   t  (current-buffer)
+			   nil
+			   "-crop"
+			   (format
+			    "%dx%d+%d+%d"
+			    (abs (truncate (* factor (- (getf area :right)
+							(getf area :left)))))
+			    (abs (truncate (* factor (- (getf area :bottom)
+							(getf area :top)))))
+			    (truncate (* factor (getf area :left)))
+			    (truncate (* factor (getf area :top))))
+			   "-" (format "%s:-" (cadr (split-string type "/"))))
+      (setq cropped-data (buffer-string)))
+    (delete-region (line-beginning-position)
+		   (line-end-position))
+    (ewp-insert-image-data cropped-data)))
       
 (defun ewp-crop-image-1 (svg)
   (track-mouse
@@ -1403,7 +1436,7 @@ All normal editing commands are switched off.
 		    (cond
 		     ((memq (car event) '(mouse drag-mouse-1))
 		      (setq state 'corner
-			    primtp "Choose corner to adjust"))
+			    prompt "Choose corner to adjust"))
 		     ((eq (car event) 'mouse-movement)
 		      (setf (getf area (car corner)) (car pos)
 			    (getf area (cadr corner)) (cdr pos))))))))
@@ -1419,7 +1452,10 @@ All normal editing commands are switched off.
 	  (svg-line svg (getf area :right) (getf area :top)
 		    (getf area :right) (getf area :bottom)
 		    :id "right-line" :stroke-color "white")
-	  )))
+	  while (or (consp event)
+		    (not (member event '(return ?q))))
+	  finally (return (and (eq event 'return)
+			       area)))))
 
 (defun ewp-find-corner (area pos corners)
   (loop for corner in corners

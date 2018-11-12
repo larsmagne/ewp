@@ -63,6 +63,7 @@ There are five different modes made available by this package:
 * C-c C-t: Prompt for an HTML tag and insert a &lt;tag&gt;&lt;/tag&gt; pair.
 * C-c C-u: Unfill a paragraph.
 * C-c C-z: Schedule later posting.
+* C-c C-k: Crop the image under point.
 * TAB:     In the Categories header, provide category completion.
 
 ## ewp-list-media-mode:
