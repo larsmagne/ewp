@@ -1424,21 +1424,17 @@ All normal editing commands are switched off.
     (with-temp-buffer
       (set-buffer-multibyte nil)
       (insert data)
-      (call-process-region (point-min) (point-max) "convert"
-			   t (current-buffer) 
-			   nil
-			   "+repage" "-crop"
-			   (format
-			    "%dx%d+%d+%d"
-			    (abs (truncate (* factor (- (getf area :right)
-							(getf area :left)))))
-			    (abs (truncate (* factor (- (getf area :bottom)
-							(getf area :top)))))
-			    (truncate (* factor (min (getf area :left)
-						     (getf area :right))))
-			    (truncate (* factor (min (getf area :top)
-						     (getf area :bottom)))))
-			   "-" (format "%s:-" (cadr (split-string type "/"))))
+      (call-process-region
+       (point-min) (point-max) "convert"
+       t (list (current-buffer) nil) nil
+       "+repage" "-crop"
+       (format
+	"%dx%d+%d+%d"
+	(abs (truncate (* factor (- (getf area :right) (getf area :left)))))
+	(abs (truncate (* factor (- (getf area :bottom) (getf area :top)))))
+	(truncate (* factor (min (getf area :left) (getf area :right))))
+	(truncate (* factor (min (getf area :top) (getf area :bottom)))))
+       "-" (format "%s:-" (cadr (split-string type "/"))))
       (setq cropped-data (buffer-string)))
     (delete-region (line-beginning-position)
 		   (line-end-position))
