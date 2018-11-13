@@ -1426,27 +1426,25 @@ All normal editing commands are switched off.
 (defun ewp-crop-image-update (area data size type)
   (let* ((image-scaling-factor 1)
 	 (osize (image-size (create-image data 'imagemagick t) t))
-	 (factor (/ (float (car osize)) (car size)))
-	 cropped-data)
-    (with-temp-buffer
-      (set-buffer-multibyte nil)
-      (insert data)
-      (call-process-region
-       (point-min) (point-max) "convert"
-       t (list (current-buffer) nil) nil
-       "+repage" "-crop"
-       (format
-	;; width x height + left + top
-	"%dx%d+%d+%d"
-	(abs (truncate (* factor (- (getf area :right) (getf area :left)))))
-	(abs (truncate (* factor (- (getf area :bottom) (getf area :top)))))
-	(truncate (* factor (min (getf area :left) (getf area :right))))
-	(truncate (* factor (min (getf area :top) (getf area :bottom)))))
-       "-" (format "%s:-" (cadr (split-string type "/"))))
-      (setq cropped-data (buffer-string)))
-    (delete-region (line-beginning-position)
-		   (line-end-position))
-    (ewp-insert-image-data cropped-data)))
+	 (factor (/ (float (car osize)) (car size))))
+    (delete-region (line-beginning-position) (line-end-position))
+    (ewp-insert-image-data
+     (with-temp-buffer
+       (set-buffer-multibyte nil)
+       (insert data)
+       (call-process-region
+	(point-min) (point-max) "convert"
+	t (list (current-buffer) nil) nil
+	"+repage" "-crop"
+	(format
+	 ;; width x height + left + top
+	 "%dx%d+%d+%d"
+	 (abs (truncate (* factor (- (getf area :right) (getf area :left)))))
+	 (abs (truncate (* factor (- (getf area :bottom) (getf area :top)))))
+	 (truncate (* factor (min (getf area :left) (getf area :right))))
+	 (truncate (* factor (min (getf area :top) (getf area :bottom)))))
+	"-" (format "%s:-" (cadr (split-string type "/"))))
+       (buffer-string)))))
       
 (defun ewp-crop-image-1 (svg)
   (track-mouse
