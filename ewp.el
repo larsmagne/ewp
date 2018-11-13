@@ -471,7 +471,7 @@ which is to be returned.  Can be used with pages as well."
     (end-of-line)
     (ewp-save-buffer)))
 
-(defun ewp-upload-media (address file &optional image)
+(defun ewp-upload-file (address file &optional image)
   (ewp-call
    'metaweblog-upload-file
    address
@@ -508,7 +508,7 @@ which is to be returned.  Can be used with pages as well."
 	(cond
 	 ;; Local file.
 	 ((null type)
-	  (setq result (ewp-upload-media address file image)
+	  (setq result (ewp-upload-file address file image)
 		size (image-size (create-image file) t)))
 	 ;; data: URL where the image is in the src bit.
 	 ((and (equal type "data")
@@ -1344,7 +1344,7 @@ All normal editing commands are switched off.
 	   (car ewp-blog-addresses)))
 	(results nil))
     (dolist (file files)
-      (push (ewp-upload-media address file) results))
+      (push (ewp-upload-file address file) results))
     (message "Uploaded %s file%s to %s (copied to clipboard)"
 	     (length files)
 	     (if (= (length files) 1)
