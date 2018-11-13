@@ -1410,15 +1410,18 @@ All normal editing commands are switched off.
       (delete-region (line-beginning-position)
 		     (line-end-position))
       (svg-insert-image svg)
-      (let ((area (save-excursion
-		    (forward-line 1)
-		    (ewp-crop-image-1 svg))))
-	(if (not area)
-	    (progn
-	      (delete-region (line-beginning-position)
-			     (line-end-position))
-	      (insert text))
-	  (ewp-crop-image-update area data size type))))))
+      (let ((area (condition-case _
+		      (save-excursion
+			(forward-line 1)
+			(ewp-crop-image-1 svg))
+		    (quit nil))))
+	(if area
+	    (ewp-crop-image-update area data size type)
+	  ;; If the user didn't complete the crop, re-insert the
+	  ;; original image (and text).
+	  (delete-region (line-beginning-position)
+			 (line-end-position))
+	  (insert text))))))
 
 (defun ewp-crop-image-update (area data size type)
   (let* ((image-scaling-factor 1)
