@@ -619,7 +619,7 @@ which is to be returned.  Can be used with pages as well."
        ((executable-find "convert")
 	(call-process-region
 	 (point-min) (point-max) "convert" t (list (current-buffer) nil) nil
-	 "-rotate" (format "%s" (truncate (image-property image :rotation)))
+	 "-rotate" (format "%d" (image-property image :rotation))
 	 "-" "-"))))))	
 
 (defun ewp-insert-image-thumbnails ()
