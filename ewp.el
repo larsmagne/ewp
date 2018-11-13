@@ -1391,6 +1391,10 @@ All normal editing commands are switched off.
 	      (not (consp image))
 	      (not (eq (car image) 'image)))
       (error "No image under point"))
+    ;; We replace the image under point with an SVG image that looks
+    ;; just like that image.  That allows us to draw lines over it.
+    ;; At the end, we replace that SVG with a cropped version of the
+    ;; original image.
     (let* ((data (getf (cdr image) :data))
 	   (type (format "%s" (getf (cdr image) :format)))
 	   (size (image-size image t))
