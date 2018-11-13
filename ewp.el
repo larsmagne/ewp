@@ -1456,6 +1456,8 @@ All normal editing commands are switched off.
 	  for event = (read-event prompt)
 	  do (if (or (not (consp event))
 		     (not (nth 7 (cadr event)))
+		     ;; Only do things if point is over the SVG being
+		     ;; tracked.
 		     (not (eq (getf (cdr (nth 7 (cadr event))) :type) 'svg)))
 		 ()
 	       (let ((pos (nth 8 (cadr event))))
@@ -1476,7 +1478,7 @@ All normal editing commands are switched off.
 			    (getf area :bottom) (cdr pos)))
 		     ((memq (car event) '(mouse-1 drag-mouse-1))
 		      (setq state 'corner
-			    prompt "Choose corner to adjust"))))
+			    prompt "Choose corner to adjust (RET to crop)"))))
 		   ('corner
 		    (cond
 		     ((eq (car event) 'down-mouse-1)
