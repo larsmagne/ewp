@@ -480,7 +480,7 @@ which is to be returned.  Can be used with pages as well."
      ("bits" . ,(with-temp-buffer
 		  (set-buffer-multibyte nil)
 		  (insert-file-contents-literally file)
-		  (ewp-possibly-rotate-image image)
+		  (ewp-possibly-rotate-buffer image)
 		  (base64-encode-region (point-min) (point-max))
 		  (buffer-string))))))
 
@@ -521,7 +521,7 @@ which is to be returned.  Can be used with pages as well."
 			(search-forward ",")
 			(delete-region (point-min) (point))
 			(base64-decode-region (point-min) (point-max))
-			(ewp-possibly-rotate-image image)
+			(ewp-possibly-rotate-buffer image)
 			(base64-encode-region (point-min) (point-max))
 			(buffer-string))))
 	    (setq result
@@ -551,7 +551,7 @@ which is to be returned.  Can be used with pages as well."
 		  (with-temp-buffer
 		    (set-buffer-multibyte nil)
 		    (insert (getf (cdr image) :data))
-		    (ewp-possibly-rotate-image image)
+		    (ewp-possibly-rotate-buffer image)
 		    (buffer-string)))
 		 (content-type (ewp-content-type data)))
 	    (setq result
@@ -592,7 +592,7 @@ which is to be returned.  Can be used with pages as well."
 		  (cdr size))
 		(cdr (assoc "id" result)))))))))))
 
-(defun ewp-possibly-rotate-image (image)
+(defun ewp-possibly-rotate-buffer (image)
   (when (and image
 	     (consp image)
 	     (eq (car image) 'image)
