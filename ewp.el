@@ -1415,19 +1415,17 @@ All normal editing commands are switched off.
 			(forward-line 1)
 			(ewp-crop-image-1 svg))
 		    (quit nil))))
+	(delete-region (line-beginning-position) (line-end-position))
 	(if area
 	    (ewp-crop-image-update area data size type)
 	  ;; If the user didn't complete the crop, re-insert the
 	  ;; original image (and text).
-	  (delete-region (line-beginning-position)
-			 (line-end-position))
 	  (insert text))))))
 
 (defun ewp-crop-image-update (area data size type)
   (let* ((image-scaling-factor 1)
 	 (osize (image-size (create-image data 'imagemagick t) t))
 	 (factor (/ (float (car osize)) (car size))))
-    (delete-region (line-beginning-position) (line-end-position))
     (ewp-insert-image-data
      (with-temp-buffer
        (set-buffer-multibyte nil)
