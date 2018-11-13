@@ -1429,6 +1429,7 @@ All normal editing commands are switched off.
        t (list (current-buffer) nil) nil
        "+repage" "-crop"
        (format
+	;; width x height + left + top
 	"%dx%d+%d+%d"
 	(abs (truncate (* factor (- (getf area :right) (getf area :left)))))
 	(abs (truncate (* factor (- (getf area :bottom) (getf area :top)))))
