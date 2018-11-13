@@ -599,6 +599,8 @@ which is to be returned.  Can be used with pages as well."
 	     (image-property image :rotation))
     (let ((content-type (ewp-content-type (buffer-string))))
       (cond
+       ;; We can rotate jpegs losslessly by setting the correct
+       ;; orientation.
        ((and (equal content-type "image/jpeg")
 	     (executable-find "exiftool"))
 	(call-process-region
@@ -612,6 +614,8 @@ which is to be returned.  Can be used with pages as well."
 		   (otherwise 0)))
 	 "-o" "-"
 	 "-"))
+       ;; Most other image formats have to be reencoded to do
+       ;; rotation.
        ((executable-find "convert")
 	(call-process-region
 	 (point-min) (point-max) "convert" t (list (current-buffer) nil) nil
