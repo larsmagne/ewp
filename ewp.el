@@ -81,6 +81,7 @@
     (define-key map "n" 'ewp-new-post)
     (define-key map "N" 'ewp-new-page)
     (define-key map "g" 'ewp)
+    (define-key map "s" 'ewp-list-posts-with-status)
     (define-key map "\r" 'ewp-browse)
     (define-key map "w" 'ewp-copy-link)
     (define-key map "c" 'ewp-make-comment)
@@ -137,8 +138,14 @@ All normal editing commands are switched off.
 	if (and v1 v2)
 	return (equal v1 v2)))
 
-(defun ewp (&optional address old-data)
-  "List all the posts on the blog."
+(defun ewp-list-posts-with-status (status)
+  "List posts with a specific status."
+  (interactive (list (completing-read "List status: "
+				      '("draft" "publish" "schedule"))))
+  (ewp ewp-address nil status))
+
+(defun ewp (&optional address old-data status)
+  "List the posts on the blog."
   (interactive (list (cond
 		      ((and (boundp 'ewp-address)
 			    ewp-address)
@@ -156,10 +163,11 @@ All normal editing commands are switched off.
       (setq-local ewp-address address)
       (dolist (post (nconc old-data
 			   (ewp-call 'ewp-get-posts address 100
-				     (length old-data))))
+				     (length old-data) status)))
 	(push post data)
 	(push (ewp-make-entry post) lines))
-      (unless old-data
+      (when (and (not old-data)
+		 (not status))
 	(dolist (post (ewp-call 'wp-get-pagelist address))
 	  (push post data)
 	  (push (ewp-make-entry post) lines)))
@@ -214,7 +222,7 @@ All normal editing commands are switched off.
     auth))
 
 (defun ewp-get-posts (blog-xmlrpc user-name password blog-id posts
-				  &optional offset)
+				  &optional offset status)
   "Retrieves list of posts from the weblog system. Uses wp.getPosts."
   (xml-rpc-method-call blog-xmlrpc
                        "wp.getPosts"
@@ -222,7 +230,8 @@ All normal editing commands are switched off.
                        user-name
                        password
 		       `(("number" . ,posts)
-			 ("offset" . ,(or offset 0)))
+			 ("offset" . ,(or offset 0))
+			 ("post_status" . ,(or status "")))
 		       ["post_title" "post_date" "post_status" "terms"]))
 
 (defun ewp-get-page (blog-xmlrpc user-name password page-id)
