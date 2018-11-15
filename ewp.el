@@ -1253,7 +1253,7 @@ All normal editing commands are switched off.
 \\<ewp-list-comments-mode-map>"
   (buffer-disable-undo)
   (setq-local ewp-deleted-comments nil)
-  (setq truncate-lines t)))
+  (setq truncate-lines t))
 
 (defun ewp-print-comment (comment)
   "Insert a Wordpress entry at point."
