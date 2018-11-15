@@ -372,7 +372,7 @@ which is to be returned.  Can be used with pages as well."
 
 (define-derived-mode ewp-edit-mode text-mode "ewp"
   "Major mode for editing Wordpress posts.
-\\<ewp-mode-map>"
+\\<ewp-edit-mode-map>"
   (setq-local word-wrap t)
   (setq-local normal-auto-fill-function 'ignore)
   (setq-local completion-at-point-functions
@@ -718,7 +718,7 @@ Uses `ewp-blog-addresses'."
   "Major mode for listing Wordpress blogs.
 
 All normal editing commands are switched off.
-\\<ewp-mode-map>"
+\\<ewp-list-blogs-mode-map>"
   (setq truncate-lines t))
 
 (defun ewp-list-blog ()
@@ -1039,7 +1039,7 @@ All normal editing commands are switched off.
   "Major mode for listing Wordpress media.
 
 All normal editing commands are switched off.
-\\<ewp-mode-map>"
+\\<ewp-list-media-mode-map>"
   (setq truncate-lines t)
   (setq-local ewp-marks nil))
 
