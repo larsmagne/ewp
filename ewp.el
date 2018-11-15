@@ -188,17 +188,21 @@ All normal editing commands are switched off.
   (ewp ewp-address (ewp-current-data)))
 
 (defun ewp-make-entry (post)
-  (let ((prefix (if (assoc "page_title" post)
-		    "page"
-		  "post")))
+  (let* ((prefix (if (assoc "page_title" post)
+		     "page"
+		   "post"))
+	 (date (or (caddr (assoc "post_date" post))
+		   (caddr (assoc "date_created_gmt" post))))
+	 (status (cdr (assoc (format "%s_status" prefix) post))))
+    (when (and (equal status "publish")
+	       (time-less-p (current-time) date))
+      (setq status "schedule"))
     (list
      (propertize
-      (format-time-string "%Y-%m-%d"
-			  (or (caddr (assoc "post_date" post))
-			      (caddr (assoc "date_created_gmt" post))))
+      (format-time-string "%Y-%m-%d" date)
       'face 'variable-pitch)
      (propertize 
-      (or (cdr (assoc (format "%s_status" prefix) post)) "")
+      (or status "")
       'face '(variable-pitch :foreground "#a0a0a0"))
      (propertize
       (mapconcat
