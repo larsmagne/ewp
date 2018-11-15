@@ -232,7 +232,8 @@ All normal editing commands are switched off.
 		       `(("number" . ,posts)
 			 ("offset" . ,(or offset 0))
 			 ,@(and status (list `("post_status" . ,status))))
-		       ["post_title" "post_date" "post_status" "terms"]))
+		       ["post_title" "post_date" "post_status" "terms"
+			"link" "post_name"]))
 
 (defun ewp-get-page (blog-xmlrpc user-name password page-id)
   "Retrieves a page from the weblog. PAGE-ID is the id of the post
@@ -1164,7 +1165,18 @@ starting the screenshotting process."
   (let ((data (get-text-property (point) 'data)))
     (unless data
       (error "No post under point"))
-    (shr-probe-and-copy-url (cdr (assoc "short_url" data)))))
+    (let* ((link (cdr (assoc "link" data)))
+	   (date (caddr (assoc "post_date" data)))
+	   (url
+	    (if (not (string-match "/[?]p=" link))
+		;; This is not a draft to be published in the future.
+		(replace-regexp-in-string "^http:" "https:" link)
+	      (let ((parse (url-generic-parse-url link)))
+		(format "https://%s/%s/%s/" (url-host parse)
+			(format-time-string "%Y/%m/%d" date)
+			(cdr (assoc "post_name" data)))))))
+      (kill-new url)
+      (message "Copied %S" url))))
 
 (defun ewp-html-quote-region (start end)
   "Quote some HTML entities in the region."
