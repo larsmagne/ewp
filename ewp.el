@@ -231,7 +231,7 @@ All normal editing commands are switched off.
                        password
 		       `(("number" . ,posts)
 			 ("offset" . ,(or offset 0))
-			 ("post_status" . ,(or status "")))
+			 ,@(and status (list `("post_status" . ,status))))
 		       ["post_title" "post_date" "post_status" "terms"]))
 
 (defun ewp-get-page (blog-xmlrpc user-name password page-id)
