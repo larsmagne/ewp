@@ -56,7 +56,7 @@
 (defvar ewp-image-width 840
   "What width to tell Wordpress to resize images to when displaying on the blog.")
 
-(defvar ewp-display-width 800
+(defvar ewp-display-width 600
   "Max width of imaged when editing.")
 
 (defvar ewp-html-tags
