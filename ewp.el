@@ -71,6 +71,7 @@
 (defvar ewp-edit)
 (defvar ewp-marks)
 (defvar ewp-deleted-comments)
+(defvar ewp-deleted-posts)
 
 (defvar ewp-list-mode-map
   (let ((map (make-sparse-keymap)))
@@ -84,6 +85,8 @@
     (define-key map "s" 'ewp-list-posts-with-status)
     (define-key map "\r" 'ewp-browse)
     (define-key map "w" 'ewp-copy-link)
+    (define-key map "d" 'ewp-trash-post)
+    ;;(define-key map "u" 'ewp-undelete-post)
     (define-key map "c" 'ewp-make-comment)
     (define-key map "C" 'ewp-list-comments)
     (define-key map ">" 'ewp-load-more-posts)
@@ -94,7 +97,8 @@
 
 All normal editing commands are switched off.
 \\<ewp-list-mode-map>"
-  (setq truncate-lines t))
+  (setq truncate-lines t)
+  (setq-local ewp-deleted-posts nil))
 
 (defmacro ewp-save-excursion (&rest body)
   (declare (indent 0))
@@ -1760,7 +1764,63 @@ All normal editing commands are switched off.
 		     (getf area (cadr corner))
 		     (+ (cdr pos) 10)))
 	return corner))
-  
+
+(defun ewp-delete-post (blog-xmlrpc user-name password _blog-id post-id)
+  "Delete an entry from the weblog system."
+  (xml-rpc-method-call blog-xmlrpc
+                       "blogger.deletePost"
+                       nil
+                       post-id
+                       user-name
+                       password
+                       t))
+
+(defun ewp-trash-post ()
+  "Trash (i.e., delete) the post under point."
+  (interactive)
+  (let ((data (get-text-property (point) 'data))
+	(inhibit-read-only t))
+    (unless data
+      (error "No post under point"))
+    (when (yes-or-no-p "Really delete this post? ")
+      (let* ((auth (ewp-auth ewp-address))
+	     (all-data (metaweblog-get-post
+			(format "https://%s/xmlrpc.php" ewp-address)
+			(getf auth :user) (funcall (getf auth :secret))
+			(cdr (assoc "post_id" data)))))
+	(put-text-property (line-beginning-position)
+			   (line-end-position)
+			   'all-data all-data)
+	(let ((result (ewp-call 'ewp-delete-post ewp-address
+				(cdr (assoc "post_id" data)))))
+	  (if (not (eq result t))
+	      (message "Got an error: %s" result)
+	    (message "Post deleted")
+	    (push (buffer-substring (line-beginning-position)
+				    (save-excursion
+				      (forward-line 1) (point)))
+		  ewp-deleted-posts)
+	    (delete-region (line-beginning-position)
+			   (save-excursion
+			     (forward-line 1) (point)))))))))
+
+(defun ewp-undelete-post ()
+  "Ressurrect the previously deleted post."
+  (interactive)
+  (unless ewp-deleted-posts
+    (error "No deleted posts in the undo queue"))
+  (let* ((line (pop ewp-deleted-posts))
+	 (data (get-text-property 1 'all-data line))
+	 (inhibit-read-only t)
+	 (result
+	  (ewp-call 'metaweblog-edit-post ewp-address
+		    (cdr (assoc "post_id" data))
+		    data)))
+    (if (not (eq result t))
+	(message "Error: %s" result)
+      (beginning-of-line)
+      (insert line))))
+
 (provide 'ewp)
 
 ;;; ewp.el ends here

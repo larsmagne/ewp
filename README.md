@@ -43,6 +43,7 @@ There are five different modes made available by this package:
 * C: List the comments on this blog.
 * c: Make a comment.
 * s: List posts with a specific status.
+* d: Delete the post under point.
 * &gt;: Load more posts.
 
 
