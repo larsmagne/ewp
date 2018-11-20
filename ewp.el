@@ -382,6 +382,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-u" 'ewp-unfill-paragraph)
     (define-key map "\C-c\C-z" 'ewp-schedule)
     (define-key map "\C-c\C-k" 'ewp-crop-image)
+    (define-key map "\C-c\C-j" 'ewp-set-image-width)
     (define-key map "\t" 'ewp-complete)
     map))
 
@@ -619,32 +620,38 @@ which is to be returned.  Can be used with pages as well."
 (defun ewp-possibly-rotate-buffer (image)
   (when (and image
 	     (consp image)
-	     (eq (car image) 'image)
-	     (image-property image :rotation))
-    (let ((content-type (ewp-content-type (buffer-string))))
-      (cond
-       ;; We can rotate jpegs losslessly by setting the correct
-       ;; orientation.
-       ((and (equal content-type "image/jpeg")
-	     (executable-find "exiftool"))
-	(call-process-region
-	 (point-min) (point-max) "exiftool" t (list (current-buffer) nil) nil
-	 (format "-Orientation#=%d"
-		 (cl-case (truncate (image-property image :rotation))
-		   (0 0)
-		   (90 6)
-		   (180 3)
-		   (270 8)
-		   (otherwise 0)))
-	 "-o" "-"
-	 "-"))
-       ;; Most other image formats have to be reencoded to do
-       ;; rotation.
-       ((executable-find "convert")
-	(call-process-region
-	 (point-min) (point-max) "convert" t (list (current-buffer) nil) nil
-	 "-rotate" (format "%d" (image-property image :rotation))
-	 "-" "-"))))))	
+	     (eq (car image) 'image))
+    (when (image-property image :rotation)
+      (let ((content-type (ewp-content-type (buffer-string))))
+	(cond
+	 ;; We can rotate jpegs losslessly by setting the correct
+	 ;; orientation.
+	 ((and (equal content-type "image/jpeg")
+	       (executable-find "exiftool"))
+	  (call-process-region
+	   (point-min) (point-max) "exiftool" t (list (current-buffer) nil) nil
+	   (format "-Orientation#=%d"
+		   (cl-case (truncate (image-property image :rotation))
+		     (0 0)
+		     (90 6)
+		     (180 3)
+		     (270 8)
+		     (otherwise 0)))
+	   "-o" "-"
+	   "-"))
+	 ;; Most other image formats have to be reencoded to do
+	 ;; rotation.
+	 ((executable-find "convert")
+	  (call-process-region
+	   (point-min) (point-max) "convert" t (list (current-buffer) nil) nil
+	   "-rotate" (format "%d" (image-property image :rotation))
+	   "-" "-")))))
+    (when (and (image-property image :width)
+	       (executable-find "convert"))
+      (call-process-region
+       (point-min) (point-max) "convert" t (list (current-buffer) nil) nil
+       "-resize" (format "%dx" (image-property image :width))
+       "-" "-"))))
 
 (defun ewp-insert-image-thumbnails ()
   "Insert thumbnails."
@@ -1830,6 +1837,16 @@ All normal editing commands are switched off.
 	(message "Error: %s" result)
       (beginning-of-line)
       (insert line))))
+
+(defun ewp-set-image-width (width)
+  "Set the width of the image under point."
+  (interactive "nImage width: ")
+  (let ((image (get-text-property (point) 'display)))
+    (when (or (not image)
+	      (not (consp image))
+	      (not (eq (car image) 'image)))
+      (error "No image under point"))
+    (setf (getf (cdr image) :width) width)))
 
 (provide 'ewp)
 
