@@ -270,6 +270,12 @@ which is to be returned.  Can be used with pages as well."
 		(format "https://%s/xmlrpc.php" ewp-address)
 		(getf auth :user) (funcall (getf auth :secret))
 		id))
+	 (date (or (caddr (assoc "post_date" post))
+		   (caddr (assoc "date_created_gmt" post))))
+	 (status (cdr (assoc (if pagep
+				 "page_status"
+			       "post_status")
+			     post)))
 	 (address ewp-address))
     (switch-to-buffer (format "*%s edit*" id))
     (erase-buffer)
@@ -279,11 +285,10 @@ which is to be returned.  Can be used with pages as well."
     (insert "Categories: " (mapconcat 'identity (cdr (assoc "categories" post))
 				      ",")
 	    "\n")
-    (insert "Status: " (cdr (assoc (if pagep
-				       "page_status"
-				     "post_status")
-				   post))
-	    "\n")
+    (insert "Status: " status "\n")
+    (when (and (equal status "publish")
+	       (time-less-p (current-time) date))
+      (insert (format-time-string "Schedule: %FT%T\n" date)))
     (insert "\n")
     (insert (cdr (assoc "description" post)))
     (goto-char (point-min))
