@@ -296,15 +296,13 @@ which is to be returned.  Can be used with pages as well."
     (setq-local ewp-post post)))
 
 (defun ewp-update-images ()
-  (save-excursion
-    (let ((urls nil))
-      (while (re-search-forward "<img.*src=.\\([^\"]+\\)" nil t)
-	(push (match-string 1) urls))
-      (setq urls (nreverse urls))
-      ;; Don't insert more than a 100 images.
-      (when (> (length urls) 100)
-	(setcdr (nthcdr 100 urls) nil))
-      (ewp-update-image urls (current-buffer)))))
+  (ewp-update-image
+   (loop for img in (dom-by-tag (libxml-parse-html-region (point) (point-max))
+				'img)
+	 repeat 100
+	 when (dom-attr img 'src)
+	 collect (dom-attr img 'src))
+   (current-buffer)))
 
 (defun ewp-url-retrieve (url callback)
   (let ((cache (url-cache-create-filename url)))
@@ -343,7 +341,9 @@ which is to be returned.  Can be used with pages as well."
 		   (save-excursion
 		     (goto-char (point-min))
 		     (when (re-search-forward
-			    (format "<a .*<img.*%s.*</a>" (regexp-quote url))
+			    (format "<a [^\n>]+?> *<img[^\n>]+?%s[^\n>]+> *</a>\\|<img[^\n>]+?%s[^\n>]*>"
+				    (regexp-quote url)
+				    (regexp-quote url))
 			    nil t)
 		       (with-silent-modifications
 			 (add-text-properties
