@@ -825,7 +825,8 @@ All normal editing commands are switched off.
   "Prompt for a file and insert an <img>."
   (interactive "fImage file: ")
   (insert-image (create-image file 'imagemagick nil
-			      :max-width ewp-display-width)
+			      :max-width ewp-display-width
+			      :max-height (/ (frame-pixel-height) 2))
 		(format "<img src=%S>" file))
   (insert "\n\n"))
 
@@ -1659,6 +1660,12 @@ All normal editing commands are switched off.
 	   (text (buffer-substring (line-beginning-position)
 				   (line-end-position)))
 	   (inhibit-read-only t))
+      (when (null data)
+	(with-temp-buffer
+	  (set-buffer-multibyte nil)
+	  (insert-file-contents-literally (getf (cdr image) :file))
+	  (setq data (buffer-string)))
+	(setq type (ewp-content-type data)))
       (svg-embed svg data type t
 		 :width (car size)
 		 :height (cdr size))
