@@ -290,7 +290,7 @@ which is to be returned.  Can be used with pages as well."
 	       (time-less-p (current-time) date))
       (insert (format-time-string "Schedule: %FT%T\n" date)))
     (insert "\n")
-    (insert (cdr (assoc "description" post)))
+    (insert (or (cdr (assoc "description" post)) ""))
     (goto-char (point-min))
     (ewp-save-buffer id)
     (setq-local ewp-post post)))
