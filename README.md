@@ -19,7 +19,7 @@ To get started, put something like the following in your .emacs:
    (setq ewp-blog-addresses '("blog.example.org" "other.blog.com"))
 ```
 
-and then `M-x ewp-blogs' to start browsing.
+and then `M-x ewp-blogs' to start browsing.  You should be queried for the password to use, which will then be saved your ~/.authinfo file.
 
 # Modes
 
