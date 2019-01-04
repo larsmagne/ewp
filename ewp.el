@@ -147,9 +147,9 @@ All normal editing commands are switched off.
   "List posts with a specific status."
   (interactive (list (completing-read "List status: "
 				      '("draft" "publish" "schedule"))))
-  (ewp ewp-address nil status))
+  (ewp-blog ewp-address nil status))
 
-(defun ewp (&optional address old-data status)
+(defun ewp-blog (&optional address old-data status)
   "List the posts on the blog."
   (interactive (list (cond
 		      ((and (boundp 'ewp-address)
@@ -186,7 +186,7 @@ All normal editing commands are switched off.
 (defun ewp-load-more-posts ()
   "Load more posts from the blog."
   (interactive)
-  (ewp ewp-address (ewp-current-data)))
+  (ewp-blog ewp-address (ewp-current-data)))
 
 (defun ewp-make-entry (post)
   (let* ((prefix (if (assoc "page_title" post)
@@ -714,7 +714,7 @@ which is to be returned.  Can be used with pages as well."
       (make-directory (file-name-directory file) t))
     (write-region (point-min) (point-max) file nil t)))
 
-(defun ewp-blogs ()
+(defun ewp ()
   "List all blogs you have.
 Uses `ewp-blog-addresses'."
   (interactive)
@@ -749,7 +749,7 @@ All normal editing commands are switched off.
   (let ((blog (get-text-property (point) 'data)))
     (unless blog
       (error "No blog under point"))
-    (ewp blog)))
+    (ewp-blog blog)))
 
 (defun ewp-complete ()
   "Complete categories in that header."
