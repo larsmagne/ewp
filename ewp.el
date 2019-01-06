@@ -82,7 +82,7 @@
     (define-key map "M" 'ewp-list-media)
     (define-key map "n" 'ewp-new-post)
     (define-key map "N" 'ewp-new-page)
-    (define-key map "g" 'ewp)
+    (define-key map "g" 'ewp-blog)
     (define-key map "s" 'ewp-list-posts-with-status)
     (define-key map "\r" 'ewp-browse)
     (define-key map "w" 'ewp-copy-link)
@@ -830,7 +830,7 @@ All normal editing commands are switched off.
 	(text (current-kill 0)))
     (unless url
       (error "No URL in the current kill"))
-    (insert (format "On <a href=%S>%s</a>"
+    (insert (format "<a href=%S>%s</a>"
 		    (ewp-decode-text-selection url)
 		    text))))
 
