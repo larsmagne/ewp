@@ -365,6 +365,7 @@ which is to be returned.  Can be used with pages as well."
   (let ((map (make-keymap)))
     (set-keymap-parent map text-mode-map)
     (define-key map "\C-c\C-a" 'ewp-yank-with-href)
+    (define-key map "\C-c\C-y" 'ewp-yank-link-with-text)
     (define-key map "\C-c\C-b" 'ewp-yank-with-blockquote)
     (define-key map "\C-c\C-c" 'ewp-update-post)
     (define-key map "\C-c\C-d" 'ewp-download-and-insert-image)
@@ -820,6 +821,18 @@ All normal editing commands are switched off.
   (insert "<blockquote>\n")
   (insert (substring-no-properties (current-kill 0)))
   (insert "</blockquote>\n\n"))
+
+(defun ewp-yank-link-with-text ()
+  "Yank the current kill ring item as <a href=URL>TEXT</a>."
+  (interactive)
+  (set-mark (point))
+  (let ((url (x-get-selection-internal 'PRIMARY 'text/x-moz-url-priv))
+	(text (current-kill 0)))
+    (unless url
+      (error "No URL in the current kill"))
+    (insert (format "On <a href=%S>%s</a>"
+		    (ewp-decode-text-selection url)
+		    text))))
 
 (defun ewp-insert-img (file)
   "Prompt for a file and insert an <img>."
