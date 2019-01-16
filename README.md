@@ -15,11 +15,11 @@ To get started, put something like the following in your .emacs:
 
 ```
    (push "~/src/ewp" load-path)
-   (autoload 'ewp-blogs "ewp.el" "List Wordpress blogs" t)
+   (autoload 'ewp "ewp.el" "List Wordpress blogs" t)
    (setq ewp-blog-addresses '("blog.example.org" "other.blog.com"))
 ```
 
-and then `M-x ewp-blogs' to start browsing.  You should be queried for the user name/password to use to access the blog.  If you want to store that permanently, put something like the following in your ~/.authinfo file:
+and then `M-x ewp' to start browsing.  You should be queried for the user name/password to use to access the blog.  If you want to store that permanently, put something like the following in your ~/.authinfo file:
 
 ```
   machine blog.example.org port https login foo password bar
