@@ -680,7 +680,8 @@ which is to be returned.  Can be used with pages as well."
   (let ((data (get-text-property (point) 'data)))
     (unless data
       (error "No post under point"))
-    (eww (cdr (assoc "short_url" data)))))
+    (eww (or (cdr (assoc "short_url" data))
+	     (cdr (assoc "link" data))))))
 
 (defun ewp-preview ()
   "Preview the blog post under point."
