@@ -817,7 +817,7 @@ All normal editing commands are switched off.
   (interactive)
   (set-mark (point))
   (when-let ((url (x-get-selection-internal 'PRIMARY 'text/x-moz-url-priv)))
-    (insert (format "On <a href=%S>somebody</a> wrote:\n\n"
+    (insert (format "<a href=%S></a>:\n\n"
 		    (ewp-decode-text-selection url))))
   (insert "<blockquote>\n")
   (insert (substring-no-properties (current-kill 0)))
