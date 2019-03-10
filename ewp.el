@@ -239,7 +239,8 @@ All normal editing commands are switched off.
     auth))
 
 (defun ewp-get-posts (blog-xmlrpc user-name password blog-id posts
-				  &optional offset status)
+				  &optional offset status
+				  fields)
   "Retrieves list of posts from the weblog system. Uses wp.getPosts."
   (xml-rpc-method-call blog-xmlrpc
                        "wp.getPosts"
@@ -249,8 +250,9 @@ All normal editing commands are switched off.
 		       `(("number" . ,posts)
 			 ("offset" . ,(or offset 0))
 			 ,@(and status (list `("post_status" . ,status))))
-		       ["post_title" "post_date" "post_status" "terms"
-			"link" "post_name"]))
+		       (or fields
+			   ["post_title" "post_date" "post_status" "terms"
+			    "link" "post_name"])))
 
 (defun ewp-get-page (blog-xmlrpc user-name password page-id)
   "Retrieves a page from the weblog. PAGE-ID is the id of the post
@@ -1877,6 +1879,14 @@ All normal editing commands are switched off.
 	      (not (eq (car image) 'image)))
       (error "No image under point"))
     (setf (getf (cdr image) :width) width)))
+
+(defun ewp-get-post-data (category)
+  (loop for elem in (ewp-call 'ewp-get-posts ewp-address 300 0 nil
+			      ["post_title" "post_date" "post_status" "terms"
+			       "link" "post_name" "post_content"])
+	when (or (null category)
+		 (member category (ewp--categories elem)))
+	collect elem))
 
 (provide 'ewp)
 
