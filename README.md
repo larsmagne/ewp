@@ -43,6 +43,7 @@ There are five different modes made available by this package:
 * N: Create a new page.
 * p: Preview the draft under point in an external web browser.
 * g: Rescan the list of blog posts/pages on this blog.
+* A: List posts from a specific category.
 * M: List the media on this blog.
 * C: List the comments on this blog.
 * c: Make a comment.
