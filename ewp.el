@@ -90,6 +90,7 @@
     ;;(define-key map "u" 'ewp-undelete-post)
     (define-key map "c" 'ewp-make-comment)
     (define-key map "C" 'ewp-list-comments)
+    (define-key map "A" 'ewp-list-posts-with-category)
     (define-key map ">" 'ewp-load-more-posts)
     map))
 
@@ -149,7 +150,12 @@ All normal editing commands are switched off.
 				      '("draft" "publish" "schedule"))))
   (ewp-blog ewp-address nil status))
 
-(defun ewp-blog (&optional address old-data status)
+(defun ewp-list-posts-with-category (category)
+  "List posts with from a specific category."
+  (interactive (list (completing-read "Category: " (ewp-categories))))
+  (ewp-blog ewp-address nil nil category))
+
+(defun ewp-blog (&optional address old-data status category)
   "List the posts on the blog."
   (interactive (list (cond
 		      ((and (boundp 'ewp-address)
@@ -167,10 +173,12 @@ All normal editing commands are switched off.
       (ewp-list-mode)
       (setq-local ewp-address address)
       (dolist (post (nconc old-data
-			   (ewp-call 'ewp-get-posts address 100
+			   (ewp-call 'ewp-get-posts address 300
 				     (length old-data) status)))
-	(push post data)
-	(push (ewp-make-entry post) lines))
+	(when (or (null category)
+		  (member category (ewp--categories post)))
+	  (push post data)
+	  (push (ewp-make-entry post) lines)))
       (when (and (not old-data)
 		 (not status))
 	(dolist (post (ewp-call 'wp-get-pagelist address))
@@ -206,17 +214,17 @@ All normal editing commands are switched off.
       (or status "")
       'face '(variable-pitch :foreground "#a0a0a0"))
      (propertize
-      (mapconcat
-       'identity
-       (loop for term in (cdr (assoc "terms" post))
-	     when (equal (cdr (assoc "taxonomy" term)) "category")
-	     collect (cdr (assoc "name" term)))
-       ",")
+      (mapconcat 'identity (ewp--categories post) ",")
       'face '(variable-pitch :foreground "#b0b0b0"))
      (propertize
       (mm-url-decode-entities-string
        (cdr (assoc (format "%s_title" prefix) post)))
       'face 'variable-pitch))))
+
+(defun ewp--categories (post)
+  (loop for term in (cdr (assoc "terms" post))
+	when (equal (cdr (assoc "taxonomy" term)) "category")
+	collect (cdr (assoc "name" term))))
 
 (defun ewp-auth (address)
   (let ((auth
@@ -768,7 +776,7 @@ All normal editing commands are switched off.
 	 (beginning-of-line)
 	 (looking-at "Categories: "))
        (lambda ()
-	 (let ((categories (ewp-categories))
+	 (let ((categories (mapcar #'car (ewp-categories)))
 	       (b (save-excursion
 		    (save-restriction
 		      (narrow-to-region
@@ -802,7 +810,8 @@ All normal editing commands are switched off.
     (setq-local ewp-categories
 		(loop for elem in (ewp-call 'metaweblog-get-categories
 					    ewp-address)
-		      collect (cdr (assoc "categoryName" elem))))))
+		      collect (cons (cdr (assoc "categoryName" elem))
+				    (cdr (assoc "categoryId" elem)))))))
 
 (defun ewp-yank-with-href ()
   "Yank the current kill ring item as an <a href>."
