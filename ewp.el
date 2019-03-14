@@ -544,7 +544,7 @@ which is to be returned.  Can be used with pages as well."
 	     ;; We're avoiding `url-generic-parse-url' and other
 	     ;; regepx-based parsers here because data: URLs can be
 	     ;; huge and blows up the regexp parser.
-	     (type (and (string-match "^[^:]+:" file)
+	     (type (and (string-match "^[a-z]+:" file)
 			(substring file 0 (1- (match-end 0)))))
 	     (image (get-text-property start 'display))
 	     result size)
