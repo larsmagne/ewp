@@ -102,6 +102,13 @@ All normal editing commands are switched off.
   (setq truncate-lines t)
   (setq-local ewp-deleted-posts nil))
 
+(defun ewp--image-type ()
+  (if (or (and (fboundp 'image-scaling-p)
+	       (image-scaling-p))
+	  (not (fboundp 'imagemagick-types)))
+      nil
+    'imagemagick))
+
 (defmacro ewp-save-excursion (&rest body)
   (declare (indent 0))
   (let ((location (gensym)))
@@ -359,7 +366,7 @@ which is to be returned.  Can be used with pages as well."
 			 (add-text-properties
 			  (match-beginning 0) (match-end 0)
 			  (list 'display
-				(create-image image 'imagemagick t
+				(create-image image (ewp--image-type) t
 					      :max-width ewp-display-width
 					      :format content-type)
 				'keymap image-map)))))))))
@@ -575,7 +582,7 @@ which is to be returned.  Can be used with pages as well."
 				      (base64-decode-region
 				       (point-min) (point-max))
 				      (buffer-string))
-				    'imagemagick t)
+				    (ewp--image-type) t)
 				   t))))
 	 ;; We have a normal <img src="http..."> image, but it's been
 	 ;; rotated.
@@ -710,7 +717,7 @@ which is to be returned.  Can be used with pages as well."
   (ewp-new-post)
   (goto-char (point-max))
   (dolist (file files)
-    (insert-image (create-image file 'imagemagick nil
+    (insert-image (create-image file (ewp--image-type) nil
 				:max-width ewp-display-width)
 		  (format "<img src=%S>" file))
     (insert "\n\n"))
@@ -849,7 +856,7 @@ All normal editing commands are switched off.
 (defun ewp-insert-img (file)
   "Prompt for a file and insert an <img>."
   (interactive "fImage file: ")
-  (insert-image (create-image file 'imagemagick nil
+  (insert-image (create-image file (ewp--image-type) nil
 			      :max-width ewp-display-width
 			      :max-height (/ (frame-pixel-height) 2))
 		(format "<img src=%S>" file))
@@ -912,7 +919,7 @@ All normal editing commands are switched off.
 
 (defun ewp-insert-image-data (image)
   (insert-image
-   (create-image image 'imagemagick t
+   (create-image image (ewp--image-type) t
 		 :max-width ewp-display-width)
    (format "<img src=\"data:%s;base64,%s\">"
 	   (ewp-content-type image)
@@ -1117,7 +1124,7 @@ the media there instead."
 	   (kill-buffer (current-buffer))
 	   (when image
 	     (with-temp-buffer
-	       (insert-image (create-image image 'imagemagick t
+	       (insert-image (create-image image (ewp--image-type) t
 					   :max-width 800))
 	       (let ((max-mini-window-height 0.9))
 		 (message "%s" (buffer-string)))))))))))
@@ -1145,7 +1152,7 @@ the media there instead."
 	   (with-temp-buffer
 	     (when prev
 	       (insert prev))
-	     (insert-image (create-image image 'imagemagick t
+	     (insert-image (create-image image (ewp--image-type) t
 					 :max-width 500)
 			   (format "<a href=%S><img src=%S></a>\n" url url))
 	     (insert "\n\n")
@@ -1711,7 +1718,7 @@ All normal editing commands are switched off.
 
 (defun ewp-crop-image-update (area data size type)
   (let* ((image-scaling-factor 1)
-	 (osize (image-size (create-image data 'imagemagick t) t))
+	 (osize (image-size (create-image data (ewp--image-type) t) t))
 	 (factor (/ (float (car osize)) (car size))))
     (ewp-insert-image-data
      (with-temp-buffer
