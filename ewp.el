@@ -488,11 +488,11 @@ which is to be returned.  Can be used with pages as well."
      (or (caddr (assoc "date_created_gmt" post))
 	 (caddr (assoc "dateCreated_gmt" post))))))
 
-(defun ewp-new-post (&optional address)
+(defun ewp-new-post (&optional address buffer)
   "Start editing a new post."
   (interactive)
   (let ((address (or address ewp-address)))
-    (switch-to-buffer (generate-new-buffer "*Wordpress Post*"))
+    (switch-to-buffer (or buffer (generate-new-buffer "*Wordpress Post*")))
     (ewp-edit-mode)
     (setq-local ewp-post nil)
     (setq-local ewp-address address)
