@@ -57,6 +57,9 @@
 (defvar ewp-image-width 840
   "What width to tell Wordpress to resize images to when displaying on the blog.")
 
+(defvar ewp-embed-smaller-images t
+  "If non-nil, use -1024x768 in the <img>.")
+
 (defvar ewp-display-width 600
   "Max width of imaged when editing.")
 
@@ -642,20 +645,32 @@ which is to be returned.  Can be used with pages as well."
 	    (when url
 	      (delete-region start end)
 	      (goto-char start)
-	      (insert
-	       (format
-		"<a href=\"%s\"><img src=\"%s%s\" alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
-		url url
-		(if factor
-		    (format "?w=%d" ewp-image-width)
-		  "")
-		(if factor
-		    ewp-image-width
-		  (car size))
-		(if factor
-		    (* (cdr size) factor)
-		  (cdr size))
-		(cdr (assoc "id" result)))))))))))
+	      (if ewp-embed-smaller-images
+		  (insert
+		   (format
+		    "<a href=\"%s\"><img src=\"%s\" alt=\"\" /></a>"
+		    url
+		    (if (> (car size) 768)
+			(replace-regexp-in-string "\\([.][a-z]+\\)\\'"
+						  (if (> (car size) (cdr size))
+						      "-1024x768\\1"
+						    "-768x1024\\1")
+						  url)
+		      url)))
+		(insert
+		 (format
+		  "<a href=\"%s\"><img src=\"%s%s\" alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
+		  url url
+		  (if factor
+		      (format "?w=%d" ewp-image-width)
+		    "")
+		  (if factor
+		      ewp-image-width
+		    (car size))
+		  (if factor
+		      (* (cdr size) factor)
+		    (cdr size))
+		  (cdr (assoc "id" result))))))))))))
 
 (defun ewp-possibly-rotate-buffer (image)
   (when (and image
