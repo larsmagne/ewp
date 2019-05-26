@@ -553,8 +553,28 @@ which is to be returned.  Can be used with pages as well."
 	(cond
 	 ;; Local file.
 	 ((null type)
-	  (setq result (ewp-upload-file address file image)
-		size (image-size (create-image file) t)))
+	  (let ((data
+		 (with-temp-buffer
+		   (set-buffer-multibyte nil)
+		   (insert-file-contents-literally file)
+		   (ewp-possibly-rotate-buffer image)
+		   (base64-encode-region (point-min) (point-max))
+		   (buffer-string))))
+	    (setq result
+		  (ewp-call
+		   'metaweblog-upload-file address
+		   `(("name" . ,(file-name-nondirectory file))
+		     ("type" . ,(mailcap-file-name-to-mime-type file))
+		     ("bits" . ,data))))
+	    (setq size (image-size (create-image
+				    (with-temp-buffer
+				      (set-buffer-multibyte nil)
+				      (insert data)
+				      (base64-decode-region
+				       (point-min) (point-max))
+				      (buffer-string))
+				    (ewp--image-type) t)
+				   t))))
 	 ;; data: URL where the image is in the src bit.
 	 ((and (equal type "data")
 	       (string-match "^data:\\([^;]+\\);base64," file))
