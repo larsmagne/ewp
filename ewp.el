@@ -60,6 +60,10 @@
 (defvar ewp-display-width 600
   "Max width of imaged when editing.")
 
+(defvar ewp-exif-rotate nil
+  "If non-nil, rotate images by updating exif data.
+If nil, rotate the images \"physically\".")
+
 (defvar ewp-html-tags
   '("b" "blockquote" "body" "div" "em" "h1" "h2" "h3" "h4" "h5" "h6"
     "i" "img" "ul" "li" "ol" "pre" "span" "table" "td" "tr" "u")
@@ -103,11 +107,9 @@ All normal editing commands are switched off.
   (setq-local ewp-deleted-posts nil))
 
 (defun ewp--image-type ()
-  (if (or (and (fboundp 'image-scaling-p)
-	       (image-scaling-p))
-	  (not (fboundp 'imagemagick-types)))
-      nil
-    'imagemagick))
+  (if (fboundp 'imagemagick-types)
+      'imagemagick
+    nil))
 
 (defmacro ewp-save-excursion (&rest body)
   (declare (indent 0))
@@ -644,7 +646,8 @@ which is to be returned.  Can be used with pages as well."
 	(cond
 	 ;; We can rotate jpegs losslessly by setting the correct
 	 ;; orientation.
-	 ((and (equal content-type "image/jpeg")
+	 ((and ewp-exif-rotate
+	       (equal content-type "image/jpeg")
 	       (executable-find "exiftool"))
 	  (call-process-region
 	   (point-min) (point-max) "exiftool" t (list (current-buffer) nil) nil
@@ -663,7 +666,13 @@ which is to be returned.  Can be used with pages as well."
 	  (call-process-region
 	   (point-min) (point-max) "convert" t (list (current-buffer) nil) nil
 	   "-rotate" (format "%d" (image-property image :rotation))
-	   "-" "-")))))
+	   "-" "-")
+	  (when (and (equal content-type "image/jpeg")
+		     (executable-find "exiftool"))
+	    (call-process-region
+	     (point-min) (point-max) "exiftool" t (list (current-buffer) nil) nil
+	     "-Orientation#=0"
+	     "-o" "-" "-"))))))
     (when (and (image-property image :width)
 	       (executable-find "convert"))
       (call-process-region
