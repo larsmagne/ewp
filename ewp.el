@@ -57,8 +57,8 @@
 (defvar ewp-image-width 840
   "What width to tell Wordpress to resize images to when displaying on the blog.")
 
-(defvar ewp-embed-smaller-images t
-  "If non-nil, use -1024x768 in the <img>.")
+(defvar ewp-embed-smaller-images nil
+  "If non-nil, should be a regexp to match blog name to use -1024x768 in the <img>.")
 
 (defvar ewp-display-width 600
   "Max width of imaged when editing.")
@@ -645,7 +645,8 @@ which is to be returned.  Can be used with pages as well."
 	    (when url
 	      (delete-region start end)
 	      (goto-char start)
-	      (if ewp-embed-smaller-images
+	      (if (and ewp-embed-smaller-images
+		       (string-match ewp-embed-smaller-images ewp-address))
 		  (insert
 		   (format
 		    "<a href=\"%s\"><img src=\"%s\" alt=\"\" /></a>"
