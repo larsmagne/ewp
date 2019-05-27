@@ -630,7 +630,7 @@ which is to be returned.  Can be used with pages as well."
 					(cadr (split-string content-type "/"))))
 		     ("type" . ,content-type)
 		     ("bits" . ,(base64-encode-string data)))))
-	    (setq size (image-size image t))
+	    (setq size (image-size (create-image data nil t) t))
 	    ;; Remove the <a> that we slap around images.
 	    (when (and link-start
 		       link-end)
