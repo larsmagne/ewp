@@ -407,7 +407,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-k" 'ewp-crop-image)
     (define-key map "\C-c\C-j" 'ewp-set-image-width)
     (define-key map "\t" 'ewp-complete)
-    (define-key map "\C-c\C-@" 'ewp-toggle-thumbnail)
+    (define-key map (kbd "C-c C-$") 'ewp-toggle-thumbnail)
     map))
 
 (define-derived-mode ewp-edit-mode text-mode "ewp"
@@ -685,7 +685,8 @@ which is to be returned.  Can be used with pages as well."
 		  (cdr (assoc "id" result)))))
 	      ;; Preserve the thumnail designation.
 	      (when thumbnailp
-		(put-text-property start 'ewp-thumbnail thumbnailp)))))))))
+		(put-text-property start (point)
+				   'ewp-thumbnail thumbnailp)))))))))
 
 (defun ewp-possibly-rotate-buffer (image)
   (when (and image
@@ -1958,19 +1959,21 @@ All normal editing commands are switched off.
   "Toggle whether the image under point is the thumbnail for the post."
   (interactive)
   (let ((image (get-text-property (point) 'display))
-	match)
+	match status)
     (when (or (not image)
 	      (not (consp image))
 	      (not (eq (car image) 'image)))
       (error "No image under point"))
-    (if (get-text-property (point) 'ewp-thumbnail)
+    (if (setq status (get-text-property (point) 'ewp-thumbnail))
 	(put-text-property (point) (1+ (point)) 'ewp-thumbnail nil)
       (save-excursion
 	(while (setq match (text-property-search-forward 'ewp-thumbnail))
 	  (put-text-property (prop-match-beginning match)
 			     (prop-match-end match)
 			     'ewp-thumbnail nil)))
-      (put-text-property (point) (1+ (point)) 'ewp-thumbnail t))))
+      (put-text-property (point) (1+ (point)) 'ewp-thumbnail t))
+    (message "Made image under point %s" (if status "not the thumbnail"
+					   "the thumbnail"))))
 
 (provide 'ewp)
 
