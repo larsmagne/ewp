@@ -407,6 +407,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-k" 'ewp-crop-image)
     (define-key map "\C-c\C-j" 'ewp-set-image-width)
     (define-key map "\t" 'ewp-complete)
+    (define-key map "\C-c\C-@" 'ewp-toggle-thumbnail)
     map))
 
 (define-derived-mode ewp-edit-mode text-mode "ewp"
@@ -453,6 +454,14 @@ which is to be returned.  Can be used with pages as well."
 	(nconc post (list (cons "date" (ewp-current-time
 					post
 					(cdr (assoc "Schedule" headers))))))
+	(save-excursion
+	  (let ((match (text-property-search-forward 'ewp-thumbnail)))
+	    (when match
+	      (let ((string (buffer-substring (prop-match-beginning match)
+					      (prop-match-end match))))
+		(and (string-match "wp-image-\\([0-9]+\\)" string)
+		     (nconc post (list (cons "thumbnail"
+					     (match-string 1 string)))))))))
 	(apply
 	 (if pagep
 	     (if (cdr (assoc "page_id" post))
@@ -639,6 +648,7 @@ which is to be returned.  Can be used with pages as well."
 	  
 	(when result
 	  (let ((url (cdr (assoc "url" result)))
+		(thumbnailp (get-text-property start 'ewp-thumbnail))
 		factor)
 	    (when (> (car size) ewp-image-width)
 	      (setq factor (/ (* ewp-image-width 1.0) (car size))))
@@ -649,7 +659,7 @@ which is to be returned.  Can be used with pages as well."
 		       (string-match ewp-embed-smaller-images ewp-address))
 		  (insert
 		   (format
-		    "<a href=\"%s\"><img src=\"%s\" alt=\"\" /></a>"
+		    "<a href=\"%s\"><img src=\"%s\" alt=\"\" wp-image-%s /></a>"
 		    url
 		    (if (> (car size) 768)
 			(replace-regexp-in-string "\\([.][a-z]+\\)\\'"
@@ -657,7 +667,8 @@ which is to be returned.  Can be used with pages as well."
 						      "-1024x768\\1"
 						    "-768x1024\\1")
 						  url)
-		      url)))
+		      url)
+		    (cdr (assoc "id" result))))
 		(insert
 		 (format
 		  "<a href=\"%s\"><img src=\"%s%s\" alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
@@ -671,7 +682,10 @@ which is to be returned.  Can be used with pages as well."
 		  (if factor
 		      (* (cdr size) factor)
 		    (cdr size))
-		  (cdr (assoc "id" result))))))))))))
+		  (cdr (assoc "id" result)))))
+	      ;; Preserve the thumnail designation.
+	      (when thumbnailp
+		(put-text-property start 'ewp-thumbnail thumbnailp)))))))))
 
 (defun ewp-possibly-rotate-buffer (image)
   (when (and image
@@ -1939,6 +1953,24 @@ All normal editing commands are switched off.
 	when (or (null category)
 		 (member category (ewp--categories elem)))
 	collect elem))
+
+(defun ewp-toggle-thumbnail ()
+  "Toggle whether the image under point is the thumbnail for the post."
+  (interactive)
+  (let ((image (get-text-property (point) 'display))
+	match)
+    (when (or (not image)
+	      (not (consp image))
+	      (not (eq (car image) 'image)))
+      (error "No image under point"))
+    (if (get-text-property (point) 'ewp-thumbnail)
+	(put-text-property (point) (1+ (point)) 'ewp-thumbnail nil)
+      (save-excursion
+	(while (setq match (text-property-search-forward 'ewp-thumbnail))
+	  (put-text-property (prop-match-beginning match)
+			     (prop-match-end match)
+			     'ewp-thumbnail nil)))
+      (put-text-property (point) (1+ (point)) 'ewp-thumbnail t))))
 
 (provide 'ewp)
 
