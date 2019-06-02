@@ -418,7 +418,8 @@ which is to be returned.  Can be used with pages as well."
   (setq-local completion-at-point-functions
 	      (cons
 	       'ewp-complete-status
-	       (cons 'ewp-complete-category completion-at-point-functions))))
+	       (cons 'ewp-complete-category completion-at-point-functions)))
+  (auto-save-mode 1))
 
 (defun ewp-update-post ()
   "Update the post in the current buffer on Wordpress."
