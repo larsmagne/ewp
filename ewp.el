@@ -110,9 +110,11 @@ All normal editing commands are switched off.
   (setq-local ewp-deleted-posts nil))
 
 (defun ewp--image-type ()
-  (if (fboundp 'imagemagick-types)
-      'imagemagick
-    nil))
+  (if (or (and (fboundp 'image-transforms-p)
+	       (image-transforms-p))
+	  (not (fboundp 'imagemagick-types)))
+      nil
+    'imagemagick))
 
 (defmacro ewp-save-excursion (&rest body)
   (declare (indent 0))
