@@ -169,7 +169,7 @@ All normal editing commands are switched off.
   (interactive (list (completing-read "Category: " (ewp-categories))))
   (ewp-blog ewp-address nil nil category))
 
-(defun ewp-blog (&optional address old-data status category)
+(defun ewp-blog (&optional address old-data status category all)
   "List the posts on the blog."
   (interactive (list (cond
 		      ((and (boundp 'ewp-address)
@@ -187,7 +187,8 @@ All normal editing commands are switched off.
       (ewp-list-mode)
       (setq-local ewp-address address)
       (dolist (post (nconc old-data
-			   (ewp-call 'ewp-get-posts address 300
+			   (ewp-call 'ewp-get-posts address
+				     (if all 30000 300)
 				     (length old-data) status)))
 	(when (or (null category)
 		  (member category (ewp--categories post)))
@@ -205,10 +206,11 @@ All normal editing commands are switched off.
 			    (nreverse lines)
 			    (nreverse data)))))
 
-(defun ewp-load-more-posts ()
-  "Load more posts from the blog."
-  (interactive)
-  (ewp-blog ewp-address (ewp-current-data)))
+(defun ewp-load-more-posts (&optional all)
+  "Load more posts from the blog.
+If ALL (the prefix), load all the posts in the blog."
+  (interactive "P")
+  (ewp-blog ewp-address (ewp-current-data) nil nil t))
 
 (defun ewp-make-entry (post)
   (let* ((prefix (if (assoc "page_title" post)
@@ -407,6 +409,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-u" 'ewp-unfill-paragraph)
     (define-key map "\C-c\C-z" 'ewp-schedule)
     (define-key map "\C-c\C-k" 'ewp-crop-image)
+    (define-key map (kbd "C-c C-S-t") 'ewp-trim-image)
     (define-key map "\C-c\C-j" 'ewp-set-image-width)
     (define-key map "\t" 'ewp-complete)
     (define-key map (kbd "C-c C-$") 'ewp-toggle-thumbnail)
@@ -1883,6 +1886,39 @@ All normal editing commands are switched off.
 		     (getf area (cadr corner))
 		     (+ (cdr pos) 10)))
 	return corner))
+
+(defun ewp-trim-image (fuzz)
+  "Trim (i.e., remove black borders) the image under point.
+FUZZ (the numerical prefix) says how much fuzz to apply."
+  (interactive "p")
+  (let ((image (get-text-property (point) 'display))
+	new-data)
+    (when (or (not image)
+	      (not (consp image))
+	      (not (eq (car image) 'image)))
+      (error "No image under point"))
+    (let* ((data (getf (cdr image) :data))
+	   (inhibit-read-only t))
+      (when (null data)
+	(with-temp-buffer
+	  (set-buffer-multibyte nil)
+	  (insert-file-contents-literally (getf (cdr image) :file))
+	  (setq data (buffer-string)))
+	(setq type (ewp-content-type data)))
+      (with-temp-buffer
+	(set-buffer-multibyte nil)
+	(insert data)
+	(call-process-region (point-min) (point-max)
+			     "convert" t (current-buffer) nil
+			     "-trim" "+repage"
+			     "-fuzz" (format "%d%%" fuzz)
+			     (format "%s:-" (car (last (split-string
+							(ewp-content-type data)
+							"/"))))
+			     "jpg:-")
+	(setq new-data (buffer-string)))
+      (delete-region (line-beginning-position) (line-end-position))
+      (ewp-insert-image-data new-data))))
 
 (defun ewp-delete-post (blog-xmlrpc user-name password _blog-id post-id)
   "Delete an entry from the weblog system."
