@@ -234,7 +234,7 @@ If ALL (the prefix), load all the posts in the blog."
       'face '(variable-pitch :foreground "#b0b0b0"))
      (propertize
       (mm-url-decode-entities-string
-       (cdr (assoc (format "%s_title" prefix) post)))
+       (or (cdr (assoc (format "%s_title" prefix) post)) ""))
       'face 'variable-pitch))))
 
 (defun ewp--categories (post)
@@ -307,7 +307,7 @@ which is to be returned.  Can be used with pages as well."
     (erase-buffer)
     (ewp-edit-mode)
     (setq-local ewp-address address)
-    (insert "Title: " (cdr (assoc "title" post)) "\n")
+    (insert "Title: " (or (cdr (assoc "title" post)) "") "\n")
     (insert "Categories: " (mapconcat 'identity (cdr (assoc "categories" post))
 				      ",")
 	    "\n")
