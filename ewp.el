@@ -27,11 +27,10 @@
 
 ;; `M-x ewp' to get started.
 
-;; If you have several blogs,
+;; If you have several blogs you can list them all:
 
 ;; (setq ewp-blog-addresses '("my.example.com" "other.foo.bar"))
-;;
-;; and start with `M-x ewp-blogs'.
+
 
 ;;; Code:
 
