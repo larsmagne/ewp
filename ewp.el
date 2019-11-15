@@ -59,8 +59,9 @@
 (defvar ewp-embed-smaller-images nil
   "If non-nil, should be a regexp to match blog name to use -1024x768 in the <img>.")
 
-(defvar ewp-display-width 600
-  "Max width of imaged when editing.")
+(defvar ewp-display-width nil
+  "Max width of imaged when editing.
+If nil, use the frame width.")
 
 (defvar ewp-exif-rotate nil
   "If non-nil, rotate images by updating exif data.
@@ -107,6 +108,10 @@ All normal editing commands are switched off.
 \\<ewp-list-mode-map>"
   (setq truncate-lines t)
   (setq-local ewp-deleted-posts nil))
+
+(defun ewp--display-width ()
+  (or ewp-display-width
+      (- (frame-pixel-width) 50)))
 
 (defun ewp--image-type ()
   (if (or (and (fboundp 'image-transforms-p)
@@ -375,7 +380,7 @@ which is to be returned.  Can be used with pages as well."
 			  (match-beginning 0) (match-end 0)
 			  (list 'display
 				(create-image image (ewp--image-type) t
-					      :max-width ewp-display-width
+					      :max-width (ewp--display-width)
 					      :format content-type)
 				'keymap image-map)))))))))
 	   (kill-buffer buf))
@@ -783,7 +788,7 @@ which is to be returned.  Can be used with pages as well."
   (goto-char (point-max))
   (dolist (file files)
     (insert-image (create-image file (ewp--image-type) nil
-				:max-width ewp-display-width)
+				:max-width (ewp--display-width))
 		  (format "<img src=%S>" file))
     (insert "\n\n"))
   (goto-char (point-min))
@@ -922,8 +927,8 @@ All normal editing commands are switched off.
   "Prompt for a file and insert an <img>."
   (interactive "fImage file: ")
   (insert-image (create-image file (ewp--image-type) nil
-			      :max-width ewp-display-width
-			      :max-height (/ (frame-pixel-height) 2))
+			      :max-width (ewp--display-width)
+			      :max-height (/ (frame-pixel-height) 1.5))
 		(format "<img src=%S>" file))
   (insert "\n\n"))
 
@@ -985,7 +990,7 @@ All normal editing commands are switched off.
 (defun ewp-insert-image-data (image)
   (insert-image
    (create-image image (ewp--image-type) t
-		 :max-width ewp-display-width)
+		 :max-width (ewp--display-width))
    (format "<img src=\"data:%s;base64,%s\">"
 	   (ewp-content-type image)
 	   ;; Get a base64 version of the image.
@@ -1749,7 +1754,10 @@ All normal editing commands are switched off.
     ;; At the end, we replace that SVG with a cropped version of the
     ;; original image.
     (let* ((data (getf (cdr image) :data))
+	   (undo-handle (prepare-change-group))
+	   (orig-data data)
 	   (type (format "%s" (getf (cdr image) :format)))
+	   (image-scaling-factor 1)
 	   (size (image-size image t))
 	   (svg (svg-create (car size) (cdr size)
 			    :xmlns:xlink "http://www.w3.org/1999/xlink"
@@ -1761,8 +1769,14 @@ All normal editing commands are switched off.
 	(with-temp-buffer
 	  (set-buffer-multibyte nil)
 	  (insert-file-contents-literally (getf (cdr image) :file))
-	  (setq data (buffer-string)))
-	(setq type (ewp-content-type data)))
+	  (setq orig-data (buffer-string))
+	  (setq type (ewp-content-type orig-data))
+	  (call-process-region (point-min) (point-max)
+			       "convert" t (current-buffer) nil
+			       "-resize" "600x"
+			       "-"
+			       (format "%s:-" (cadr (split-string type "/"))))
+	  (setq data (buffer-string))))
       (svg-embed svg data type t
 		 :width (car size)
 		 :height (cdr size))
@@ -1776,10 +1790,11 @@ All normal editing commands are switched off.
 		    (quit nil))))
 	(delete-region (line-beginning-position) (line-end-position))
 	(if area
-	    (ewp-crop-image-update area data size type)
+	    (ewp-crop-image-update area orig-data size type)
 	  ;; If the user didn't complete the crop, re-insert the
 	  ;; original image (and text).
-	  (insert text))))))
+	  (insert text))
+	(undo-amalgamate-change-group undo-handle)))))
 
 (defun ewp-crop-image-update (area data size type)
   (let* ((image-scaling-factor 1)
