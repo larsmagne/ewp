@@ -381,6 +381,7 @@ which is to be returned.  Can be used with pages as well."
 			  (list 'display
 				(create-image image (ewp--image-type) t
 					      :max-width (ewp--display-width)
+					      :max-height (- (frame-pixel-height) 50)
 					      :format content-type)
 				'keymap image-map)))))))))
 	   (kill-buffer buf))
@@ -588,15 +589,14 @@ which is to be returned.  Can be used with pages as well."
 		   `(("name" . ,(file-name-nondirectory file))
 		     ("type" . ,(mailcap-file-name-to-mime-type file))
 		     ("bits" . ,data))))
-	    (setq size (image-size (create-image
-				    (with-temp-buffer
-				      (set-buffer-multibyte nil)
-				      (insert data)
-				      (base64-decode-region
-				       (point-min) (point-max))
-				      (buffer-string))
-				    (ewp--image-type) t)
-				   t))))
+	    (setq size (ewp-image-size (create-image
+					(with-temp-buffer
+					  (set-buffer-multibyte nil)
+					  (insert data)
+					  (base64-decode-region
+					   (point-min) (point-max))
+					  (buffer-string))
+					(ewp--image-type) t)))))
 	 ;; data: URL where the image is in the src bit.
 	 ((and (equal type "data")
 	       (string-match "^data:\\([^;]+\\);base64," file))
@@ -619,15 +619,14 @@ which is to be returned.  Can be used with pages as well."
 					(cadr (split-string mime-type "/"))))
 		     ("type" . ,mime-type)
 		     ("bits" . ,data))))
-	    (setq size (image-size (create-image
-				    (with-temp-buffer
-				      (set-buffer-multibyte nil)
-				      (insert data)
-				      (base64-decode-region
-				       (point-min) (point-max))
-				      (buffer-string))
-				    (ewp--image-type) t)
-				   t))))
+	    (setq size (ewp-image-size (create-image
+					(with-temp-buffer
+					  (set-buffer-multibyte nil)
+					  (insert data)
+					  (base64-decode-region
+					   (point-min) (point-max))
+					  (buffer-string))
+					(ewp--image-type) t)))))
 	 ;; We have a normal <img src="http..."> image, but it's been
 	 ;; rotated.
 	 ((and image
@@ -649,7 +648,7 @@ which is to be returned.  Can be used with pages as well."
 					(cadr (split-string content-type "/"))))
 		     ("type" . ,content-type)
 		     ("bits" . ,(base64-encode-string data)))))
-	    (setq size (image-size (create-image data nil t) t))
+	    (setq size (ewp-image-size (create-image data nil t)))
 	    ;; Remove the <a> that we slap around images.
 	    (when (and link-start
 		       link-end)
@@ -990,7 +989,8 @@ All normal editing commands are switched off.
 (defun ewp-insert-image-data (image)
   (insert-image
    (create-image image (ewp--image-type) t
-		 :max-width (ewp--display-width))
+		 :max-width (ewp--display-width)
+		 :max-height (- (frame-pixel-height) 150))
    (format "<img src=\"data:%s;base64,%s\">"
 	   (ewp-content-type image)
 	   ;; Get a base64 version of the image.
@@ -1270,6 +1270,20 @@ starting the screenshotting process."
     (ewp-insert-image-data image)
     (insert "\n\n")
     (message "")))
+
+(defun ewp-image-size (image)
+  (with-temp-buffer
+    (set-buffer-multibyte nil)
+    (if (plist-get (cdr image) :file)
+	(insert-file-contents-literally (plist-get (cdr image) :file))
+      (insert (plist-get (cdr image) :data)))
+    (call-process-region (point-min) (point-max) "identify" t (current-buffer)
+			 nil "-")
+    (let ((size (mapcar #'string-to-number
+			(split-string
+			 (nth 2 (split-string (buffer-string)))
+			 "x"))))
+      (cons (car size) (cadr size)))))
 
 (defun ewp-schedule ()
   "Insert a Schedule header with the current time."
