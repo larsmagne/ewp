@@ -899,15 +899,20 @@ All normal editing commands are switched off.
                   (substring-no-properties (current-kill 0))))
   (forward-char -4))
 
-(defun ewp-yank-with-blockquote ()
-  "Yank the current kill ring item as a <blockquote>."
-  (interactive)
+(defun ewp-yank-with-blockquote (&optional clipboard)
+  "Yank the current kill ring item as a <blockquote>.
+If given a prefix, yank from the clipboard."
+  (interactive "P")
   (set-mark (point))
   (when-let ((url (x-get-selection-internal 'PRIMARY 'text/x-moz-url-priv)))
     (insert (format "<a href=%S></a>:\n\n"
 		    (ewp-decode-text-selection url))))
   (insert "<blockquote>\n")
-  (insert (substring-no-properties (current-kill 0)))
+  (if clipboard
+      (insert (decode-coding-string (x-get-selection-internal
+				     'CLIPBOARD 'text/plain\;charset=utf-8)
+				    'utf-8))
+    (insert (substring-no-properties (current-kill 0))))
   (insert "</blockquote>\n\n"))
 
 (defun ewp-yank-link-with-text ()
