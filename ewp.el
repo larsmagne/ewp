@@ -690,11 +690,8 @@ which is to be returned.  Can be used with pages as well."
 		    (cdr (assoc "id" result))))
 		(insert
 		 (format
-		  "<a href=\"%s\"><img src=\"%s%s\" alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
+		  "<a href=\"%s\"><img src=\"%s\" alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
 		  url url
-		  (if factor
-		      (format "?w=%d" ewp-image-width)
-		    "")
 		  (if factor
 		      ewp-image-width
 		    (car size))
