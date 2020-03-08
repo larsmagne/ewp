@@ -717,21 +717,21 @@ which is to be returned.  Can be used with pages as well."
 	     (url (url-generic-parse-url file)))
 	;; Local file.
 	(when (null (url-type url))
-	  (when-let ((result
-		      (ewp-call
-		       'metaweblog-upload-file address
-		       `(("name" . ,(file-name-nondirectory file))
-			 ("type" . ,(mailcap-file-name-to-mime-type file))
-			 ("bits" . ,(with-temp-buffer
-				      (set-buffer-multibyte nil)
-				      (insert-file-contents-literally file)
-				      (base64-encode-region (point-min)
-							    (point-max))
-				      (buffer-string)))))))
-	    (when-let ((url (cdr (assoc "url" result))))
-	      (delete-region start end)
-	      (goto-char start)
-	      (insert url))))))))
+	  (when-let* ((result
+		       (ewp-call
+			'metaweblog-upload-file address
+			`(("name" . ,(file-name-nondirectory file))
+			  ("type" . ,(mailcap-file-name-to-mime-type file))
+			  ("bits" . ,(with-temp-buffer
+				       (set-buffer-multibyte nil)
+				       (insert-file-contents-literally file)
+				       (base64-encode-region (point-min)
+							     (point-max))
+				       (buffer-string))))))
+		      (url (cdr (assoc "url" result))))
+	    (delete-region start end)
+	    (goto-char start)
+	    (insert url)))))))
 	
 (defun ewp-possibly-rotate-buffer (image)
   (when (and image
