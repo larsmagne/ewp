@@ -72,6 +72,11 @@ If nil, rotate the images \"physically\".")
     "i" "img" "ul" "li" "ol" "pre" "span" "table" "td" "tr" "u")
   "A list of HTML tags that you might want to complete over.")
 
+(defvar ewp-address-map nil
+  "Mapping from external to admin addresses.
+This is useful if, for instance, the blog is behind Cloudflare, but
+you want the xmlrpc stuff to go directly to the blog.")
+
 (defvar ewp-post)
 (defvar ewp-address)
 (defvar ewp-categories)
@@ -284,6 +289,11 @@ which is to be returned.  Can be used with pages as well."
                        user-name
                        password))
 
+(defun ewp-xmlrpc-url (address)
+  (format "https://%s/xmlrpc.php"
+	  (or (cadr (assoc address ewp-address-map))
+	      address)))
+
 (defun ewp-select-post ()
   "Edit the post under point."
   (interactive)
@@ -297,7 +307,7 @@ which is to be returned.  Can be used with pages as well."
 		(if pagep
 		    'ewp-get-page
 		  'metaweblog-get-post)
-		(format "https://%s/xmlrpc.php" ewp-address)
+		(ewp-xmlrpc-url ewp-address)
 		(getf auth :user) (funcall (getf auth :secret))
 		id))
 	 (date (or (caddr (assoc "post_date" post))
@@ -481,7 +491,7 @@ which is to be returned.  Can be used with pages as well."
 	   (if ewp-post
 	       'metaweblog-edit-post
 	     'metaweblog-new-post))
-	 `(,(format "https://%s/xmlrpc.php" ewp-address)
+	 `(,(ewp-xmlrpc-url ewp-address)
 	   ,(getf auth :user)
 	   ,(funcall (getf auth :secret))
 	   ,@(if pagep
@@ -1691,7 +1701,7 @@ All normal editing commands are switched off.
 (defun ewp-call (func address &rest args)
   (let ((auth (ewp-auth address)))
     (apply func
-	   (format "https://%s/xmlrpc.php" address)
+	   (ewp-xmlrpc-url address)
 	   (getf auth :user) (funcall (getf auth :secret))
 	   (format "%s" ewp-blog-id)
 	   args)))
@@ -1973,7 +1983,7 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
     (when (yes-or-no-p "Really delete this post? ")
       (let* ((auth (ewp-auth ewp-address))
 	     (all-data (metaweblog-get-post
-			(format "https://%s/xmlrpc.php" ewp-address)
+			(ewp-xmlrpc-url ewp-address)
 			(getf auth :user) (funcall (getf auth :secret))
 			(cdr (assoc "post_id" data)))))
 	(put-text-property (line-beginning-position)
