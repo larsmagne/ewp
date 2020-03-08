@@ -411,6 +411,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-c" 'ewp-update-post)
     (define-key map "\C-c\C-d" 'ewp-download-and-insert-image)
     (define-key map "\C-c\C-i" 'ewp-insert-img)
+    (define-key map "\C-c\C-v" 'ewp-insert-video)
     (define-key map "\C-c\C-l" 'ewp-remove-html-layer)
     (define-key map "\C-c\C-m" 'ewp-yank-html)
     (define-key map "\C-c\C-n" 'ewp-clean-link)
@@ -447,7 +448,8 @@ which is to be returned.  Can be used with pages as well."
   (run-hooks 'ewp-send-hook)
   (when (buffer-file-name)
     (save-buffer))
-  (ewp-transform-and-upload ewp-address)
+  (ewp-transform-and-upload-images ewp-address)
+  (ewp-transform-and-upload-videos ewp-address)
   (if (and (boundp 'ewp-comment)
 	   ewp-comment)
       (ewp-send-comment)
@@ -562,7 +564,7 @@ which is to be returned.  Can be used with pages as well."
 		  (base64-encode-region (point-min) (point-max))
 		  (buffer-string))))))
 
-(defun ewp-transform-and-upload (address)
+(defun ewp-transform-and-upload-images (address)
   "Look for local <img> and upload images from those to Wordpress."
   (save-excursion
     (goto-char (point-min))
@@ -704,6 +706,33 @@ which is to be returned.  Can be used with pages as well."
 		(put-text-property start (point)
 				   'ewp-thumbnail thumbnailp)))))))))
 
+(defun ewp-transform-and-upload-videos (address)
+  "Look for local [video] and upload mp4s from those to Wordpress."
+  (save-excursion
+    (goto-char (point-min))
+    (while (re-search-forward "\\[video .*?mp4=\"\\([^\"]+\\)\"" nil t)
+      (let* ((file (match-string 1))
+	     (start (match-beginning 1))
+	     (end (match-end 1))
+	     (url (url-generic-parse-url file)))
+	;; Local file.
+	(when (null (url-type url))
+	  (when-let ((result
+		      (ewp-call
+		       'metaweblog-upload-file address
+		       `(("name" . ,(file-name-nondirectory file))
+			 ("type" . ,(mailcap-file-name-to-mime-type file))
+			 ("bits" . ,(with-temp-buffer
+				      (set-buffer-multibyte nil)
+				      (insert-file-contents-literally file)
+				      (base64-encode-region (point-min)
+							    (point-max))
+				      (buffer-string)))))))
+	    (when-let ((url (cdr (assoc "url" result))))
+	      (delete-region start end)
+	      (goto-char start)
+	      (insert url))))))))
+	
 (defun ewp-possibly-rotate-buffer (image)
   (when (and image
 	     (consp image)
@@ -942,6 +971,11 @@ If given a prefix, yank from the clipboard."
 			      :max-height (/ (frame-pixel-height) 1.5))
 		(format "<img src=%S>" file))
   (insert "\n\n"))
+
+(defun ewp-insert-video (file)
+  "Prompt for a file and insert a [video ...] shortcode."
+  (interactive "fVideo file: ")
+  (insert (format "[video autoplay=\"on\" loop=\"on\" mp4=%S]\n\n" file)))
 
 (defun ewp-insert-tag (tag)
   "Insert a balanced pair of tags."
