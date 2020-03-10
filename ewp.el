@@ -710,7 +710,7 @@ which is to be returned.  Can be used with pages as well."
   "Look for local [video] and upload mp4s from those to Wordpress."
   (save-excursion
     (goto-char (point-min))
-    (while (re-search-forward "\\[video .*?mp4=\"\\([^\"]+\\)\"" nil t)
+    (while (re-search-forward "<video .*?src=\"\\([^\"]+\\)\"" nil t)
       (let* ((file (match-string 1))
 	     (start (match-beginning 1))
 	     (end (match-end 1))
@@ -975,7 +975,8 @@ If given a prefix, yank from the clipboard."
 (defun ewp-insert-video (file)
   "Prompt for a file and insert a [video ...] shortcode."
   (interactive "fVideo file: ")
-  (insert (format "[video autoplay=\"on\" loop=\"on\" mp4=%S]\n\n" file)))
+  (insert (format "<video autoplay loop muted controls><source src=%S type=\"video/mp4\"></video>\n\n"
+		  file)))
 
 (defun ewp-insert-tag (tag)
   "Insert a balanced pair of tags."
