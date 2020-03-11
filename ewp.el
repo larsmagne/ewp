@@ -2127,7 +2127,8 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	       dom 'class
 	       (cond
 		;; Change the old ID.
-		((string-match "wp-image-\\([0-9]+\\)" class)
+		((and class
+		      (string-match "wp-image-\\([0-9]+\\)" class))
 		 (replace-regexp-in-string "wp-image-\\([0-9]+\\)"
 					   new-id class))
 		(class
@@ -2137,17 +2138,18 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	      ;; Insert the new data.
 	      (dom-print dom))))))))
 
-(defun ewp-reupload-article ()
-  (interactive)
-  (let ((point (point))
-	(buffer (current-buffer)))
-    (ewp-select-post)
-    (ewp-reupload-images)
-    (ewp-update-post)
-    (set-buffer buffer)
-    (goto-char point)
-    (forward-line -1)
-    (set-window-point (selected-window) (point))))
+(defun ewp-reupload-article (times)
+  (interactive "p")
+  (dotimes (_ times)
+    (let ((point (point))
+	  (buffer (current-buffer)))
+      (ewp-select-post)
+      (ewp-reupload-images)
+      (ewp-update-post)
+      (set-buffer buffer)
+      (goto-char point)
+      (forward-line -1)
+      (set-window-point (selected-window) (point)))))
 
 (defun dom-print (dom &optional pretty)
   "Print DOM at point as HTML/XML.
