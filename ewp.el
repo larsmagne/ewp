@@ -2099,7 +2099,9 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	   (url (dom-attr dom 'src))
 	   (class (dom-attr dom 'class)))
       (when (and url
-		 (string-match "\\`https://lars.ingebrigtsen.no/wp-content/uploads/\\([0-9][0-9][0-9][0-9]/[0-9][0-9]\\)/\\(.*?\\(jpe?g\\|png\\)\\)\\(\\'\\|[?]\\)" url))
+		 (string-match (format "\\`https://%s/wp-content/uploads/\\([0-9][0-9][0-9][0-9]/[0-9][0-9]\\)/\\(.*?\\(jpe?g\\|png\\)\\)\\(\\'\\|[?]\\)"
+				       address)
+			       url))
 	(let ((date (match-string 1 url))
 	      (file (match-string 2 url))
 	      result)
