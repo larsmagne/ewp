@@ -2098,6 +2098,8 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	   (dom (nth 2 (nth 2 (libxml-parse-html-region start end))))
 	   (url (dom-attr dom 'src))
 	   (class (dom-attr dom 'class)))
+      ;; Do just PNGs and JPGs -- animated GIFs and the like probably
+      ;; don't need this treatment.
       (when (and url
 		 (string-match (format "\\`https://%s/wp-content/uploads/\\([0-9][0-9][0-9][0-9]/[0-9][0-9]\\)/\\(.*?\\(jpe?g\\|png\\)\\)\\(\\'\\|[?]\\)"
 				       address)
