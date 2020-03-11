@@ -2091,7 +2091,7 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 
 (defun ewp-reupload-images ()
   (goto-char (point-min))
-  (while (re-search-forward "<img .*src=\"\\([^\">\n]+[.]jpe?g\\)\"[^>\n]*>"
+  (while (re-search-forward "<img .*?src=\"\\([^\">\n]+[.]jpe?g\\)[?\"]"
 			    nil t)
     (let ((url (match-string 1))
 	  (address ewp-address)
@@ -2118,15 +2118,18 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	  (when result
 	    (setq r result)
 	    (goto-char url-start)
+	    ;; In normal Wordpress, the URL will change here, but if
+	    ;; you're using this, you should alter Wordpress to
+	    ;; overwrite the media file here.
 	    (delete-region url-start url-end)
 	    (insert (cdr (assoc "url" result)))
 	    (goto-char start)
 	    (cond
 	     ;; Change the old ID.
-	     ((re-search-forward "wp-image-\\([0-9]+\\)" nil end)
+	     ((re-search-forward "wp-image-\\([0-9]+\\)" end t)
 	      (replace-match (format "wp-image-%s" (cdr (assoc "id" result)))))
 	     ;; Insert an ID in the class section.
-	     ((re-search-forward "class=\"" nil end)
+	     ((re-search-forward "class=\"" end t)
 	      (insert (format "wp-image-%s " (cdr (assoc "id" result)))))
 	     ;; Add a class after "<img ".
 	     (t
