@@ -2089,6 +2089,52 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
     (message "Made image under point %s" (if status "not the thumbnail"
 					   "the thumbnail"))))
 
+(defun ewp-reupload-images ()
+  (goto-char (point-min))
+  (while (re-search-forward "<img .*src=\"\\([^\">\n]+[.]jpe?g\\)\"[^>\n]*>"
+			    nil t)
+    (let ((url (match-string 1))
+	  (address ewp-address)
+	  (start (match-beginning 0))
+	  (end (match-end 0))
+	  (url-start (match-beginning 1))
+	  (url-end (match-end 1)))
+      (when (string-match "\\`https://lars.ingebrigtsen.no/wp-content/uploads/\\([0-9][0-9][0-9][0-9]/[0-9][0-9]\\)/\\(.*\\)" url)
+	(let ((date (match-string 1 url))
+	      (file (match-string 2 url))
+	      result)
+	  (with-current-buffer (url-retrieve-synchronously url t)
+	    (goto-char (point-min))
+	    (when (re-search-forward "\n\n" nil t)
+	      (base64-encode-region (point) (point-max))
+	      (setq result
+		    (ewp-call
+		     'metaweblog-upload-file address
+		     `(("name" . ,file)
+		       ("type" . ,(mailcap-file-name-to-mime-type file))
+		       ("bits" . ,(buffer-substring (point) (point-max)))
+		       ("date" . ,date)))))
+	    (kill-buffer (current-buffer)))
+	  (when result
+	    (setq r result)
+	    (goto-char url-start)
+	    (delete-region url-start url-end)
+	    (insert (cdr (assoc "url" result)))
+	    (goto-char start)
+	    (cond
+	     ;; Change the old ID.
+	     ((re-search-forward "wp-image-\\([0-9]+\\)" nil end)
+	      (replace-match (format "wp-image-%s" (cdr (assoc "id" result)))))
+	     ;; Insert an ID in the class section.
+	     ((re-search-forward "class=\"" nil end)
+	      (insert (format "wp-image-%s " (cdr (assoc "id" result)))))
+	     ;; Add a class after "<img ".
+	     (t
+	      (forward-char 4)
+	      (insert (format " class=\"wp-image-%s\" "
+			      (cdr (assoc "id" result))))))
+	    (goto-char end)))))))
+
 (provide 'ewp)
 
 ;;; ewp.el ends here
