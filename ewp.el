@@ -2091,15 +2091,15 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 
 (defun ewp-reupload-images ()
   (goto-char (point-min))
-  (while (re-search-forward "<img .*?src=\"\\([^\">\n]+[.]jpe?g\\)[?\"]"
-			    nil t)
-    (let ((url (match-string 1))
-	  (address ewp-address)
-	  (start (match-beginning 0))
-	  (end (match-end 0))
-	  (url-start (match-beginning 1))
-	  (url-end (match-end 1)))
-      (when (string-match "\\`https://lars.ingebrigtsen.no/wp-content/uploads/\\([0-9][0-9][0-9][0-9]/[0-9][0-9]\\)/\\(.*\\)" url)
+  (while (re-search-forward "<img [^>\n]+>" nil t)
+    (let* ((address ewp-address)
+	   (start (match-beginning 0))
+	   (end (match-end 0))
+	   (dom (nth 2 (nth 2 (libxml-parse-html-region start end))))
+	   (url (dom-attr dom 'src))
+	   (class (dom-attr dom 'class)))
+      (when (and url
+		 (string-match "\\`https://lars.ingebrigtsen.no/wp-content/uploads/\\([0-9][0-9][0-9][0-9]/[0-9][0-9]\\)/\\(.*\\)" url))
 	(let ((date (match-string 1 url))
 	      (file (match-string 2 url))
 	      result)
@@ -2116,27 +2116,66 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 		       ("date" . ,date)))))
 	    (kill-buffer (current-buffer)))
 	  (when result
-	    (setq r result)
-	    (goto-char url-start)
-	    ;; In normal Wordpress, the URL will change here, but if
-	    ;; you're using this, you should alter Wordpress to
-	    ;; overwrite the media file here.
-	    (delete-region url-start url-end)
-	    (insert (cdr (assoc "url" result)))
-	    (goto-char start)
-	    (cond
-	     ;; Change the old ID.
-	     ((re-search-forward "wp-image-\\([0-9]+\\)" end t)
-	      (replace-match (format "wp-image-%s" (cdr (assoc "id" result)))))
-	     ;; Insert an ID in the class section.
-	     ((re-search-forward "class=\"" end t)
-	      (insert (format "wp-image-%s " (cdr (assoc "id" result)))))
-	     ;; Add a class after "<img ".
-	     (t
-	      (forward-char 4)
-	      (insert (format " class=\"wp-image-%s\" "
-			      (cdr (assoc "id" result))))))
-	    (goto-char end)))))))
+	    (let ((new-id (format "wp-image-%s" (cdr (assoc "id" result)))))
+	      (goto-char start)
+	      (delete-region start end)
+	      ;; In normal Wordpress, the URL will change here, but if
+	      ;; you're using this, you should alter Wordpress to
+	      ;; overwrite the media file here.
+	      (dom-set-attribute dom 'src (cdr (assoc "url" result)))
+	      (dom-set-attribute
+	       dom 'class
+	       (cond
+		;; Change the old ID.
+		((string-match "wp-image-\\([0-9]+\\)" class)
+		 (replace-regexp-in-string "wp-image-\\([0-9]+\\)"
+					   new-id class))
+		(class
+		 (concat class " " new-id))
+		(t
+		 new-id)))
+	      ;; Insert the new data.
+	      (dom-print dom))))))))
+
+(defun ewp-reupload-article ()
+  (interactive)
+  (let ((point (point))
+	(buffer (current-buffer)))
+    (ewp-select-post)
+    (ewp-reupload-images)
+    (ewp-update-post)
+    (set-buffer buffer)
+    (goto-char point)
+    (forward-line -1)
+    (set-window-point (selected-window) (point))))
+
+(defun dom-print (dom &optional pretty)
+  "Print DOM at point as HTML/XML.
+If PRETTY, indent the HTML/XML logically."
+  (let ((column (current-column)))
+    (insert (format "<%s" (dom-tag dom)))
+    (let* ((attr (dom-attributes dom))
+	   (column (1+ (current-column))))
+      (dolist (elem attr)
+	(insert (format " %s=%S" (car elem) (cdr elem)))))
+    (let* ((children (dom-children dom))
+	   (times (length children))
+           (non-text nil))
+      (if (null children)
+	  (insert (if (memq (dom-tag dom) '(img))
+		      " />"
+		    (format "</%s>" (dom-tag dom))))
+	(insert ">")
+        (dolist (child children)
+	  (if (stringp child)
+	      (insert child)
+	    (when pretty
+              (insert "\n" (make-string (1+ column) ? )))
+            (setq non-text t)
+	    (dom-print child pretty)))
+        (when (and non-text pretty)
+          (insert "\n" (make-string column ? )))
+        (insert (format "</%s>" (dom-tag dom)))))))
 
 (provide 'ewp)
 
