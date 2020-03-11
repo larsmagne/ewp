@@ -2103,10 +2103,12 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	(let ((date (match-string 1 url))
 	      (file (match-string 2 url))
 	      result)
+	  (message "Fetching %s..." url)
 	  (with-current-buffer (url-retrieve-synchronously url t)
 	    (goto-char (point-min))
 	    (when (re-search-forward "\n\n" nil t)
 	      (base64-encode-region (point) (point-max))
+	      (message "Uploading %s..." url)
 	      (setq result
 		    (ewp-call
 		     'metaweblog-upload-file address
