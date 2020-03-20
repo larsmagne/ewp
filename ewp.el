@@ -961,7 +961,7 @@ If given a prefix, yank from the clipboard."
       (error "No URL in the current kill"))
     (insert (format "<a href=%S>%s</a>"
 		    (ewp-decode-text-selection url)
-		    text))))
+		    (string-trim text)))))
 
 (defun ewp-insert-img (file)
   "Prompt for a file and insert an <img>."
