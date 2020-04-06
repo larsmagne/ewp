@@ -766,7 +766,7 @@ which is to be returned.  Can be used with pages as well."
 			(image-url (cdr (assoc "url" result))))
 	      (setq r result)
 	      (goto-char (+ start 3))
-	      (insert (format "onmouseover=\"hoverLink('%s');\" "
+	      (insert (format "onmouseenter=\"hoverLink(this, '%s');\" "
 			      image-url)))))))))
 	
 (defun ewp-possibly-rotate-buffer (image)
