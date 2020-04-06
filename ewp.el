@@ -450,6 +450,7 @@ which is to be returned.  Can be used with pages as well."
     (save-buffer))
   (ewp-transform-and-upload-images ewp-address)
   (ewp-transform-and-upload-videos ewp-address)
+  (ewp-transform-and-upload-links ewp-address)
   (if (and (boundp 'ewp-comment)
 	   ewp-comment)
       (ewp-send-comment)
@@ -707,7 +708,7 @@ which is to be returned.  Can be used with pages as well."
 				   'ewp-thumbnail thumbnailp)))))))))
 
 (defun ewp-transform-and-upload-videos (address)
-  "Look for local [video] and upload mp4s from those to Wordpress."
+  "Look for local <video ...> and upload mp4s from those to Wordpress."
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward "<video .*?src=\"\\([^\"]+\\)\"" nil t)
@@ -732,6 +733,41 @@ which is to be returned.  Can be used with pages as well."
 	    (delete-region start end)
 	    (goto-char start)
 	    (insert url)))))))
+
+(defun ewp-transform-and-upload-links (address)
+  "Look for external links and create cached screenshots for those."
+  (when (executable-find "cutycapt")
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "<a .*?href=\"\\([^\"]+\\)\"" nil t)
+	(let* ((string (match-string 1))
+	       (whole (match-string 0))
+	       (start (match-beginning 0))
+	       (url (url-generic-parse-url string))
+	       (file (concat (make-temp-name "/tmp/ewp") ".png")))
+	  ;; Local file.
+	  (when (and (not (equal (url-host url) address))
+		     (not (string-match "onmouseenter" whole)))
+	    (call-process "cutycapt" nil nil nil
+			  "--out-format=png"
+			  (format "--url=%s" string)
+			  (format "--out=%s" file))
+	    (when-let* ((result
+			 (ewp-call
+			  'metaweblog-upload-file address
+			  `(("name" . ,(file-name-nondirectory file))
+			    ("type" . ,(mailcap-file-name-to-mime-type file))
+			    ("bits" . ,(with-temp-buffer
+					 (set-buffer-multibyte nil)
+					 (insert-file-contents-literally file)
+					 (base64-encode-region (point-min)
+							       (point-max))
+					 (buffer-string))))))
+			(image-url (cdr (assoc "url" result))))
+	      (setq r result)
+	      (goto-char (+ start 3))
+	      (insert (format "onmouseover=\"hoverLink('%s');\" "
+			      image-url)))))))))
 	
 (defun ewp-possibly-rotate-buffer (image)
   (when (and image
