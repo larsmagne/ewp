@@ -764,10 +764,11 @@ which is to be returned.  Can be used with pages as well."
 							       (point-max))
 					 (buffer-string))))))
 			(image-url (cdr (assoc "url" result))))
-	      (setq r result)
 	      (goto-char (+ start 3))
-	      (insert (format "onmouseenter=\"hoverLink('%s');\" "
-			      image-url)))))))))
+	      (insert
+	       (format "onmouseenter=\"hoverLink\" data-cached-time=%S data-cached-image=%S"
+		       (format-time-string "%FT%T")
+		       image-url)))))))))
 	
 (defun ewp-possibly-rotate-buffer (image)
   (when (and image
