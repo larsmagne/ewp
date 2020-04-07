@@ -14,12 +14,12 @@ function hoverLink(e) {
   var link = elem.getAttribute("data-cached-image");
   if (! link)
     return;
-  /* Already exists. */
+  // Already exists.
   if (document.getElementById(link))
     return;
   elem.style.position = "relative";
   var img = document.createElement("img");
-  /* Just about any character is allowed in IDs in HTML5. */
+  // Just about any character is allowed in IDs in HTML5. 
   img.id = link;
   var thumb = link.replace(/[.][^.]+$/, "-150x150$&");
   img.onload = function() {
@@ -27,13 +27,12 @@ function hoverLink(e) {
   };
   img.src = thumb;
   var pos = getOffsetPos(elem);
-  var bottom = pos[1] + elem.offsetHeight;
   var left = pos[0];
-  img.style.bottom = "15px";
+  img.style.top = "-150px";
   img.style.left = e.pageX - left - 75 + "px";
   var time = elem.getAttribute("data-cached-time");
   img.title = "Click to view static version of the web page" +
-    time? "(cache-time " + time + ")": "";
+    (time? " (cache-time " + time + ")": "");
   img.className = "link-hover";
   img.onclick = function() {
     window.location = link;
@@ -42,6 +41,8 @@ function hoverLink(e) {
   elem.appendChild(img);
   elem.onmouseleave = function() {
     img.classList.add("link-hover-fade-out");
+    // Allow a new hovering to happen before this one is removed.
+    img.id = "";
     setTimeout(function() {
       if (img.parentNode)
 	img.parentNode.removeChild(img);
