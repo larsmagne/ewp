@@ -1,0 +1,18 @@
+.link-hover {
+  position: absolute;
+  box-shadow: 0px 0px 10px 0px  rgba(0,0,0,0.75);
+  cursor: pointer;
+  opacity: 0;
+  min-width: 150px;
+  min-height: 150px;
+}
+
+.link-hover-fade-in {
+  transition: opacity 0.5s ease-in;
+  opacity: 1;
+}
+
+.link-hover-fade-out {
+  transition: opacity 0.5s linear;
+  opacity: 0;
+}
