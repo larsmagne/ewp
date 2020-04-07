@@ -766,7 +766,7 @@ which is to be returned.  Can be used with pages as well."
 			(image-url (cdr (assoc "url" result))))
 	      (goto-char (+ start 3))
 	      (insert
-	       (format "onmouseenter=\"hoverLink\" data-cached-time=%S data-cached-image=%S"
+	       (format "onmouseenter=\"hoverLink(event)\" data-cached-time=%S data-cached-image=%S"
 		       (format-time-string "%FT%T")
 		       image-url)))))))))
 	
