@@ -12,6 +12,8 @@ function getOffsetPos(elem) {
 function hoverLink(e) {
   var elem = e.target;
   var link = elem.getAttribute("data-cached-image");
+  if (! link)
+    return;
   /* Already exists. */
   if (document.getElementById(link))
     return;
@@ -29,8 +31,9 @@ function hoverLink(e) {
   var left = pos[0];
   img.style.bottom = "15px";
   img.style.left = e.pageX - left - 75 + "px";
-  img.title = "Click to view static version of the web page (cache-time " +
-    elem.getAttribute("data-cached-time") + ")";
+  var time = elem.getAttribute("data-cached-time");
+  img.title = "Click to view static version of the web page" +
+    time? "(cache-time " + time + ")": "";
   img.className = "link-hover";
   img.onclick = function() {
     window.location = link;
