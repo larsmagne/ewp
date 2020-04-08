@@ -475,14 +475,20 @@ which is to be returned.  Can be used with pages as well."
 		     (mapcar #'string-trim
 			     (split-string (cdr (assoc "Categories" headers))
 					   ","))))
-	;; If we're going from "draft" to "publish", then don't send
-	;; over a date header, but allow Wordpress to create a new
-	;; one.  In all other cases, preserve the date header.
-	(unless (and (equal (cdr (assoc "post_status" headers)) "draft")
-		     (equal (cdr (assoc "Status" headers)) "publish"))
-	  (nconc post (list (cons "date" (ewp-current-time
-					  post
-					  (cdr (assoc "Schedule" headers)))))))
+	(nconc post
+	       (list (cons "date"
+			   (ewp-current-time
+			    ;; If we're going from "draft" to
+			    ;; "publish", then use the current time.
+			    ;; In all other cases, preserve the date
+			    ;; header.
+			    (if (and (equal (cdr (assoc "post_status" headers))
+					    "draft")
+				     (equal (cdr (assoc "Status" headers))
+					    "publish"))
+				nil
+			      post)
+			    (cdr (assoc "Schedule" headers)))))))
 	(save-excursion
 	  (let ((match (text-property-search-forward 'ewp-thumbnail)))
 	    (when match
