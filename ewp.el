@@ -517,14 +517,21 @@ which is to be returned.  Can be used with pages as well."
 	(bury-buffer)))))
 
 (defun ewp-external-time (time)
-  (format-time-string "%Y%m%dT%H:%M:%S" time "UTC"))
+  (format-time-string "%Y%m%dT%H:%M:%S" time))
 
+;; I ... think?  Wordpress uses universal time for the time stamps,
+;; but I'm not sure.  They call it "GMT", though.  This code assumes
+;; to, anyway.
 (defun ewp-current-time (post scheduled)
   (ewp-external-time
    (if (plusp (length scheduled))
-       (parse-iso8601-time-string scheduled)
+       (- (time-convert (encode-time (iso8601-parse scheduled)) 'integer)
+	  (car (current-time-zone)))
      (or (caddr (assoc "date_created_gmt" post))
-	 (caddr (assoc "dateCreated_gmt" post))))))
+	 (caddr (assoc "dateCreated_gmt" post))
+	 ;; Convert to univesal.
+	 (- (time-convert (current-time) 'integer)
+	    (car (current-time-zone)))))))
 
 (defun ewp-new-post (&optional address buffer)
   "Start editing a new post."
