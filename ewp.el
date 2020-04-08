@@ -482,13 +482,13 @@ which is to be returned.  Can be used with pages as well."
 			    ;; "publish", then use the current time.
 			    ;; In all other cases, preserve the date
 			    ;; header.
-			    (if (and (equal (cdr (assoc "post_status" headers))
+			    (if (and (equal (cdr (assoc "post_status" ewp-post))
 					    "draft")
 				     (equal (cdr (assoc "Status" headers))
 					    "publish"))
 				nil
 			      post)
-			    (cdr (assoc "Schedule" headers)))))))
+			    (cdr (assoc "Schedule" headers))))))
 	(save-excursion
 	  (let ((match (text-property-search-forward 'ewp-thumbnail)))
 	    (when match
