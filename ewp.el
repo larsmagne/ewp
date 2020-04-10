@@ -1390,9 +1390,6 @@ starting the screenshotting process."
 		       "x"))))
     (cons (car size) (cadr size))))
 
-(defun ewp-image-format (image)
-  (downcase (nth 1 (split-string (ewp--identify image)))))
-
 (defun ewp-schedule ()
   "Insert a Schedule header with the current time."
   (interactive)
@@ -1878,9 +1875,11 @@ All normal editing commands are switched off.
     (let* ((data (getf (cdr image) :data))
 	   (undo-handle (prepare-change-group))
 	   (orig-data data)
-	   (type (if (getf (cdr image) :format)
-		     (format "%s" (getf (cdr image) :format))
-		   (format "image/%s" (ewp-image-format image))))
+	   (type (cond
+		  ((getf (cdr image) :format)
+		   (format "%s" (getf (cdr image) :format)))
+		  (data
+		   (ewp-content-type data))))
 	   (image-scaling-factor 1)
 	   (size (image-size image t))
 	   (svg (svg-create (car size) (cdr size)
