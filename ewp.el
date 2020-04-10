@@ -1373,7 +1373,7 @@ starting the screenshotting process."
     (insert "\n\n")
     (message "")))
 
-(defun ewp-image-size (image)
+(defun ewp--identify (image)
   (with-temp-buffer
     (set-buffer-multibyte nil)
     (if (plist-get (cdr image) :file)
@@ -1381,11 +1381,17 @@ starting the screenshotting process."
       (insert (plist-get (cdr image) :data)))
     (call-process-region (point-min) (point-max) "identify" t (current-buffer)
 			 nil "-")
-    (let ((size (mapcar #'string-to-number
-			(split-string
-			 (nth 2 (split-string (buffer-string)))
-			 "x"))))
-      (cons (car size) (cadr size)))))
+    (buffer-string)))
+
+(defun ewp-image-size (image)
+  (let ((size (mapcar #'string-to-number
+		      (split-string
+		       (nth 2 (split-string (ewp--identify image)))
+		       "x"))))
+    (cons (car size) (cadr size))))
+
+(defun ewp-image-format (image)
+  (downcase (nth 1 (split-string (ewp--identify image)))))
 
 (defun ewp-schedule ()
   "Insert a Schedule header with the current time."
@@ -1872,7 +1878,9 @@ All normal editing commands are switched off.
     (let* ((data (getf (cdr image) :data))
 	   (undo-handle (prepare-change-group))
 	   (orig-data data)
-	   (type (format "%s" (getf (cdr image) :format)))
+	   (type (if (getf (cdr image) :format)
+		     (format "%s" (getf (cdr image) :format))
+		   (format "image/%s" (ewp-image-format image))))
 	   (image-scaling-factor 1)
 	   (size (image-size image t))
 	   (svg (svg-create (car size) (cdr size)
