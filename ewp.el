@@ -770,23 +770,24 @@ which is to be returned.  Can be used with pages as well."
 			  "--out-format=png"
 			  (format "--url=%s" string)
 			  (format "--out=%s" file))
-	    (when-let* ((result
-			 (ewp-call
-			  'metaweblog-upload-file address
-			  `(("name" . ,(file-name-nondirectory file))
-			    ("type" . ,(mailcap-file-name-to-mime-type file))
-			    ("bits" . ,(with-temp-buffer
-					 (set-buffer-multibyte nil)
-					 (insert-file-contents-literally file)
-					 (base64-encode-region (point-min)
-							       (point-max))
-					 (buffer-string))))))
-			(image-url (cdr (assoc "url" result))))
-	      (goto-char (+ start 3))
-	      (insert
-	       (format "onmouseenter=\"hoverLink(event)\" data-cached-time=%S data-cached-image=%S"
-		       (format-time-string "%FT%T")
-		       image-url)))))))))
+	    (when (file-exists-p file)
+	      (when-let* ((result
+			   (ewp-call
+			    'metaweblog-upload-file address
+			    `(("name" . ,(file-name-nondirectory file))
+			      ("type" . ,(mailcap-file-name-to-mime-type file))
+			      ("bits" . ,(with-temp-buffer
+					   (set-buffer-multibyte nil)
+					   (insert-file-contents-literally file)
+					   (base64-encode-region (point-min)
+								 (point-max))
+					   (buffer-string))))))
+			  (image-url (cdr (assoc "url" result))))
+		(goto-char (+ start 3))
+		(insert
+		 (format "onmouseenter=\"hoverLink(event)\" data-cached-time=%S data-cached-image=%S"
+			 (format-time-string "%FT%T")
+			 image-url))))))))))
 	
 (defun ewp-possibly-rotate-buffer (image)
   (when (and image
