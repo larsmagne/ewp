@@ -757,38 +757,50 @@ which is to be returned.  Can be used with pages as well."
   (when (executable-find "cutycapt")
     (save-excursion
       (goto-char (point-min))
-      (while (re-search-forward "<a .*?href=\"\\([^\"]+\\)\"" nil t)
-	(let* ((string (match-string 1))
-	       (whole (match-string 0))
-	       (start (match-beginning 0))
-	       (url (url-generic-parse-url string))
-	       (file (concat (make-temp-name "/tmp/ewp") ".png")))
-	  ;; Local file.
-	  (when (and (not (equal (url-host url) address))
-		     (not (string-match "onmouseenter" whole)))
-	    (call-process "cutycapt" nil nil nil
-			  "--out-format=png"
-			  (format "--url=%s" string)
-			  (format "--out=%s" file))
-	    (when (file-exists-p file)
-	      (when-let* ((result
-			   (ewp-call
-			    'metaweblog-upload-file address
-			    `(("name" . ,(file-name-nondirectory file))
-			      ("type" . ,(mailcap-file-name-to-mime-type file))
-			      ("bits" . ,(with-temp-buffer
-					   (set-buffer-multibyte nil)
-					   (insert-file-contents-literally file)
-					   (base64-encode-region (point-min)
-								 (point-max))
-					   (buffer-string))))))
-			  (image-url (cdr (assoc "url" result))))
-		(goto-char (+ start 3))
-		(insert
-		 (format "onmouseenter=\"hoverLink(event)\" data-cached-time=%S data-cached-image=%S"
-			 (format-time-string "%FT%T")
-			 image-url))))))))))
-	
+      (while (re-search-forward "<a " nil t)
+	(let ((start (match-beginning 0)))
+	  (goto-char start)
+	  (with-syntax-table sgml-mode-syntax-table
+	    (forward-sexp))
+	  (let* ((dom (nth 2 (nth 2 (libxml-parse-html-region start (point)))))
+		 (url (url-generic-parse-url (dom-attr dom 'href)))
+		 (file (concat (make-temp-name "/tmp/ewp") ".png")))
+	    ;; Local file.
+	    (when (and (not (equal (url-host url) address))
+		       (dom-attr dom 'screenshot)
+		       (not (dom-attr dom 'onmouseenter)))
+	      (call-process "cutycapt" nil nil nil
+			    "--out-format=png"
+			    (format "--url=%s" (dom-attr dom 'href))
+			    (format "--out=%s" file))
+	      (when (file-exists-p file)
+		(when-let* ((result
+			     (ewp-call
+			      'metaweblog-upload-file address
+			      `(("name" . ,(file-name-nondirectory file))
+				("type" . ,(mailcap-file-name-to-mime-type
+					    file))
+				("bits" . ,(with-temp-buffer
+					     (set-buffer-multibyte nil)
+					     (insert-file-contents-literally
+					      file)
+					     (base64-encode-region (point-min)
+								   (point-max))
+					     (buffer-string))))))
+			    (image-url (cdr (assoc "url" result))))
+		  (delete-region start (point))
+		  (dom-remove-attribute dom 'screenshot)
+		  (dom-set-attribute dom 'data-cached-time
+				     (format-time-string "%FT%T"))
+		  (dom-set-attribute dom 'data-cached-image image-url)
+		  (ewp-print-html dom t))))))))))
+
+(defun dom-remove-attribute (node attribute)
+  "Remove ATTRIBUTE from NODE."
+  (setq node (dom-ensure-node node))
+  (when-let ((old (assoc attribute (cadr node))))
+    (setcar (cdr node) (delq old (cadr node)))))
+
 (defun ewp-possibly-rotate-buffer (image)
   (when (and image
 	     (consp image)
@@ -1180,7 +1192,7 @@ If given a prefix, yank from the clipboard."
       (delete-region beg end)
       (ewp-print-html a))))
 
-(defun ewp-print-html (dom)
+(defun ewp-print-html (dom &optional no-end-tag)
   "Convert DOM into a string containing the xml representation."
   (if (stringp dom)
       (insert dom)
@@ -1192,7 +1204,8 @@ If given a prefix, yank from the clipboard."
     (insert ">")
     (dolist (elem (nthcdr 2 dom))
       (svg-print elem))
-    (insert (format "</%s>" (car dom)))))
+    (unless no-end-tag
+      (insert (format "</%s>" (car dom))))))
 
 (defun ewp-get-media-library (blog-xmlrpc user-name password blog-id count
 					  &optional offset)
