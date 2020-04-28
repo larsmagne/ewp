@@ -999,7 +999,7 @@ All normal editing commands are switched off.
   "Yank the current kill ring item as an <a href>."
   (interactive)
   (set-mark (point))
-  (insert (format "<a href=%S></a>"
+  (insert (format "<a screenshot=true href=%S></a>"
                   (substring-no-properties (current-kill 0))))
   (forward-char -4))
 
@@ -1009,7 +1009,7 @@ If given a prefix, yank from the clipboard."
   (interactive "P")
   (set-mark (point))
   (when-let ((url (x-get-selection-internal 'PRIMARY 'text/x-moz-url-priv)))
-    (insert (format "<a href=%S></a>:\n\n"
+    (insert (format "<a screenshot=true href=%S></a>:\n\n"
 		    (ewp-decode-text-selection url))))
   (insert "<blockquote>\n")
   (if clipboard
@@ -1027,7 +1027,7 @@ If given a prefix, yank from the clipboard."
 	(text (current-kill 0)))
     (unless url
       (error "No URL in the current kill"))
-    (insert (format "<a href=%S>%s</a>"
+    (insert (format "<a screenshot=true href=%S>%s</a>"
 		    (ewp-decode-text-selection url)
 		    (string-trim text)))))
 
