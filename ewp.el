@@ -40,6 +40,7 @@
 (require 'dired)
 (require 'vpt)
 (require 'eww)
+(require 'sgml-mode)
 
 (defvar ewp-blog-address nil
   "The name/address of the blog, like my.example.blog.")
