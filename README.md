@@ -82,6 +82,7 @@ There are five different modes made available by this package:
 * n: Look at the image under point and goto next line
 * w: Copy the image under point to the kill ring as an &lt;img&gt; construct
 * u: Copy the URL under point to the kill ring.
+* m: Upload a media file to the blog.
 * g: Rescan the media list.
 * &gt;: Load more media.
 

@@ -1271,6 +1271,7 @@ If given a prefix, yank from the clipboard."
     (define-key map "g" 'ewp-list-media)
     (define-key map "w" 'ewp-copy-media)
     (define-key map "u" 'ewp-copy-url)
+    (define-key map "m" 'ewp-upload-media)
     (define-key map "\r" 'ewp-show-media)
     (define-key map "n" 'ewp-show-media-goto-next)
     (define-key map " " 'ewp-toggle-media-mark)
@@ -1284,6 +1285,16 @@ All normal editing commands are switched off.
 \\<ewp-list-media-mode-map>"
   (setq truncate-lines t)
   (setq-local ewp-marks nil))
+
+(defun ewp-upload-media (file)
+  "Upload media files to Wordpress."
+  (interactive "fFile to upload: ")
+  (let ((result (ewp-upload-file ewp-address file)))
+    (message "Uploaded %s to %s (copied to clipboard)"
+	     file ewp-address)
+    (with-temp-buffer
+      (insert (cdr (assoc "url" result)))
+      (copy-region-as-kill (point-min) (point-max)))))
 
 (defun ewp-show-media-goto-next ()
   "Show the media under point.
