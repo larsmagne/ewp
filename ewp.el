@@ -794,6 +794,7 @@ which is to be returned.  Can be used with pages as well."
 		  (dom-set-attribute dom 'data-cached-time
 				     (format-time-string "%FT%T"))
 		  (dom-set-attribute dom 'data-cached-image image-url)
+		  (dom-set-attribute dom 'onmouseenter "hoverLink(event)")
 		  (ewp-print-html dom t))))))))))
 
 (defun dom-remove-attribute (node attribute)
