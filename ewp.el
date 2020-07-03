@@ -686,7 +686,7 @@ which is to be returned.  Can be used with pages as well."
 		       link-end)
 	      (setq start link-start
 		    end link-end)))))
-	  
+
 	(when result
 	  (let ((url (cdr (assoc "url" result)))
 		(thumbnailp (get-text-property start 'ewp-thumbnail))
@@ -701,7 +701,9 @@ which is to be returned.  Can be used with pages as well."
 		  (insert
 		   (format
 		    "<a href=\"%s\"><img src=\"%s\" alt=\"\" wp-image-%s /></a>"
-		    url
+		    ;; Link to the unscaled version of the image.
+		    (replace-regexp-in-string
+		     "-scaled\\([.][^.]+\\'\\)" "\\1" url)
 		    (if (> (car size) 768)
 			(replace-regexp-in-string "\\([.][a-z]+\\)\\'"
 						  (if (> (car size) (cdr size))
