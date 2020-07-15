@@ -704,7 +704,7 @@ which is to be returned.  Can be used with pages as well."
 		       (string-match ewp-embed-smaller-images ewp-address))
 		  (insert
 		   (format
-		    "<a href=\"%s\"><img src=\"%s\" alt=\"\" wp-image-%s /></a>"
+		    "<a href=%S><img src=%S alt=\"\" wp-image-%s /></a>"
 		    unscaled-url
 		    (if (> (car size) 768)
 			(replace-regexp-in-string "\\([.][a-z]+\\)\\'"
@@ -716,7 +716,7 @@ which is to be returned.  Can be used with pages as well."
 		    (cdr (assoc "id" result))))
 		(insert
 		 (format
-		  "<a href=\"%s\"><img src=\"%s\" alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
+		  "<a href=%S><img src=%S alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
 		  unscaled-url url
 		  (if factor
 		      ewp-image-width
