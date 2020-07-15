@@ -704,7 +704,13 @@ which is to be returned.  Can be used with pages as well."
 		    ;; Link to the unscaled version of the image.
 		    (replace-regexp-in-string
 		     "-scaled\\([.][^.]+\\'\\)" "\\1" url)
-		    url
+		    (if (> (car size) 768)
+			(replace-regexp-in-string "\\([.][a-z]+\\)\\'"
+						  (if (> (car size) (cdr size))
+						      "-1024x768\\1"
+						    "-768x1024\\1")
+						  url)
+		      url)
 		    (cdr (assoc "id" result))))
 		(insert
 		 (format
