@@ -57,6 +57,9 @@
 (defvar ewp-image-width 840
   "What width to tell Wordpress to resize images to when displaying on the blog.")
 
+(defvar ewp-floating-image-width 300
+  "What size to use for images that float.")
+
 (defvar ewp-embed-smaller-images nil
   "If non-nil, should be a regexp to match blog name to use -1024x768 in the <img>.")
 
@@ -426,6 +429,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-u" 'ewp-unfill-paragraph)
     (define-key map "\C-c\C-z" 'ewp-schedule)
     (define-key map "\C-c\C-k" 'ewp-crop-image)
+    (define-key map "\C-c\C-f" 'ewp-float-left)
     (define-key map (kbd "C-c C-S-t") 'ewp-trim-image)
     (define-key map "\C-c\C-j" 'ewp-set-image-width)
     (define-key map "\t" 'ewp-complete)
@@ -604,6 +608,9 @@ which is to be returned.  Can be used with pages as well."
 	     (type (and (string-match "^[a-z]+:" file)
 			(substring file 0 (1- (match-end 0)))))
 	     (image (get-text-property start 'display))
+	     (floatp (save-excursion
+		       (beginning-of-line)
+		       (looking-at "<p style=.clear: both;.>")))
 	     result size)
 	(cond
 	 ;; Local file.
@@ -694,9 +701,12 @@ which is to be returned.  Can be used with pages as well."
 		  (replace-regexp-in-string
 		   "-scaled\\([.][^.]+\\'\\)" "\\1" url))
 		 (thumbnailp (get-text-property start 'ewp-thumbnail))
+		 (limit-width (if floatp
+				  ewp-floating-image-width
+				ewp-image-width))
 		 factor)
-	    (when (> (car size) ewp-image-width)
-	      (setq factor (/ (* ewp-image-width 1.0) (car size))))
+	    (when (> (car size) limit-width)
+	      (setq factor (/ (* limit-width 1.0) (car size))))
 	    (when url
 	      (delete-region start end)
 	      (goto-char start)
@@ -719,7 +729,7 @@ which is to be returned.  Can be used with pages as well."
 		  "<a href=%S><img src=%S alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
 		  unscaled-url url
 		  (if factor
-		      ewp-image-width
+		      limit-width
 		    (car size))
 		  (if factor
 		      (* (cdr size) factor)
@@ -1890,6 +1900,16 @@ All normal editing commands are switched off.
   (loop for elem in ewp-marks
 	when (equal (cdr (assoc "attachment_id" elem)) id)
 	return elem))
+
+(defun ewp-float-left ()
+  "Float the image under point to the left (and make it smaller visually)."
+  (interactive)
+  (beginning-of-line)
+  (let ((image (get-text-property (point) 'display)))
+    (insert "<p style=\"clear: both;\"><p style=\"float: left;\">")
+    (beginning-of-line)
+    (put-text-property (point) (line-end-position)
+		       'display image)))
 
 (defun ewp-crop-image ()
   "Crop the image under point."

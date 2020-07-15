@@ -72,6 +72,7 @@ There are five different modes made available by this package:
 * C-c C-u: Unfill a paragraph.
 * C-c C-z: Schedule later posting.
 * C-c C-k: Crop the image under point.
+* C-c C-f: Float the image under point to the left (and make it smaller).
 * C-c C-j: Set the width of the image under point.
 * TAB:     In the Categories header, provide category completion.
 
