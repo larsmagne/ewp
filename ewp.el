@@ -1906,10 +1906,13 @@ All normal editing commands are switched off.
   (interactive)
   (beginning-of-line)
   (let ((image (get-text-property (point) 'display)))
+    (unless image
+      (error "No image under point to float left"))
     (insert "<p style=\"clear: both;\"><p style=\"float: left;\">")
     (beginning-of-line)
     (put-text-property (point) (line-end-position)
-		       'display image)))
+		       'display image))
+  (message "Floating image to the left"))
 
 (defun ewp-crop-image ()
   "Crop the image under point."
