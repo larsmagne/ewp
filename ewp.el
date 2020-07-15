@@ -688,9 +688,13 @@ which is to be returned.  Can be used with pages as well."
 		    end link-end)))))
 
 	(when result
-	  (let ((url (cdr (assoc "url" result)))
-		(thumbnailp (get-text-property start 'ewp-thumbnail))
-		factor)
+	  (let* ((url (cdr (assoc "url" result)))
+		 (unscaled-url 
+		  ;; Link to the unscaled version of the image.
+		  (replace-regexp-in-string
+		   "-scaled\\([.][^.]+\\'\\)" "\\1" url))
+		 (thumbnailp (get-text-property start 'ewp-thumbnail))
+		 factor)
 	    (when (> (car size) ewp-image-width)
 	      (setq factor (/ (* ewp-image-width 1.0) (car size))))
 	    (when url
@@ -701,9 +705,7 @@ which is to be returned.  Can be used with pages as well."
 		  (insert
 		   (format
 		    "<a href=\"%s\"><img src=\"%s\" alt=\"\" wp-image-%s /></a>"
-		    ;; Link to the unscaled version of the image.
-		    (replace-regexp-in-string
-		     "-scaled\\([.][^.]+\\'\\)" "\\1" url)
+		    unscaled-url
 		    (if (> (car size) 768)
 			(replace-regexp-in-string "\\([.][a-z]+\\)\\'"
 						  (if (> (car size) (cdr size))
@@ -715,7 +717,7 @@ which is to be returned.  Can be used with pages as well."
 		(insert
 		 (format
 		  "<a href=\"%s\"><img src=\"%s\" alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
-		  url url
+		  unscaled-url url
 		  (if factor
 		      ewp-image-width
 		    (car size))
