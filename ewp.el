@@ -429,7 +429,7 @@ which is to be returned.  Can be used with pages as well."
     (define-key map "\C-c\C-u" 'ewp-unfill-paragraph)
     (define-key map "\C-c\C-z" 'ewp-schedule)
     (define-key map "\C-c\C-k" 'ewp-crop-image)
-    (define-key map "\C-c\C-f" 'ewp-float-left)
+    (define-key map "\C-c\C-f" 'ewp-float-image)
     (define-key map (kbd "C-c C-S-t") 'ewp-trim-image)
     (define-key map "\C-c\C-j" 'ewp-set-image-width)
     (define-key map "\t" 'ewp-complete)
@@ -1901,14 +1901,16 @@ All normal editing commands are switched off.
 	when (equal (cdr (assoc "attachment_id" elem)) id)
 	return elem))
 
-(defun ewp-float-left ()
-  "Float the image under point to the left (and make it smaller visually)."
-  (interactive)
+(defun ewp-float-image (&optional right)
+  "Float the image under point to the left (and make it smaller visually).
+If given a prefix, float to the right instead."
+  (interactive "P")
   (beginning-of-line)
   (let ((image (get-text-property (point) 'display)))
     (unless image
       (error "No image under point to float left"))
-    (insert "<p style=\"clear: both;\"><p style=\"float: left;\">")
+    (insert (format "<p style=\"clear: both;\"><p style=\"float: %s;\">"
+		    (if right "right" "left")))
     (beginning-of-line)
     (put-text-property (point) (line-end-position)
 		       'display image))
