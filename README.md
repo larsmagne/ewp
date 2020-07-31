@@ -102,3 +102,7 @@ There are five different modes made available by this package:
 
 * `M-x ewp-dired-copy-as-kill'
 * `M-x ewp-dired-upload-media'
+
+## Other commands:
+
+* `M-x ewp-edit-url': Prompt for an URL and edit that post.

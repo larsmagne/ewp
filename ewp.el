@@ -298,20 +298,20 @@ which is to be returned.  Can be used with pages as well."
 	  (or (cadr (assoc address ewp-address-map))
 	      address)))
 
-(defun ewp-select-post ()
+(defun ewp-select-post (&optional address id)
   "Edit the post under point."
   (interactive)
   (let* ((data (get-text-property (point) 'data))
 	 (pagep (assoc "page_id" data))
-	 (id (if pagep
-		 (cdr (assoc "page_id" data))
-	       (cdr (assoc "post_id" data))))
-	 (auth (ewp-auth ewp-address))
+	 (id (or id (if pagep
+			(cdr (assoc "page_id" data))
+		      (cdr (assoc "post_id" data)))))
+	 (auth (ewp-auth (or address ewp-address)))
 	 (post (funcall
 		(if pagep
 		    'ewp-get-page
 		  'metaweblog-get-post)
-		(ewp-xmlrpc-url ewp-address)
+		(ewp-xmlrpc-url (or address ewp-address))
 		(getf auth :user) (funcall (getf auth :secret))
 		id))
 	 (date (or (caddr (assoc "post_date" post))
@@ -320,7 +320,7 @@ which is to be returned.  Can be used with pages as well."
 				 "page_status"
 			       "post_status")
 			     post)))
-	 (address ewp-address))
+	 (address (or address ewp-address)))
     (switch-to-buffer (format "*%s edit*" id))
     (erase-buffer)
     (ewp-edit-mode)
@@ -2320,6 +2320,20 @@ If XML, generate XML instead of HTML."
             (insert "\n"))
 	  (insert (make-string column ? )))
         (insert (format "</%s>" (dom-tag dom)))))))
+
+(defun ewp-edit-url (url)
+  "Parse URL and try to find the correct blog and post to edit."
+  (interactive "sEdit URL: ")
+  (let ((parsed (url-generic-parse-url url)))
+    (unless (member (url-host parsed) ewp-blog-addresses)
+      (error "Can't find %s in `ewp-blog-addresses'" (url-host parsed)))
+    (with-current-buffer (url-retrieve-synchronously url)
+      (unless (re-search-forward "<body.*postid-\\([0-9]+\\)" nil t)
+	(kill-buffer (current-buffer))
+	(error "Couldn't find the blog post id"))
+      (let ((id (match-string 1)))
+	(kill-buffer (current-buffer))
+	(ewp-select-post (url-host parsed) id)))))
 
 (provide 'ewp)
 
