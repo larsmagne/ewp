@@ -393,10 +393,11 @@ which is to be returned.  Can be used with pages as well."
 			 (add-text-properties
 			  (match-beginning 0) (match-end 0)
 			  (list 'display
-				(create-image image (ewp--image-type) t
-					      :max-width (ewp--display-width)
-					      :max-height (- (frame-pixel-height) 50)
-					      :format content-type)
+				(create-image
+				 image (ewp--image-type) t
+				 :max-width (ewp--display-width)
+				 :max-height (- (frame-pixel-height) 200)
+				 :format content-type)
 				'keymap image-map)))))))))
 	   (kill-buffer buf))
 	 (when (buffer-live-p buffer)
