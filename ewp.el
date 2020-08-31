@@ -1907,14 +1907,14 @@ All normal editing commands are switched off.
 If given a prefix, float to the right instead."
   (interactive "P")
   (beginning-of-line)
-  (let ((image (get-text-property (point) 'display)))
+  (let ((image (get-text-property (point) 'display))
+	(start (point)))
     (unless image
       (error "No image under point to float"))
     (insert (format "<p style=\"clear: both;\"><p class=\"%s-img\">"
 		    (if right "right" "left")))
-    (beginning-of-line)
-    (put-text-property (point) (line-end-position)
-		       'display image))
+    (put-text-property start (point)
+		       'display (if right "⇢" "⇠")))
   (message "Floating image to the %s" (if right "right" "left")))
 
 (defun ewp-crop-image ()
