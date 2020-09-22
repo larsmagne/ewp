@@ -942,7 +942,7 @@ Uses `ewp-blog-addresses'."
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map special-mode-map)
     (define-key map "\r" 'ewp-list-blog)
-    (define-key map "g" 'ewp-blogs)
+    (define-key map "g" 'ewp)
     map))
 
 (define-derived-mode ewp-list-blogs-mode special-mode "ewp"
