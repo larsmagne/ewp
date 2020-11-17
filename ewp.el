@@ -1949,6 +1949,8 @@ If given a prefix, float to the right instead."
 	(with-temp-buffer
 	  (set-buffer-multibyte nil)
 	  (insert-file-contents-literally (getf (cdr image) :file))
+	  (let ((ewp-exif-rotate nil))
+	    (ewp-possibly-rotate-buffer image))
 	  (setq orig-data (buffer-string))
 	  (setq type (ewp-content-type orig-data))
 	  (call-process-region (point-min) (point-max)
