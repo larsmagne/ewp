@@ -1945,20 +1945,21 @@ If given a prefix, float to the right instead."
 	   (text (buffer-substring (line-beginning-position)
 				   (line-end-position)))
 	   (inhibit-read-only t))
-      (when (null data)
-	(with-temp-buffer
-	  (set-buffer-multibyte nil)
-	  (insert-file-contents-literally (getf (cdr image) :file))
-	  (let ((ewp-exif-rotate nil))
-	    (ewp-possibly-rotate-buffer image))
-	  (setq orig-data (buffer-string))
-	  (setq type (ewp-content-type orig-data))
-	  (call-process-region (point-min) (point-max)
-			       "convert" t (current-buffer) nil
-			       "-resize" "600x"
-			       "-"
-			       (format "%s:-" (cadr (split-string type "/"))))
-	  (setq data (buffer-string))))
+      (with-temp-buffer
+	(set-buffer-multibyte nil)
+	(if (null data)
+	    (insert-file-contents-literally (getf (cdr image) :file))
+	  (insert data))
+	(let ((ewp-exif-rotate nil))
+	  (ewp-possibly-rotate-buffer image))
+	(setq orig-data (buffer-string))
+	(setq type (ewp-content-type orig-data))
+	(call-process-region (point-min) (point-max)
+			     "convert" t (current-buffer) nil
+			     "-resize" "600x"
+			     "-"
+			     (format "%s:-" (cadr (split-string type "/"))))
+	(setq data (buffer-string)))
       (svg-embed svg data type t
 		 :width (car size)
 		 :height (cdr size))
