@@ -715,7 +715,7 @@ which is to be returned.  Can be used with pages as well."
 		       (string-match ewp-embed-smaller-images ewp-address))
 		  (insert
 		   (format
-		    "<a href=%S><img src=%S alt=\"\" wp-image-%s /></a>"
+		    "<a class=cimage href=%S><img src=%S alt=\"\" wp-image-%s /></a>"
 		    unscaled-url
 		    (if (> (car size) 768)
 			(replace-regexp-in-string "\\([.][a-z]+\\)\\'"
@@ -727,7 +727,7 @@ which is to be returned.  Can be used with pages as well."
 		    (cdr (assoc "id" result))))
 		(insert
 		 (format
-		  "<a href=%S><img src=%S alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
+		  "<a class=cimage href=%S><img src=%S alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
 		  unscaled-url url
 		  (if factor
 		      limit-width
@@ -2116,6 +2116,29 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	(setq new-data (buffer-string)))
       (delete-region (line-beginning-position) (line-end-position))
       (ewp-insert-image-data new-data))))
+
+(defun ewp-save-image (filename)
+  "Save the image under point."
+  (interactive "FFilename: ")
+  (let ((image (get-text-property (point) 'display))
+	new-data)
+    (when (or (not image)
+	      (not (consp image))
+	      (not (eq (car image) 'image)))
+      (error "No image under point"))
+    (let* ((data (getf (cdr image) :data))
+	   (inhibit-read-only t))
+      (when (null data)
+	(with-temp-buffer
+	  (set-buffer-multibyte nil)
+	  (insert-file-contents-literally (getf (cdr image) :file))
+	  (setq data (buffer-string)))
+	(setq type (ewp-content-type data)))
+      (with-temp-buffer
+	(set-buffer-multibyte nil)
+	(insert data)
+	(write-region (point-min) (point-max) filename))
+      (delete-region (line-beginning-position) (line-end-position 2)))))
 
 (defun ewp-delete-post (blog-xmlrpc user-name password _blog-id post-id)
   "Delete an entry from the weblog system."
