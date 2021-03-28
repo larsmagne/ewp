@@ -164,12 +164,12 @@ All normal editing commands are switched off.
     (forward-line (getf loc :line)))))
 
 (defun ewp-item-equal (e1 e2)
-  (loop for name in '("page_id" "post_id" "comment_id" "attachment_id")
-	for v1 = (cdr (assoc name e1))
-	for v2 = (cdr (assoc name e2))
-	;; We found the right type to compare.
-	if (and v1 v2)
-	return (equal v1 v2)))
+  (cl-loop for name in '("page_id" "post_id" "comment_id" "attachment_id")
+	   for v1 = (cdr (assoc name e1))
+	   for v2 = (cdr (assoc name e2))
+	   ;; We found the right type to compare.
+	   if (and v1 v2)
+	   return (equal v1 v2)))
 
 (defun ewp-list-posts-with-status (status)
   "List posts with a specific status."
@@ -251,9 +251,9 @@ If ALL (the prefix), load all the posts in the blog."
       'face 'variable-pitch))))
 
 (defun ewp--categories (post)
-  (loop for term in (cdr (assoc "terms" post))
-	when (equal (cdr (assoc "taxonomy" term)) "category")
-	collect (cdr (assoc "name" term))))
+  (cl-loop for term in (cdr (assoc "terms" post))
+	   when (equal (cdr (assoc "taxonomy" term)) "category")
+	   collect (cdr (assoc "name" term))))
 
 (defun ewp-auth (address)
   (let ((auth
@@ -341,11 +341,12 @@ which is to be returned.  Can be used with pages as well."
 
 (defun ewp-update-images ()
   (ewp-update-image
-   (loop for img in (dom-by-tag (libxml-parse-html-region (point) (point-max))
-				'img)
-	 repeat 100
-	 when (dom-attr img 'src)
-	 collect (dom-attr img 'src))
+   (cl-loop for img in (dom-by-tag (libxml-parse-html-region
+				    (point) (point-max))
+				   'img)
+	    repeat 100
+	    when (dom-attr img 'src)
+	    collect (dom-attr img 'src))
    (current-buffer)))
 
 (defun ewp-url-retrieve (url callback)
@@ -1007,10 +1008,10 @@ All normal editing commands are switched off.
   (if (boundp 'ewp-categories)
       ewp-categories
     (setq-local ewp-categories
-		(loop for elem in (ewp-call 'metaweblog-get-categories
-					    ewp-address)
-		      collect (cons (cdr (assoc "categoryName" elem))
-				    (cdr (assoc "categoryId" elem)))))))
+		(cl-loop for elem in (ewp-call 'metaweblog-get-categories
+					       ewp-address)
+			 collect (cons (cdr (assoc "categoryName" elem))
+				       (cdr (assoc "categoryId" elem)))))))
 
 (defun ewp-yank-with-href ()
   "Yank the current kill ring item as an <a href>."
@@ -1145,10 +1146,10 @@ If given a prefix, yank from the clipboard."
 (defun ewp-yank-html ()
   "Yank the contents of the current X text/html selection, if any."
   (interactive)
-  (let ((data (loop for type in '(PRIMARY CLIPBOARD)
-		    for data = (x-get-selection-internal type 'text/html)
-		    when data
-		    return data)))
+  (let ((data (cl-loop for type in '(PRIMARY CLIPBOARD)
+		       for data = (x-get-selection-internal type 'text/html)
+		       when data
+		       return data)))
     (if (not data)
 	(message "No text/html data in the current selection")
       (set-mark (point))
@@ -1170,15 +1171,15 @@ If given a prefix, yank from the clipboard."
   "Yank the contents of the current X image selection/clipboard, if any."
   (interactive)
   (let ((data
-	 (loop for type in '(PRIMARY CLIPBOARD)
-	       for st = (loop for st across
-			      (gui-get-selection type 'TARGETS)
-			      when (equal (car (split-string
-						(symbol-name st) "/"))
-					  "image")
-			      return st)
-	       when st
-	       return (x-get-selection-internal type st))))
+	 (cl-loop for type in '(PRIMARY CLIPBOARD)
+		  for st = (cl-loop for st across
+				    (gui-get-selection type 'TARGETS)
+				    when (equal (car (split-string
+						      (symbol-name st) "/"))
+						"image")
+				    return st)
+		  when st
+		  return (x-get-selection-internal type st))))
     (if (not data)
 	(message "No image data in the current selection/clipboard")
       (set-mark (point))
@@ -1395,7 +1396,7 @@ starting the screenshotting process."
   (interactive "p")
   (unless (executable-find "import")
     (error "Can't find ImageMagick import command on this system"))
-  (decf delay)
+  (cl-decf delay)
   (unless (zerop delay)
     (dotimes (i delay)
       (message "Sleeping %d second%s..."
@@ -1691,7 +1692,7 @@ All normal editing commands are switched off.
 	  (when (and prop
 		     (consp prop)
 		     (eq (car prop) 'space))
-	    (incf count))))
+	    (cl-incf count))))
       (forward-char 1)
       (let ((start (point))
 	    (face (get-text-property (point) 'face)))
@@ -1898,9 +1899,9 @@ All normal editing commands are switched off.
 	'data data)))))
 
 (defun ewp-find-mark (id)
-  (loop for elem in ewp-marks
-	when (equal (cdr (assoc "attachment_id" elem)) id)
-	return elem))
+  (cl-loop for elem in ewp-marks
+	   when (equal (cdr (assoc "attachment_id" elem)) id)
+	   return elem))
 
 (defun ewp-float-image (&optional right)
   "Float the image under point to the left (and make it smaller visually).
@@ -2003,86 +2004,87 @@ If given a prefix, float to the right instead."
       
 (defun ewp-crop-image-1 (svg)
   (track-mouse
-    (loop with prompt = "Set start point"
-	  and state = 'begin
-	  and area = (list :left 0
-			   :top 0
-			   :right 0
-			   :bottom 0)
-	  and corner = nil
-	  for event = (read-event prompt)
-	  do (if (or (not (consp event))
-		     (not (nth 7 (cadr event)))
-		     ;; Only do things if point is over the SVG being
-		     ;; tracked.
-		     (not (eq (getf (cdr (nth 7 (cadr event))) :type) 'svg)))
-		 ()
-	       (let ((pos (nth 8 (cadr event))))
-		 (cl-case state
-		   ('begin
-		    (cond
-		     ((eq (car event) 'down-mouse-1)
-		      (setq state 'stretch
-			    prompt "Stretch to end point")
-		      (setf (getf area :left) (car pos)
-			    (getf area :top) (cdr pos)
-			    (getf area :right) (car pos)
-			    (getf area :bottom) (cdr pos)))))
-		   ('stretch
-		    (cond
-		     ((eq (car event) 'mouse-movement)
-		      (setf (getf area :right) (car pos)
-			    (getf area :bottom) (cdr pos)))
-		     ((memq (car event) '(mouse-1 drag-mouse-1))
-		      (setq state 'corner
-			    prompt "Choose corner to adjust (RET to crop)"))))
-		   ('corner
-		    (cond
-		     ((eq (car event) 'down-mouse-1)
-		      ;; Find out what corner we're close to.
-		      (setq corner (ewp-find-corner
-				    area pos
-				    '((:left :top)
-				      (:left :bottom)
-				      (:right :top)
-				      (:right :bottom))))
-		      (when corner
-			(setq state 'adjust
-			      prompt "Adjust crop")))))
-		   ('adjust
-		    (cond
-		     ((memq (car event) '(mouse drag-mouse-1))
-		      (setq state 'corner
-			    prompt "Choose corner to adjust"))
-		     ((eq (car event) 'mouse-movement)
-		      (setf (getf area (car corner)) (car pos)
-			    (getf area (cadr corner)) (cdr pos))))))))
-	  do (svg-line svg (getf area :left) (getf area :top)
-		       (getf area :right) (getf area :top)
-		       :id "top-line" :stroke-color "white")
-	  (svg-line svg (getf area :left) (getf area :bottom)
-		    (getf area :right) (getf area :bottom)
-		    :id "bottom-line" :stroke-color "white")
-	  (svg-line svg (getf area :left) (getf area :top)
-		    (getf area :left) (getf area :bottom)
-		    :id "left-line" :stroke-color "white")
-	  (svg-line svg (getf area :right) (getf area :top)
-		    (getf area :right) (getf area :bottom)
-		    :id "right-line" :stroke-color "white")
-	  while (not (member event '(return ?q)))
-	  finally (return (and (eq event 'return)
-			       area)))))
+    (cl-loop with prompt = "Set start point"
+	     and state = 'begin
+	     and area = (list :left 0
+			      :top 0
+			      :right 0
+			      :bottom 0)
+	     and corner = nil
+	     for event = (read-event prompt)
+	     do (if (or (not (consp event))
+			(not (nth 7 (cadr event)))
+			;; Only do things if point is over the SVG being
+			;; tracked.
+			(not (eq (getf (cdr (nth 7 (cadr event))) :type)
+				 'svg)))
+		    ()
+		  (let ((pos (nth 8 (cadr event))))
+		    (cl-case state
+		      ('begin
+		       (cond
+			((eq (car event) 'down-mouse-1)
+			 (setq state 'stretch
+			       prompt "Stretch to end point")
+			 (setf (getf area :left) (car pos)
+			       (getf area :top) (cdr pos)
+			       (getf area :right) (car pos)
+			       (getf area :bottom) (cdr pos)))))
+		      ('stretch
+		       (cond
+			((eq (car event) 'mouse-movement)
+			 (setf (getf area :right) (car pos)
+			       (getf area :bottom) (cdr pos)))
+			((memq (car event) '(mouse-1 drag-mouse-1))
+			 (setq state 'corner
+			       prompt "Choose corner to adjust (RET to crop)"))))
+		      ('corner
+		       (cond
+			((eq (car event) 'down-mouse-1)
+			 ;; Find out what corner we're close to.
+			 (setq corner (ewp-find-corner
+				       area pos
+				       '((:left :top)
+					 (:left :bottom)
+					 (:right :top)
+					 (:right :bottom))))
+			 (when corner
+			   (setq state 'adjust
+				 prompt "Adjust crop")))))
+		      ('adjust
+		       (cond
+			((memq (car event) '(mouse drag-mouse-1))
+			 (setq state 'corner
+			       prompt "Choose corner to adjust"))
+			((eq (car event) 'mouse-movement)
+			 (setf (getf area (car corner)) (car pos)
+			       (getf area (cadr corner)) (cdr pos))))))))
+	     do (svg-line svg (getf area :left) (getf area :top)
+			  (getf area :right) (getf area :top)
+			  :id "top-line" :stroke-color "white")
+	     (svg-line svg (getf area :left) (getf area :bottom)
+		       (getf area :right) (getf area :bottom)
+		       :id "bottom-line" :stroke-color "white")
+	     (svg-line svg (getf area :left) (getf area :top)
+		       (getf area :left) (getf area :bottom)
+		       :id "left-line" :stroke-color "white")
+	     (svg-line svg (getf area :right) (getf area :top)
+		       (getf area :right) (getf area :bottom)
+		       :id "right-line" :stroke-color "white")
+	     while (not (member event '(return ?q)))
+	     finally (return (and (eq event 'return)
+				  area)))))
 
 (defun ewp-find-corner (area pos corners)
-  (loop for corner in corners
-	;; We accept 10 pixels off.
-	when (and (< (- (car pos) 10)
-		     (getf area (car corner))
-		     (+ (car pos) 10))
-		  (< (- (cdr pos) 10)
-		     (getf area (cadr corner))
-		     (+ (cdr pos) 10)))
-	return corner))
+  (cl-loop for corner in corners
+	   ;; We accept 10 pixels off.
+	   when (and (< (- (car pos) 10)
+			(getf area (car corner))
+			(+ (car pos) 10))
+		     (< (- (cdr pos) 10)
+			(getf area (cadr corner))
+			(+ (cdr pos) 10)))
+	   return corner))
 
 (defun ewp-trim-image (fuzz)
   "Trim (i.e., remove black borders) the image under point.
@@ -2207,12 +2209,12 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
     (setf (getf (cdr image) :width) width)))
 
 (defun ewp-get-post-data (category)
-  (loop for elem in (ewp-call 'ewp-get-posts ewp-address 300 0 nil
-			      ["post_title" "post_date" "post_status" "terms"
-			       "link" "post_name" "post_content"])
-	when (or (null category)
-		 (member category (ewp--categories elem)))
-	collect elem))
+  (cl-loop for elem in (ewp-call 'ewp-get-posts ewp-address 300 0 nil
+				 ["post_title" "post_date" "post_status"
+				  "terms" "link" "post_name" "post_content"])
+	   when (or (null category)
+		    (member category (ewp--categories elem)))
+	   collect elem))
 
 (defun ewp-toggle-thumbnail ()
   "Toggle whether the image under point is the thumbnail for the post."
