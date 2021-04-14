@@ -243,7 +243,8 @@ If ALL (the prefix), load all the posts in the blog."
       (or status "")
       'face '(variable-pitch :foreground "#a0a0a0"))
      (propertize
-      (mapconcat 'identity (ewp--categories post) ",")
+      (mm-url-decode-entities-string
+       (mapconcat 'identity (ewp--categories post) ","))
       'face '(variable-pitch :foreground "#b0b0b0"))
      (propertize
       (mm-url-decode-entities-string
