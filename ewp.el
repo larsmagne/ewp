@@ -2341,6 +2341,64 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	(kill-buffer (current-buffer))
 	(ewp-select-post (url-host parsed) id)))))
 
+(defun ewp-composite-image (logo size-ratio)
+  "Composite LOGO on top of the image under point."
+  (interactive "P")
+  (let ((image (get-text-property (point) 'display)))
+    (when (or (not image)
+	      (not (consp image))
+	      (not (eq (car image) 'image)))
+      (error "No image under point"))
+    (let* ((data (getf (cdr image) :data))
+	   (type (cond
+		  ((getf (cdr image) :format)
+		   (format "%s" (getf (cdr image) :format)))
+		  (data
+		   (ewp-content-type data))))
+	   (size (image-size image t))
+	   (svg (svg-create (car size) (cdr size)
+			    :xmlns:xlink "http://www.w3.org/1999/xlink"
+			    :stroke-width 5))
+	   logo-type logo-size lwidth lheight)
+      (with-temp-buffer
+	(set-buffer-multibyte nil)
+	(if (null data)
+	    (insert-file-contents-literally (getf (cdr image) :file))
+	  (insert data))
+	(let ((ewp-exif-rotate nil))
+	  (ewp-possibly-rotate-buffer image))
+	(setq data (buffer-string))
+	(setq type (ewp-content-type data)))
+      (svg-embed svg data type t
+		 :width (car size)
+		 :height (cdr size))
+      (svg-embed svg
+		 (with-temp-buffer
+		   (insert-file-contents-literally logo)
+		   (setq logo-type (ewp-content-type data))
+		   (setq logo-size (image-size
+				    (create-image logo nil nil
+						  :scale 1)
+				    t))
+		   (buffer-string))
+		 logo-type t
+		 :width (setq lwidth (* (car size) size-ratio))
+		 :height (setq lheight
+			       (* (/ lwidth (float (car logo-size)))
+				  (cdr logo-size)))
+		 :x (- (car size) lwidth 50)
+		 :y (- (/ (cdr size) 2) (/ lheight 2)))
+      (delete-region (line-beginning-position)
+		     (line-end-position))
+      (ewp-insert-image-data
+       (with-temp-buffer
+	 (set-buffer-multibyte nil)
+	 (svg-print svg)
+	 (call-process-region (point-min) (point-max) "convert"
+			      t (list (current-buffer) nil) nil
+			      "svg:-" "jpg:-")
+	 (buffer-string))))))
+
 (provide 'ewp)
 
 ;;; ewp.el ends here
