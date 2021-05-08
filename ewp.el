@@ -2341,8 +2341,13 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	(kill-buffer (current-buffer))
 	(ewp-select-post (url-host parsed) id)))))
 
-(defun ewp-composite-image (logo size-ratio)
-  "Composite LOGO on top of the image under point."
+(defun ewp-composite-image (logo size-ratio placement)
+  "Composite LOGO (a file) on top of the image under point.
+SIZE-RATIO should be a floating point number smaller than 1.
+
+PLACEMENT should be a function that returns x/y coordinates.
+It's called with four parameters: width/height of the image, and
+width/height of the logo."
   (interactive "P")
   (let ((image (get-text-property (point) 'display)))
     (when (or (not image)
@@ -2386,8 +2391,12 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 		 :height (setq lheight
 			       (* (/ lwidth (float (car logo-size)))
 				  (cdr logo-size)))
-		 :x (- (car size) lwidth 50)
-		 :y (- (/ (cdr size) 2) (/ lheight 2)))
+		 :x (progn
+		      (setq lpos (funcall placement
+					  (car size) (cdr size)
+					  lwidth lheight))
+		      (car lpos))
+		 :y (cdr lpos))
       (delete-region (line-beginning-position)
 		     (line-end-position))
       (ewp-insert-image-data
