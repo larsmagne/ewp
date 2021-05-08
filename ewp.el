@@ -1919,9 +1919,10 @@ If given a prefix, float to the right instead."
 		       'display (if right "⇢" "⇠")))
   (message "Floating image to the %s" (if right "right" "left")))
 
-(defun ewp-crop-image ()
-  "Crop the image under point."
-  (interactive)
+(defun ewp-crop-image (&optional square)
+  "Crop the image under point.
+If SQUARE (the prefix), crop a square from the image."
+  (interactive "P")
   (let ((image (get-text-property (point) 'display)))
     (when (or (not image)
 	      (not (consp image))
@@ -1971,7 +1972,8 @@ If given a prefix, float to the right instead."
       (let ((area (condition-case _
 		      (save-excursion
 			(forward-line 1)
-			(ewp-crop-image-1 svg))
+			(ewp-crop-image-1 svg square
+					  (car size) (cdr size)))
 		    (quit nil))))
 	(delete-region (line-beginning-position) (line-end-position))
 	(if area
@@ -2003,14 +2005,21 @@ If given a prefix, float to the right instead."
 	"-" (format "%s:-" (cadr (split-string type "/"))))
        (buffer-string)))))
       
-(defun ewp-crop-image-1 (svg)
+(defun ewp-crop-image-1 (svg &optional square image-width image-height)
   (track-mouse
-    (cl-loop with prompt = "Set start point"
-	     and state = 'begin
-	     and area = (list :left 0
-			      :top 0
-			      :right 0
-			      :bottom 0)
+    (cl-loop with prompt = (if square "Move square" "Set start point")
+	     and state = (if square 'move-unclick 'begin)
+	     and area = (if square
+			    (list :left (- (/ image-width 2)
+					   (/ image-height 2))
+				  :top 0
+				  :right (+ (/ image-width 2)
+					    (/ image-height 2))
+				  :bottom image-height)
+			  (list :left 0
+				:top 0
+				:right 0
+				:bottom 0))
 	     and corner = nil
 	     for event = (read-event prompt)
 	     do (if (or (not (consp event))
@@ -2059,7 +2068,20 @@ If given a prefix, float to the right instead."
 			       prompt "Choose corner to adjust"))
 			((eq (car event) 'mouse-movement)
 			 (setf (getf area (car corner)) (car pos)
-			       (getf area (cadr corner)) (cdr pos))))))))
+			       (getf area (cadr corner)) (cdr pos)))))
+		      ('move-unclick
+		       (cond
+			((eq (car event) 'down-mouse-1)
+			 (setq state 'move-click
+			       prompt "Move"))))
+		      ('move-click
+		       (cond
+			((eq (car event) 'mouse-movement)
+			 (setf (getf area :left) (car pos)
+			       (getf area :right) (+ (car pos) image-height)))
+			((memq (car event) '(mouse-1 drag-mouse-1))
+			 (setq state 'move-unclick
+			       prompt "Click to move")))))))
 	     do (svg-line svg (getf area :left) (getf area :top)
 			  (getf area :right) (getf area :top)
 			  :id "top-line" :stroke-color "white")
