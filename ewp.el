@@ -2025,6 +2025,7 @@ If SQUARE (the prefix), crop a square from the image."
 	     and corner = nil
 	     for event = (read-event prompt)
 	     do (if (or (not (consp event))
+			(not (consp (cadr event)))
 			(not (nth 7 (cadr event)))
 			;; Only do things if point is over the SVG being
 			;; tracked.
