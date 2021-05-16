@@ -333,7 +333,9 @@ which is to be returned.  Can be used with pages as well."
     (insert "Status: " status "\n")
     (when (and (equal status "publish")
 	       (time-less-p (current-time) date))
-      (insert (format-time-string "Schedule: %FT%T\n" date)))
+      (insert (format-time-string "Schedule: %FT%T\n"
+				  (+ (float-time date)
+				     (car (current-time-zone))))))
     (insert "\n")
     (insert (or (cdr (assoc "description" post)) ""))
     (goto-char (point-min))
