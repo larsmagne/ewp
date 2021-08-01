@@ -1504,7 +1504,7 @@ starting the screenshotting process."
       (let ((inhibit-read-only t))
 	(erase-buffer)
 	(dolist (comment (nconc old-data
-				(ewp-call 'ewp-get-comments address 100
+				(ewp-call 'ewp-get-comments address 1000
 					  (length old-data))))
 	  (push comment data)
 	  (push (ewp-print-comment comment) lines))
