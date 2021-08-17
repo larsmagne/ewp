@@ -1032,12 +1032,13 @@ If given a prefix, yank from the clipboard."
   (when-let ((url (x-get-selection-internal 'PRIMARY 'text/x-moz-url-priv)))
     (insert (format "<a screenshot=true href=%S></a>:\n\n"
 		    (ewp-decode-text-selection url))))
-  (insert "<blockquote>\n")
+  (insert "<blockquote>")
   (if clipboard
-      (insert (decode-coding-string (x-get-selection-internal
-				     'CLIPBOARD 'text/plain\;charset=utf-8)
-				    'utf-8))
-    (insert (substring-no-properties (current-kill 0))))
+      (insert (string-trim
+	       (decode-coding-string (x-get-selection-internal
+				      'CLIPBOARD 'text/plain\;charset=utf-8)
+				     'utf-8)))
+    (insert (string-trim (substring-no-properties (current-kill 0)))))
   (insert "</blockquote>\n\n"))
 
 (defun ewp-yank-link-with-text ()
