@@ -1,8 +1,9 @@
-;;; ewp.el --- Edit Wordpress -*- lexical-binding: t -*-
-;; Copyright (C) 2018 Lars Magne Ingebrigtsen
+;;; ewp.el --- Manage and Edit Wordpress Posts -*- lexical-binding: t -*-
+
+;; Copyright (C) 2018-2021 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
-;; Keywords: wordpress
+;; Keywords: wordpress, blogs
 
 ;; ewp is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
