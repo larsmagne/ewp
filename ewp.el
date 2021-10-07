@@ -618,6 +618,9 @@ which is to be returned.  Can be used with pages as well."
 		       (beginning-of-line)
 		       (looking-at "<p style=.clear: both;.>")))
 	     result size)
+	(unless (equal type "https")
+	  (redisplay t)
+	  (sit-for 0.1))
 	(cond
 	 ;; Local file.
 	 ((null type)
