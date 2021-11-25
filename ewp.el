@@ -114,8 +114,7 @@ you want the xmlrpc stuff to go directly to the blog.")
 (define-derived-mode ewp-list-mode special-mode "ewp"
   "Major mode for listing Wordpress posts.
 
-All normal editing commands are switched off.
-\\<ewp-list-mode-map>"
+All normal editing commands are switched off."
   (setq truncate-lines t)
   (setq-local ewp-deleted-posts nil))
 
@@ -403,7 +402,8 @@ which is to be returned.  Can be used with pages as well."
 				 :max-width (ewp--display-width)
 				 :max-height (- (frame-pixel-height) 200)
 				 :format content-type)
-				'keymap image-map)))))))))
+				'keymap image-map
+				'inhibit-isearch t)))))))))
 	   (kill-buffer buf))
 	 (when (buffer-live-p buffer)
 	   (ewp-update-image urls buffer)))))))
@@ -1139,7 +1139,8 @@ If given a prefix, yank from the clipboard."
 	     (set-buffer-multibyte nil)
 	     (insert image)
 	     (base64-encode-region (point-min) (point-max) t)
-	     (buffer-string)))))
+	     (buffer-string)))
+   nil nil t))
 
 (defun ewp-content-type (image)
   ;; Get the MIME type by running "file" over it.
@@ -2362,6 +2363,10 @@ width/height of the logo."
 	      (not (consp image))
 	      (not (eq (car image) 'image)))
       (error "No image under point"))
+    (setq image (copy-sequence image))
+    (setf (plist-get (cdr image) :max-height) nil)
+    (setf (plist-get (cdr image) :max-width) nil)
+    (setf (plist-get (cdr image) :scale) nil)
     (let* ((data (getf (cdr image) :data))
 	   (type (cond
 		  ((getf (cdr image) :format)
