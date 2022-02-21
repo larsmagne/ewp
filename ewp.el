@@ -35,7 +35,7 @@
 
 ;;; Code:
 
-(require 'cl)
+(require 'cl-lib)
 (require 'metaweblog)
 (require 'mm-url)
 (require 'dired)
@@ -2334,7 +2334,8 @@ PLACEMENT should be a function that returns x/y coordinates.
 It's called with four parameters: width/height of the image, and
 width/height of the logo."
   (interactive "P")
-  (let ((image (get-text-property (point) 'display)))
+  (let ((image (get-text-property (point) 'display))
+	lpos)
     (when (or (not image)
 	      (not (consp image))
 	      (not (eq (car image) 'image)))
