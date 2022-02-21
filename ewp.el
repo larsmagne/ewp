@@ -39,7 +39,6 @@
 (require 'metaweblog)
 (require 'mm-url)
 (require 'dired)
-(require 'vpt)
 (require 'eww)
 (require 'sgml-mode)
 (require 'vtable)
@@ -1233,39 +1232,39 @@ If given a prefix, yank from the clipboard."
 	 (media (nconc old-media
 		       (ewp-call 'ewp-get-media-library address 500
 				 (length old-media))))
-	 marks data lines)
+	 marks)
     (switch-to-buffer (format "*%s media*" address))
-    (setq marks (and (boundp 'ewp-marks)
-		     ewp-marks))
+    (setq marks (and (boundp 'ewp-marks) ewp-marks))
     (ewp-save-excursion
       (let ((inhibit-read-only t))
 	(erase-buffer)
 	(ewp-list-media-mode)
 	(setq ewp-marks marks)
 	(setq-local ewp-address address)
-	(dolist (elem media)
-	  (push
-	   (list
-	    (if (ewp-find-mark (cdr (assoc "attachment_id" elem)))
-		"*"
-	      " ")
-	    (propertize
-	     (format-time-string "%Y-%m-%d"
-				 (caddr (assoc "date_created_gmt" elem)))
-	     'face '(variable-pitch :foreground "#a0a0a0"))
-	    (propertize
-	     (cdr (assoc "type" elem))
-	     'face '(variable-pitch :foreground "#808080"))
-	    (propertize (cdr (assoc "title" elem))
-			'face 'variable-pitch))
-	   lines)
-	  (push elem data))
-	(variable-pitch-table '((:name "" :width 1)
-				(:name "Date" :width 10)
-				(:name "Type" :width 20)
-				(:name "Name"))
-			      (nreverse lines)
-			      (nreverse data))))))
+	(make-vtable
+	 :columns '((:name "" :width 1)
+		    (:name "Date" :width 10)
+		    (:name "Type" :width 20)
+		    (:name "Name"))
+	 :objects media
+	 :getter
+	 (lambda (post column vtable)
+	   (pcase (vtable-column vtable column)
+	     ("" (if (ewp-find-mark
+		      (cdr (assoc "attachment_id" post)))
+		     "*"
+		   " "))
+	     ("Date"
+	      (format-time-string
+	       "%Y-%m-%d"
+	       (caddr (assoc "date_created_gmt" post))))
+	     ("Type"
+	      (propertize
+	       (cdr (assoc "type" post))
+	       'face '(:foreground "#808080")))
+	     ("Name"
+	      (cdr (assoc "title" post)))))
+	 :keymap ewp-list-media-mode-map)))))
 
 (defun ewp-load-more-media ()
   "Load more media from the blog."
@@ -1479,28 +1478,47 @@ starting the screenshotting process."
 (defun ewp-list-comments (&optional address old-data)
   "List the recent comments for the blog."
   (interactive)
-  (let ((address (or address ewp-address))
-	lines data)
+  (let ((address (or address ewp-address)))
     (switch-to-buffer (format "*%s comments*" address))
     (ewp-list-comments-mode)
     (setq-local ewp-address address)
     (ewp-save-excursion
       (let ((inhibit-read-only t))
 	(erase-buffer)
-	(dolist (comment (nconc old-data
-				(ewp-call 'ewp-get-comments address 1000
-					  (length old-data))))
-	  (push comment data)
-	  (push (ewp-print-comment comment) lines))
-	(variable-pitch-table '((:name "Date")
-				(:name "Status" :width 10)
-				(:name "Author" :width 10)
-				(:name "Title" :width 15)
-				(:name "Comment" :width 100))
-			      (nreverse lines)
-			      (nreverse data))
-	(goto-char (point-min))
-	(forward-line 1)))))
+	(make-vtable 
+	 :columns '((:name "Date")
+		    (:name "Status" :width 10)
+		    (:name "Author" :width 10)
+		    (:name "Title" :width 15)
+		    (:name "Comment" :width 100))
+	 :objects (nconc old-data
+			 (ewp-call 'ewp-get-comments address 1000
+				   (length old-data)))
+	 :getter
+	 (lambda (comment column vtable)
+	   (pcase (vtable-column vtable column)
+	     ("Date" 
+	      (format-time-string "%Y-%m-%d"
+				  (caddr (assoc "date_created_gmt" comment))))
+	     ("Status"
+	      (propertize (cdr (assoc "status" comment))
+			  'face '(:foreground "#a0a0a0")))
+	     ("Author"
+	      (propertize
+	       (mm-url-decode-entities-string
+		(or (cdr (assoc "author" comment)) ""))
+	       'face `( :foreground "#b0b0b0"
+			,@(if (not (equal (cdr (assoc "type" comment))
+					  "pingback"))
+			      (list :background "#505050")))))
+	     ("Title"
+	      (mm-url-decode-entities-string
+	       (cdr (assoc "post_title" comment))))
+	     ("Comment"
+	      (mm-url-decode-entities-string
+	       (replace-regexp-in-string
+		"[\n ]+" " " (cdr (assoc "content" comment)))))))
+	 :keymap ewp-list-comments-mode-map)))))
 
 (defun ewp-load-more-comments ()
   "Load more comments from the blog."
@@ -1536,30 +1554,6 @@ All normal editing commands are switched off.
   (buffer-disable-undo)
   (setq-local ewp-deleted-comments nil)
   (setq truncate-lines t))
-
-(defun ewp-print-comment (comment)
-  "Insert a Wordpress entry at point."
-  (list
-   (propertize
-    (format-time-string "%Y-%m-%d"
-			(caddr (assoc "date_created_gmt" comment)))
-    'face 'variable-pitch)
-   (propertize (cdr (assoc "status" comment))
-	       'face '(variable-pitch :foreground "#a0a0a0"))
-   (propertize
-    (mm-url-decode-entities-string (or (cdr (assoc "author" comment)) ""))
-    'face `(variable-pitch
-	    :foreground "#b0b0b0"
-	    ,@(if (not (equal (cdr (assoc "type" comment))
-			      "pingback"))
-		  (list :background "#505050"))))
-   (propertize
-    (mm-url-decode-entities-string (cdr (assoc "post_title" comment)))
-    'face '(variable-pitch :foreground "#b0b0b0"))
-   (propertize
-    (mm-url-decode-entities-string
-     (replace-regexp-in-string "[\n ]+" " " (cdr (assoc "content" comment))))
-    'face 'variable-pitch)))
 
 (defun ewp-display-comment ()
   "Display the comment under point."
