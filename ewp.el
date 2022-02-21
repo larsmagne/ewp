@@ -95,25 +95,22 @@ you want the xmlrpc stuff to go directly to the blog.")
 (defvar ewp-deleted-comments)
 (defvar ewp-deleted-posts)
 
-(defvar ewp-list-mode-map
-  (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map special-mode-map)
-    (define-key map "e" 'ewp-select-post)
-    (define-key map "p" 'ewp-preview)
-    (define-key map "M" 'ewp-list-media)
-    (define-key map "n" 'ewp-new-post)
-    (define-key map "N" 'ewp-new-page)
-    (define-key map "g" 'ewp-blog)
-    (define-key map "s" 'ewp-list-posts-with-status)
-    (define-key map "\r" 'ewp-browse)
-    (define-key map "w" 'ewp-copy-link)
-    (define-key map "d" 'ewp-trash-post)
-    ;;(define-key map "u" 'ewp-undelete-post)
-    (define-key map "c" 'ewp-make-comment)
-    (define-key map "C" 'ewp-list-comments)
-    (define-key map "A" 'ewp-list-posts-with-category)
-    (define-key map ">" 'ewp-load-more-posts)
-    map))
+(defvar-keymap ewp-list-mode-map
+  "e" #'ewp-select-post
+  "p" #'ewp-preview
+  "M" #'ewp-list-media
+  "n" #'ewp-new-post
+  "N" #'ewp-new-page
+  "g" #'ewp-blog
+  "s" #'ewp-list-posts-with-status
+  "RET" #'ewp-browse
+  "w" #'ewp-copy-link
+  "d" #'ewp-trash-post
+  ;;"u" #'ewp-undelete-post
+  "c" #'ewp-make-comment
+  "C" #'ewp-list-comments
+  "A" #'ewp-list-posts-with-category
+  ">" #'ewp-load-more-posts)
 
 (define-derived-mode ewp-list-mode special-mode "ewp"
   "Major mode for listing Wordpress posts.
@@ -151,22 +148,22 @@ All normal editing commands are switched off."
   (cond
    ;; We started with an empty buffer, so place point after the header
    ;; line.
-   ((zerop (getf loc :size))
+   ((zerop (cl-getf loc :size))
     (goto-char (point-min))
     (unless (eobp)
       (forward-line 1)))
    ;; Find a specific element we were on.
-   ((getf loc :data)
+   ((cl-getf loc :data)
     (goto-char (point-min))
     (while (and (not (eobp))
 		(not (ewp-item-equal
-		      (getf loc :data)
+		      (cl-getf loc :data)
 		      (get-text-property (point) 'vtable-object))))
       (forward-line 1)))
    ;; Go to the same numeric line.
    (t
     (goto-char (point-min))
-    (forward-line (getf loc :line)))))
+    (forward-line (cl-getf loc :line)))))
 
 (defun ewp-item-equal (e1 e2)
   (cl-loop for name in '("page_id" "post_id" "comment_id" "attachment_id")
@@ -191,7 +188,7 @@ All normal editing commands are switched off."
   "Load more posts from the blog.
 If ALL (the prefix), load all the posts in the blog."
   (interactive "P")
-  (ewp-blog ewp-address (ewp-current-data) nil nil t))
+  (ewp-blog ewp-address (ewp-current-data) nil nil all))
 
 (defun ewp-blog (&optional address old-data status category all)
   "List the posts on the blog."
@@ -314,7 +311,7 @@ which is to be returned.  Can be used with pages as well."
 		    'ewp-get-page
 		  'metaweblog-get-post)
 		(ewp-xmlrpc-url (or address ewp-address))
-		(getf auth :user) (funcall (getf auth :secret))
+		(cl-getf auth :user) (funcall (cl-getf auth :secret))
 		id))
 	 (date (or (caddr (assoc "post_date" post))
 		   (caddr (assoc "date_created_gmt" post))))
@@ -413,35 +410,32 @@ which is to be returned.  Can be used with pages as well."
   (time-less-p (caddr (assoc "post_date" e1))
 	       (caddr (assoc "post_date" e2))))
 
-(defvar ewp-edit-mode-map
-  (let ((map (make-keymap)))
-    (set-keymap-parent map text-mode-map)
-    (define-key map "\C-c\C-a" 'ewp-yank-with-href)
-    (define-key map "\C-c\C-y" 'ewp-yank-link-with-text)
-    (define-key map "\C-c\C-b" 'ewp-yank-with-blockquote)
-    (define-key map "\C-c\C-c" 'ewp-update-post)
-    (define-key map "\C-c\C-d" 'ewp-download-and-insert-image)
-    (define-key map "\C-c\C-i" 'ewp-insert-img)
-    (define-key map "\C-c\C-v" 'ewp-insert-video)
-    (define-key map "\C-c\C-l" 'ewp-remove-html-layer)
-    (define-key map "\C-c\C-m" 'ewp-yank-html)
-    (define-key map "\C-c\C-n" 'ewp-clean-link)
-    (define-key map "\C-c\C-o" 'ewp-html-quote-region)
-    (define-key map "\C-c\C-p" 'ewp-yank-picture)
-    (define-key map "\C-c\C-q" 'ewp-remove-image-thumbnails)
-    (define-key map "\C-c\C-w" 'ewp-insert-image-thumbnails)
-    (define-key map "\C-c\C-r" 'ewp-tag-region)
-    (define-key map "\C-c\C-s" 'ewp-import-screenshot)
-    (define-key map "\C-c\C-t" 'ewp-insert-tag)
-    (define-key map "\C-c\C-u" 'ewp-unfill-paragraph)
-    (define-key map "\C-c\C-z" 'ewp-schedule)
-    (define-key map "\C-c\C-k" 'ewp-crop-image)
-    (define-key map "\C-c\C-f" 'ewp-float-image)
-    (define-key map (kbd "C-c C-S-t") 'ewp-trim-image)
-    (define-key map "\C-c\C-j" 'ewp-set-image-width)
-    (define-key map "\t" 'ewp-complete)
-    (define-key map (kbd "C-c C-$") 'ewp-toggle-thumbnail)
-    map))
+(defvar-keymap ewp-edit-mode-map
+  "C-c C-a" #'ewp-yank-with-href
+  "C-c C-y" #'ewp-yank-link-with-text
+  "C-c C-b" #'ewp-yank-with-blockquote
+  "C-c C-c" #'ewp-update-post
+  "C-c C-d" #'ewp-download-and-insert-image
+  "C-c C-i" #'ewp-insert-img
+  "C-c C-v" #'ewp-insert-video
+  "C-c C-l" #'ewp-remove-html-layer
+  "C-c C-m" #'ewp-yank-html
+  "C-c C-n" #'ewp-clean-link
+  "C-c C-o" #'ewp-html-quote-region
+  "C-c C-p" #'ewp-yank-picture
+  "C-c C-q" #'ewp-remove-image-thumbnails
+  "C-c C-w" #'ewp-insert-image-thumbnails
+  "C-c C-r" #'ewp-tag-region
+  "C-c C-s" #'ewp-import-screenshot
+  "C-c C-t" #'ewp-insert-tag
+  "C-c C-u" #'ewp-unfill-paragraph
+  "C-c C-z" #'ewp-schedule
+  "C-c C-k" #'ewp-crop-image
+  "C-c C-f" #'ewp-float-image
+  "C-c C-S-t" #'ewp-trim-image
+  "C-c C-j" #'ewp-set-image-width
+  "TAB" #'ewp-complete
+  "C-c C-$" #'ewp-toggle-thumbnail)
 
 (define-derived-mode ewp-edit-mode text-mode "ewp"
   "Major mode for editing Wordpress posts.
@@ -470,10 +464,10 @@ which is to be returned.  Can be used with pages as well."
     (save-excursion
       (goto-char (point-min))
       (let ((headers nil)
-	    (post (copy-list (append ewp-post
-				     `(("title")
-				       ("description")
-				       ("categories")))))
+	    (post (copy-sequence (append ewp-post
+					 `(("title")
+					   ("description")
+					   ("categories")))))
 	    (pagep (assoc "page_id" ewp-post))
 	    (auth (ewp-auth ewp-address)))
 	(while (looking-at "\\([^\n:]+\\): \\(.*\\)")
@@ -519,8 +513,8 @@ which is to be returned.  Can be used with pages as well."
 	       'metaweblog-edit-post
 	     'metaweblog-new-post))
 	 `(,(ewp-xmlrpc-url ewp-address)
-	   ,(getf auth :user)
-	   ,(funcall (getf auth :secret))
+	   ,(cl-getf auth :user)
+	   ,(funcall (cl-getf auth :secret))
 	   ,@(if pagep
 		 (list (format "%s" ewp-blog-id))
 	       nil)
@@ -686,7 +680,7 @@ which is to be returned.  Can be used with pages as well."
 	  (let* ((data
 		  (with-temp-buffer
 		    (set-buffer-multibyte nil)
-		    (insert (getf (cdr image) :data))
+		    (insert (cl-getf (cdr image) :data))
 		    (ewp-possibly-rotate-buffer image)
 		    (buffer-string)))
 		 (content-type (ewp-content-type data)))
@@ -906,7 +900,7 @@ which is to be returned.  Can be used with pages as well."
   (let ((data (get-text-property (point) 'vtable-object)))
     (unless data
       (error "No post under point"))
-    (funcall shr-external-browser
+    (funcall browse-url-secondary-browser-function
 	     (format "https://%s/?p=%s&preview=true"
 		     ewp-address
 		     (cdr (assoc "post_id" data))))))
@@ -1278,18 +1272,15 @@ If given a prefix, yank from the clipboard."
   (interactive)
   (ewp-list-media ewp-address (ewp-current-data)))
 
-(defvar ewp-list-media-mode-map
-  (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map special-mode-map)
-    (define-key map "g" 'ewp-list-media)
-    (define-key map "w" 'ewp-copy-media)
-    (define-key map "u" 'ewp-copy-url)
-    (define-key map "m" 'ewp-upload-media)
-    (define-key map "\r" 'ewp-show-media)
-    (define-key map "n" 'ewp-show-media-goto-next)
-    (define-key map " " 'ewp-toggle-media-mark)
-    (define-key map ">" 'ewp-load-more-media)
-    map))
+(defvar-keymap ewp-list-media-mode-map
+  "g" #'ewp-list-media
+  "w" #'ewp-copy-media
+  "u" #'ewp-copy-url
+  "m" #'ewp-upload-media
+  "RET" #'ewp-show-media
+  "n" #'ewp-show-media-goto-next
+  "SPC" #'ewp-toggle-media-mark
+  ">" #'ewp-load-more-media)
 
 (define-derived-mode ewp-list-media-mode special-mode "ewp"
   "Major mode for listing Wordpress media.
@@ -1526,19 +1517,16 @@ starting the screenshotting process."
 	(forward-line 1)))
     (nreverse data)))
 
-(defvar ewp-list-comments-mode-map
-  (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map special-mode-map)
-    (define-key map "g" 'ewp-list-comments)
-    (define-key map "\r" 'ewp-display-comment)
-    (define-key map "a" 'ewp-approve-comment)
-    (define-key map "h" 'ewp-hold-comment)
-    (define-key map "d" 'ewp-trash-comment)
-    (define-key map "u" 'ewp-undelete-comment)
-    (define-key map "r" 'ewp-make-comment)
-    (define-key map "e" 'ewp-make-comment-edit)
-    (define-key map ">" 'ewp-load-more-comments)
-    map))
+(defvar-keymap ewp-list-comments-mode-map
+  "g" #'ewp-list-comments
+  "RET" #'ewp-display-comment
+  "a" #'ewp-approve-comment
+  "h" #'ewp-hold-comment
+  "d" #'ewp-trash-comment
+  "u" #'ewp-undelete-comment
+  "r" #'ewp-make-comment
+  "e" #'ewp-make-comment-edit
+  ">" #'ewp-load-more-comments)
 
 (define-derived-mode ewp-list-comments-mode special-mode "ewp"
   "Major mode for listing Wordpress comments.
@@ -1831,7 +1819,7 @@ All normal editing commands are switched off.
   (let ((auth (ewp-auth address)))
     (apply func
 	   (ewp-xmlrpc-url address)
-	   (getf auth :user) (funcall (getf auth :secret))
+	   (cl-getf auth :user) (funcall (cl-getf auth :secret))
 	   (format "%s" ewp-blog-id)
 	   args)))
 
@@ -1927,12 +1915,12 @@ If SQUARE (the prefix), crop a square from the image."
     ;; just like that image.  That allows us to draw lines over it.
     ;; At the end, we replace that SVG with a cropped version of the
     ;; original image.
-    (let* ((data (getf (cdr image) :data))
+    (let* ((data (cl-getf (cdr image) :data))
 	   (undo-handle (prepare-change-group))
 	   (orig-data data)
 	   (type (cond
-		  ((getf (cdr image) :format)
-		   (format "%s" (getf (cdr image) :format)))
+		  ((cl-getf (cdr image) :format)
+		   (format "%s" (cl-getf (cdr image) :format)))
 		  (data
 		   (ewp-content-type data))))
 	   (image-scaling-factor 1)
@@ -1946,7 +1934,7 @@ If SQUARE (the prefix), crop a square from the image."
       (with-temp-buffer
 	(set-buffer-multibyte nil)
 	(if (null data)
-	    (insert-file-contents-literally (getf (cdr image) :file))
+	    (insert-file-contents-literally (cl-getf (cdr image) :file))
 	  (insert data))
 	(let ((ewp-exif-rotate nil))
 	  (ewp-possibly-rotate-buffer image))
@@ -1993,10 +1981,14 @@ If SQUARE (the prefix), crop a square from the image."
 	(format
 	 ;; width x height + left + top
 	 "%dx%d+%d+%d"
-	 (abs (truncate (* factor (- (getf area :right) (getf area :left)))))
-	 (abs (truncate (* factor (- (getf area :bottom) (getf area :top)))))
-	 (truncate (* factor (min (getf area :left) (getf area :right))))
-	 (truncate (* factor (min (getf area :top) (getf area :bottom)))))
+	 (abs (truncate (* factor (- (cl-getf area :right)
+				     (cl-getf area :left)))))
+	 (abs (truncate (* factor (- (cl-getf area :bottom)
+				     (cl-getf area :top)))))
+	 (truncate (* factor (min (cl-getf area :left)
+				  (cl-getf area :right))))
+	 (truncate (* factor (min (cl-getf area :top)
+				  (cl-getf area :bottom)))))
 	"-" (format "%s:-" (cadr (split-string type "/"))))
        (buffer-string)))))
       
@@ -2022,7 +2014,7 @@ If SQUARE (the prefix), crop a square from the image."
 			(not (nth 7 (cadr event)))
 			;; Only do things if point is over the SVG being
 			;; tracked.
-			(not (eq (getf (cdr (nth 7 (cadr event))) :type)
+			(not (eq (cl-getf (cdr (nth 7 (cadr event))) :type)
 				 'svg)))
 		    ()
 		  (let ((pos (nth 8 (cadr event))))
@@ -2032,15 +2024,15 @@ If SQUARE (the prefix), crop a square from the image."
 			((eq (car event) 'down-mouse-1)
 			 (setq state 'stretch
 			       prompt "Stretch to end point")
-			 (setf (getf area :left) (car pos)
-			       (getf area :top) (cdr pos)
-			       (getf area :right) (car pos)
-			       (getf area :bottom) (cdr pos)))))
+			 (setf (cl-getf area :left) (car pos)
+			       (cl-getf area :top) (cdr pos)
+			       (cl-getf area :right) (car pos)
+			       (cl-getf area :bottom) (cdr pos)))))
 		      ('stretch
 		       (cond
 			((eq (car event) 'mouse-movement)
-			 (setf (getf area :right) (car pos)
-			       (getf area :bottom) (cdr pos)))
+			 (setf (cl-getf area :right) (car pos)
+			       (cl-getf area :bottom) (cdr pos)))
 			((memq (car event) '(mouse-1 drag-mouse-1))
 			 (setq state 'corner
 			       prompt "Choose corner to adjust (RET to crop)"))))
@@ -2063,8 +2055,8 @@ If SQUARE (the prefix), crop a square from the image."
 			 (setq state 'corner
 			       prompt "Choose corner to adjust"))
 			((eq (car event) 'mouse-movement)
-			 (setf (getf area (car corner)) (car pos)
-			       (getf area (cadr corner)) (cdr pos)))))
+			 (setf (cl-getf area (car corner)) (car pos)
+			       (cl-getf area (cadr corner)) (cdr pos)))))
 		      ('move-unclick
 		       (cond
 			((eq (car event) 'down-mouse-1)
@@ -2073,22 +2065,22 @@ If SQUARE (the prefix), crop a square from the image."
 		      ('move-click
 		       (cond
 			((eq (car event) 'mouse-movement)
-			 (setf (getf area :left) (car pos)
-			       (getf area :right) (+ (car pos) image-height)))
+			 (setf (cl-getf area :left) (car pos)
+			       (cl-getf area :right) (+ (car pos) image-height)))
 			((memq (car event) '(mouse-1 drag-mouse-1))
 			 (setq state 'move-unclick
 			       prompt "Click to move")))))))
-	     do (svg-line svg (getf area :left) (getf area :top)
-			  (getf area :right) (getf area :top)
+	     do (svg-line svg (cl-getf area :left) (cl-getf area :top)
+			  (cl-getf area :right) (cl-getf area :top)
 			  :id "top-line" :stroke-color "white")
-	     (svg-line svg (getf area :left) (getf area :bottom)
-		       (getf area :right) (getf area :bottom)
+	     (svg-line svg (cl-getf area :left) (cl-getf area :bottom)
+		       (cl-getf area :right) (cl-getf area :bottom)
 		       :id "bottom-line" :stroke-color "white")
-	     (svg-line svg (getf area :left) (getf area :top)
-		       (getf area :left) (getf area :bottom)
+	     (svg-line svg (cl-getf area :left) (cl-getf area :top)
+		       (cl-getf area :left) (cl-getf area :bottom)
 		       :id "left-line" :stroke-color "white")
-	     (svg-line svg (getf area :right) (getf area :top)
-		       (getf area :right) (getf area :bottom)
+	     (svg-line svg (cl-getf area :right) (cl-getf area :top)
+		       (cl-getf area :right) (cl-getf area :bottom)
 		       :id "right-line" :stroke-color "white")
 	     while (not (member event '(return ?q)))
 	     finally (return (and (eq event 'return)
@@ -2098,10 +2090,10 @@ If SQUARE (the prefix), crop a square from the image."
   (cl-loop for corner in corners
 	   ;; We accept 10 pixels off.
 	   when (and (< (- (car pos) 10)
-			(getf area (car corner))
+			(cl-getf area (car corner))
 			(+ (car pos) 10))
 		     (< (- (cdr pos) 10)
-			(getf area (cadr corner))
+			(cl-getf area (cadr corner))
 			(+ (cdr pos) 10)))
 	   return corner))
 
@@ -2115,14 +2107,13 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	      (not (consp image))
 	      (not (eq (car image) 'image)))
       (error "No image under point"))
-    (let* ((data (getf (cdr image) :data))
+    (let* ((data (cl-getf (cdr image) :data))
 	   (inhibit-read-only t))
       (when (null data)
 	(with-temp-buffer
 	  (set-buffer-multibyte nil)
-	  (insert-file-contents-literally (getf (cdr image) :file))
-	  (setq data (buffer-string)))
-	(setq type (ewp-content-type data)))
+	  (insert-file-contents-literally (cl-getf (cdr image) :file))
+	  (setq data (buffer-string))))
       (with-temp-buffer
 	(set-buffer-multibyte nil)
 	(insert data)
@@ -2141,20 +2132,18 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 (defun ewp-save-image (filename)
   "Save the image under point."
   (interactive "FFilename: ")
-  (let ((image (get-text-property (point) 'display))
-	new-data)
+  (let ((image (get-text-property (point) 'display)))
     (when (or (not image)
 	      (not (consp image))
 	      (not (eq (car image) 'image)))
       (error "No image under point"))
-    (let* ((data (getf (cdr image) :data))
+    (let* ((data (cl-getf (cdr image) :data))
 	   (inhibit-read-only t))
       (when (null data)
 	(with-temp-buffer
 	  (set-buffer-multibyte nil)
-	  (insert-file-contents-literally (getf (cdr image) :file))
-	  (setq data (buffer-string)))
-	(setq type (ewp-content-type data)))
+	  (insert-file-contents-literally (cl-getf (cdr image) :file))
+	  (setq data (buffer-string))))
       (with-temp-buffer
 	(set-buffer-multibyte nil)
 	(insert data)
@@ -2182,7 +2171,7 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
       (let* ((auth (ewp-auth ewp-address))
 	     (all-data (metaweblog-get-post
 			(ewp-xmlrpc-url ewp-address)
-			(getf auth :user) (funcall (getf auth :secret))
+			(cl-getf auth :user) (funcall (cl-getf auth :secret))
 			(cdr (assoc "post_id" data)))))
 	(put-text-property (line-beginning-position)
 			   (line-end-position)
@@ -2225,7 +2214,7 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	      (not (consp image))
 	      (not (eq (car image) 'image)))
       (error "No image under point"))
-    (setf (getf (cdr image) :width) width)))
+    (setf (cl-getf (cdr image) :width) width)))
 
 (defun ewp-get-post-data (category)
   (cl-loop for elem in (ewp-call 'ewp-get-posts ewp-address 300 0 nil
@@ -2354,10 +2343,10 @@ width/height of the logo."
     (setf (plist-get (cdr image) :max-height) nil)
     (setf (plist-get (cdr image) :max-width) nil)
     (setf (plist-get (cdr image) :scale) nil)
-    (let* ((data (getf (cdr image) :data))
+    (let* ((data (cl-getf (cdr image) :data))
 	   (type (cond
-		  ((getf (cdr image) :format)
-		   (format "%s" (getf (cdr image) :format)))
+		  ((cl-getf (cdr image) :format)
+		   (format "%s" (cl-getf (cdr image) :format)))
 		  (data
 		   (ewp-content-type data))))
 	   (size (image-size image t))
@@ -2368,7 +2357,7 @@ width/height of the logo."
       (with-temp-buffer
 	(set-buffer-multibyte nil)
 	(if (null data)
-	    (insert-file-contents-literally (getf (cdr image) :file))
+	    (insert-file-contents-literally (cl-getf (cdr image) :file))
 	  (insert data))
 	(let ((ewp-exif-rotate nil))
 	  (ewp-possibly-rotate-buffer image))
