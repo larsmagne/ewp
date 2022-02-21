@@ -23,7 +23,6 @@
 ;; Install
 
 ;; xml-rpc from https://github.com/hexmode/xml-rpc-el
-;; metaweblog from https://github.com/org2blog/metaweblog
 
 ;; # apt install exiftool
 ;; if you want images to be properly rotated.
@@ -38,10 +37,10 @@
 ;;; Code:
 
 (require 'cl-lib)
-(require 'metaweblog)
 (require 'mm-url)
 (require 'dired)
 (require 'eww)
+(require 'xml-rpc)
 (require 'sgml-mode)
 (require 'vtable)
 
@@ -191,6 +190,9 @@ If ALL (the prefix), load all the posts in the blog."
   (interactive "P")
   (ewp-blog ewp-address (ewp-current-data) nil nil all))
 
+(defun wp-get-pagelist (url user password blog-id)
+  (xml-rpc-method-call url "wp.getPageList" blog-id user password))
+
 (defun ewp-blog (&optional address old-data status category all)
   "List the posts on the blog."
   (interactive (list (cond
@@ -217,7 +219,7 @@ If ALL (the prefix), load all the posts in the blog."
 	  (push post data)))
       (when (and (not old-data)
 		 (not status))
-	(dolist (post (ewp-call 'wp-get-pagelist address))
+	(dolist (post (ewp-call 'ewp-get-pagelist address))
 	  (push post data)))
       (make-vtable
        :columns '((:name "Date" :width 10 :primary descend)
@@ -2227,11 +2229,7 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
   "Delete an entry from the weblog system."
   (xml-rpc-method-call blog-xmlrpc
                        "blogger.deletePost"
-                       nil
-                       post-id
-                       user-name
-                       password
-                       t))
+                       nil post-id user-name password t))
 
 (defun ewp-trash-post ()
   "Trash (i.e., delete) the post under point."
@@ -2242,10 +2240,11 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
       (error "No post under point"))
     (when (yes-or-no-p "Really delete this post? ")
       (let* ((auth (ewp-auth ewp-address))
-	     (all-data (metaweblog-get-post
+	     (all-data (xml-rpc-method-call
 			(ewp-xmlrpc-url ewp-address)
-			(cl-getf auth :user) (funcall (cl-getf auth :secret))
-			(cdr (assoc "post_id" data)))))
+			"metaWeblog.getPost"
+			(cdr (assoc "post_id" data))
+			(cl-getf auth :user) (funcall (cl-getf auth :secret)))))
 	(put-text-property (line-beginning-position)
 			   (line-end-position)
 			   'all-data all-data)
@@ -2270,10 +2269,14 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
   (let* ((line (pop ewp-deleted-posts))
 	 (data (get-text-property 1 'all-data line))
 	 (inhibit-read-only t)
+	 (auth (ewp-auth ewp-address))
 	 (result
-	  (ewp-call 'metaweblog-edit-post ewp-address
-		    (cdr (assoc "post_id" data))
-		    data)))
+	  (ewp-blog-post
+	   nil (ewp-get "post_id" data)
+	   (ewp-xmlrpc-url ewp-address)
+	   (cl-getf auth :user)
+	   (funcall (cl-getf auth :secret))
+	   ewp-blog-id data nil)))
     (if (not (eq result t))
 	(message "Error: %s" result)
       (beginning-of-line)
