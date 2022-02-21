@@ -496,35 +496,87 @@ If ALL (the prefix), load all the posts in the blog."
 		(and (string-match "wp-image-\\([0-9]+\\)" string)
 		     (nconc post (list (cons "thumbnail"
 					     (match-string 1 string)))))))))
-	(apply
-	 (if pagep
-	     (if (cdr (assoc "page_id" post))
-		 'wp-edit-page
-	       'wp-new-page)
-	   (if ewp-post
-	       'metaweblog-edit-post
-	     'metaweblog-new-post))
-	 `(,(ewp-xmlrpc-url ewp-address)
-	   ,(cl-getf auth :user)
-	   ,(funcall (cl-getf auth :secret))
-	   ,@(if pagep
-		 (list (format "%s" ewp-blog-id))
-	       nil)
-	   ,@(if (or (not pagep)
-		     (cdr (assoc "page_id" post)))
-		 (list (format "%s" (if pagep
-					(cdr (assoc "page_id" post))
-				      (cdr (assoc "postid" post)))))
-	       nil)
-	   ,post
-	   ;; Publish if already published.
-	   ,(equal (cdr (assoc "Status" headers)) "publish")))
+	(ewp-blog-post
+	 pagep
+	 ;; The old post/page ID if it's an edit.
+	 (or (cdr (assoc "page_id" post))
+	     (cdr (assoc "postid" post)))
+	 (ewp-xmlrpc-url ewp-address)
+	 (cl-getf auth :user)
+	 (funcall (cl-getf auth :secret))
+	 ewp-blog-id
+	 post
+	 ;; Publish if already published.
+	 (equal (cdr (assoc "Status" headers)) "publish"))
 	(set-buffer-modified-p nil)
 	(message "%s the post"
 		 (if ewp-post
 		     "Edited"
 		   "Posted"))
 	(bury-buffer)))))
+
+(defun ewp-node (symbol &rest values)
+  `(,symbol nil ,@(delq nil values)))
+
+(defun ewp-param (&rest values)
+  (apply #'ewp-node 'param values))
+
+(defun ewp-value (&rest values)
+  (apply #'ewp-node 'value values))
+
+(defun ewp-member (&rest values)
+  (apply #'ewp-node 'member values))
+
+(defun ewp-blog-post (pagep post-id url user password blog-id post publishp)
+  (xml-rpc-xml-to-response
+   (xml-rpc-request
+    url
+    (list
+     (ewp-node
+      'methodCall
+      (ewp-node
+       'methodName
+       (cond ((and (not pagep) (not post-id)) "metaWeblog.newPost")
+	     ((and (not pagep) post-id) "metaWeblog.editPost")
+	     ((and pagep (not post-id)) "wp.newPage")
+	     ((and pagep post-id) "wp.editPage")))
+      (ewp-node
+       'params
+       ;; We send blog-id if it's a new post/page, but we always send
+       ;; it if it's a page.
+       (and (or pagep (not post-id))
+	    (ewp-param (ewp-value (ewp-node 'string (format "%s" blog-id)))))
+       ;; Only send post-id if we're editing.
+       (and post-id
+	    (ewp-param (ewp-value (ewp-node 'string (format "%s" post-id)))))
+       (ewp-param (ewp-value (ewp-node 'string user)))
+       (ewp-param (ewp-value (ewp-node 'string password)))
+       (ewp-param
+	(ewp-value
+         (ewp-node
+	  'struct
+          (ewp-member
+           (ewp-node 'name "title")
+           (ewp-value (ewp-get "title" post)))
+          (ewp-member 
+           (ewp-node 'name "description")
+           (ewp-value (ewp-get "description" post)))
+          (ewp-member
+           (ewp-node 'name "dateCreated")
+           (ewp-node 'dateTime.iso8601 (ewp-get "date" post)))
+          (and (ewp-get "categories" post)
+	       (ewp-member
+		(ewp-node 'name "categories")
+		(ewp-value
+                 (ewp-node 'array
+			   (apply #'ewp-node
+				  'data
+				  (mapcar
+				   (lambda (cat)
+				     (ewp-value (ewp-node 'string nil cat)))
+				   (ewp-get "categories" post))))))))))
+       (ewp-param (ewp-value (ewp-node 'boolean (if publishp "1" "0"))))))))))
+
 
 (defun ewp-external-time (time)
   (format-time-string "%Y%m%dT%H:%M:%S" time))
@@ -2384,6 +2436,9 @@ width/height of the logo."
 			      t (list (current-buffer) nil) nil
 			      "svg:-" "jpg:-")
 	 (buffer-string))))))
+
+(defun ewp-get (key alist)
+  (cdr (assoc key alist)))
 
 (provide 'ewp)
 
