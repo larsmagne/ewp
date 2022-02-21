@@ -42,6 +42,7 @@
 (require 'vpt)
 (require 'eww)
 (require 'sgml-mode)
+(require 'vtable)
 
 (defvar ewp-blog-address nil
   "The name/address of the blog, like my.example.blog.")
@@ -51,6 +52,9 @@
 
 (defvar ewp-blog-id 1
   "The Wordpress ID of the blog, which is usually 1.")
+
+(defvar ewp-edit-hook nil
+  "Hook functions run when starting to edit a post.")
 
 (defvar ewp-send-hook nil
   "Hook functions run after posting/editing a blog article.")
@@ -139,7 +143,7 @@ All normal editing commands are switched off."
 
 (defun ewp-get-location ()
   (list :point (point)
-	:data (get-text-property (point) 'data)
+	:data (get-text-property (point) 'vtable-object)
 	:size (buffer-size)
 	:line (count-lines (point-min) (point))))
 
@@ -156,7 +160,8 @@ All normal editing commands are switched off."
     (goto-char (point-min))
     (while (and (not (eobp))
 		(not (ewp-item-equal
-		      (getf loc :data) (get-text-property (point) 'data))))
+		      (getf loc :data)
+		      (get-text-property (point) 'vtable-object))))
       (forward-line 1)))
    ;; Go to the same numeric line.
    (t
@@ -182,6 +187,12 @@ All normal editing commands are switched off."
   (interactive (list (completing-read "Category: " (ewp-categories))))
   (ewp-blog ewp-address nil nil category))
 
+(defun ewp-load-more-posts (&optional all)
+  "Load more posts from the blog.
+If ALL (the prefix), load all the posts in the blog."
+  (interactive "P")
+  (ewp-blog ewp-address (ewp-current-data) nil nil t))
+
 (defun ewp-blog (&optional address old-data status category all)
   "List the posts on the blog."
   (interactive (list (cond
@@ -195,7 +206,7 @@ All normal editing commands are switched off."
   (switch-to-buffer (format "*%s posts*" address))
   (ewp-save-excursion
     (let ((inhibit-read-only t)
-	  lines data)
+	  data)
       (erase-buffer)
       (ewp-list-mode)
       (setq-local ewp-address address)
@@ -205,51 +216,41 @@ All normal editing commands are switched off."
 				     (length old-data) status)))
 	(when (or (null category)
 		  (member category (ewp--categories post)))
-	  (push post data)
-	  (push (ewp-make-entry post) lines)))
+	  (push post data)))
       (when (and (not old-data)
 		 (not status))
 	(dolist (post (ewp-call 'wp-get-pagelist address))
-	  (push post data)
-	  (push (ewp-make-entry post) lines)))
-      (variable-pitch-table '((:name "Date" :width 10)
-			      (:name "Status" :width 10)
-			      (:name "Categories" :width 15)
-			      (:name "Title"))
-			    (nreverse lines)
-			    (nreverse data)))))
-
-(defun ewp-load-more-posts (&optional all)
-  "Load more posts from the blog.
-If ALL (the prefix), load all the posts in the blog."
-  (interactive "P")
-  (ewp-blog ewp-address (ewp-current-data) nil nil t))
-
-(defun ewp-make-entry (post)
-  (let* ((prefix (if (assoc "page_title" post)
-		     "page"
-		   "post"))
-	 (date (or (caddr (assoc "post_date" post))
-		   (caddr (assoc "date_created_gmt" post))))
-	 (status (cdr (assoc (format "%s_status" prefix) post))))
-    (when (and (equal status "publish")
-	       (time-less-p (current-time) date))
-      (setq status "schedule"))
-    (list
-     (propertize
-      (format-time-string "%Y-%m-%d" date)
-      'face 'variable-pitch)
-     (propertize 
-      (or status "")
-      'face '(variable-pitch :foreground "#a0a0a0"))
-     (propertize
-      (mapconcat 'mm-url-decode-entities-string
-		 (ewp--categories post) ",")
-      'face '(variable-pitch :foreground "#b0b0b0"))
-     (propertize
-      (mm-url-decode-entities-string
-       (or (cdr (assoc (format "%s_title" prefix) post)) ""))
-      'face 'variable-pitch))))
+	  (push post data)))
+      (make-vtable
+       :columns '((:name "Date" :width 10 :primary descend)
+		  (:name "Status" :width 10)
+		  (:name "Categories" :width 15)
+		  "Title")
+       :objects data
+       :getter
+       (lambda (post column vtable)
+	 (let* ((prefix (if (assoc "page_title" post)
+			    "page"
+			  "post"))
+		(date (or (caddr (assoc "post_date" post))
+			  (caddr (assoc "date_created_gmt" post))))
+		(status (cdr (assoc (format "%s_status" prefix) post))))
+	   (when (and (equal status "publish")
+		      (time-less-p (current-time) date))
+	     (setq status "schedule"))
+           (pcase (vtable-column vtable column)
+	     ("Date" (format-time-string "%Y-%m-%d" date))
+	     ("Status" (propertize (or status "")
+				   'face '(:foreground "#a0a0a0")))
+	     ("Categories"
+	      (propertize 
+	       (mapconcat 'mm-url-decode-entities-string
+			  (ewp--categories post) ",")
+	       'face '(:foreground "#b0b0b0")))
+	     ("Title" 
+	      (mm-url-decode-entities-string
+	       (or (cdr (assoc (format "%s_title" prefix) post)) ""))))))
+       :keymap ewp-list-mode-map))))
 
 (defun ewp--categories (post)
   (cl-loop for term in (cdr (assoc "terms" post))
@@ -302,7 +303,7 @@ which is to be returned.  Can be used with pages as well."
 (defun ewp-select-post (&optional address id)
   "Edit the post under point."
   (interactive)
-  (let* ((data (get-text-property (point) 'data))
+  (let* ((data (get-text-property (point) 'vtable-object))
 	 (pagep (assoc "page_id" data))
 	 (id (or id (if pagep
 			(cdr (assoc "page_id" data))
@@ -451,7 +452,8 @@ which is to be returned.  Can be used with pages as well."
 	      (cons
 	       'ewp-complete-status
 	       (cons 'ewp-complete-category completion-at-point-functions)))
-  (auto-save-mode 1))
+  (auto-save-mode 1)
+  (run-hooks 'ewp-edit-hook))
 
 (defun ewp-update-post ()
   "Update the post in the current buffer on Wordpress."
@@ -892,7 +894,7 @@ which is to be returned.  Can be used with pages as well."
 (defun ewp-browse ()
   "Display the blog post under point with `eww'."
   (interactive)
-  (let ((data (get-text-property (point) 'data)))
+  (let ((data (get-text-property (point) 'vtable-object)))
     (unless data
       (error "No post under point"))
     (eww (or (cdr (assoc "short_url" data))
@@ -901,7 +903,7 @@ which is to be returned.  Can be used with pages as well."
 (defun ewp-preview ()
   "Preview the blog post under point."
   (interactive)
-  (let ((data (get-text-property (point) 'data)))
+  (let ((data (get-text-property (point) 'vtable-object)))
     (unless data
       (error "No post under point"))
     (funcall shr-external-browser
@@ -939,19 +941,12 @@ Uses `ewp-blog-addresses'."
   (ewp-list-blogs-mode)
   (let ((inhibit-read-only t))
     (erase-buffer)
-    (dolist (address ewp-blog-addresses)
-      (insert (propertize address
-			  'face 'variable-pitch
-			  'data address)
-	      "\n"))
-    (goto-char (point-min))))
-
-(defvar ewp-list-blogs-mode-map
-  (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map special-mode-map)
-    (define-key map "\r" 'ewp-list-blog)
-    (define-key map "g" 'ewp)
-    map))
+    (make-vtable
+     :columns '("Blog")
+     :objects ewp-blog-addresses
+     :actions '("RET" ewp-blog)
+     :keymap (define-keymap
+	       "g" #'ewp))))
 
 (define-derived-mode ewp-list-blogs-mode special-mode "ewp"
   "Major mode for listing Wordpress blogs.
@@ -959,14 +954,6 @@ Uses `ewp-blog-addresses'."
 All normal editing commands are switched off.
 \\<ewp-list-blogs-mode-map>"
   (setq truncate-lines t))
-
-(defun ewp-list-blog ()
-  "List the blog under point."
-  (interactive)
-  (let ((blog (get-text-property (point) 'data)))
-    (unless blog
-      (error "No blog under point"))
-    (ewp-blog blog)))
 
 (defun ewp-complete ()
   "Complete categories in that header."
@@ -1334,7 +1321,7 @@ the media there instead."
 (defun ewp-show-media ()
   "Show the media under point."
   (interactive)
-  (let* ((data (get-text-property (point) 'data))
+  (let* ((data (get-text-property (point) 'vtable-object))
 	 (url (cdr (assoc "link" data))))
     (if (not data)
 	(error "No media under point")
@@ -1356,7 +1343,7 @@ the media there instead."
 (defun ewp-copy-media ()
   "Copy the media under point to the kill ring."
   (interactive)
-  (let ((data (get-text-property (point) 'data)))
+  (let ((data (get-text-property (point) 'vtable-object)))
     (if (not (or ewp-marks data))
 	(error "No media under point")
       (ewp-copy-media-1 (or ewp-marks (list data))
@@ -1389,7 +1376,7 @@ the media there instead."
 (defun ewp-copy-url ()
   "Copy the URL under point to the kill ring."
   (interactive)
-  (let* ((data (get-text-property (point) 'data))
+  (let* ((data (get-text-property (point) 'vtable-object))
 	 (url (cdr (assoc "link" data))))
     (if (not data)
 	(error "No media under point")
@@ -1457,7 +1444,7 @@ starting the screenshotting process."
 (defun ewp-copy-link ()
   "Copy the URL of the blog post under point to the kill ring."
   (interactive)
-  (let ((data (get-text-property (point) 'data)))
+  (let ((data (get-text-property (point) 'vtable-object)))
     (unless data
       (error "No post under point"))
     (let* ((link (cdr (assoc "link" data)))
@@ -1534,7 +1521,7 @@ starting the screenshotting process."
     (save-excursion
       (goto-char (point-min))
       (while (not (eobp))
-	(when-let ((elem (get-text-property (point) 'data)))
+	(when-let ((elem (get-text-property (point) 'vtable-object)))
 	  (push elem data))
 	(forward-line 1)))
     (nreverse data)))
@@ -1589,7 +1576,7 @@ All normal editing commands are switched off.
 (defun ewp-display-comment ()
   "Display the comment under point."
   (interactive)
-  (let ((data (get-text-property (point) 'data)))
+  (let ((data (get-text-property (point) 'vtable-object)))
     (unless data
       (error "No comment under point"))
     (switch-to-buffer (format "*%s comment*" (cdr (assoc "comment_id" data))))
@@ -1678,7 +1665,7 @@ All normal editing commands are switched off.
   (forward-line 1))
 
 (defun ewp-change-status (status)
-  (let ((data (get-text-property (point) 'data)))
+  (let ((data (get-text-property (point) 'vtable-object)))
     (unless data
       (error "No comment under point"))
     (setcdr (assoc "status" data) status)
@@ -1724,7 +1711,7 @@ All normal editing commands are switched off.
 (defun ewp-trash-comment ()
   "Trash (i.e., delete) the comment under point."
   (interactive)
-  (let ((data (get-text-property (point) 'data)))
+  (let ((data (get-text-property (point) 'vtable-object)))
     (unless data
       (error "No comment under point"))
     (let ((result (ewp-call 'ewp-delete-comment ewp-address
@@ -1747,7 +1734,7 @@ All normal editing commands are switched off.
   (unless ewp-deleted-comments
     (error "No deleted comments in the undo queue"))
   (let* ((line (pop ewp-deleted-comments))
-	 (data (get-text-property 1 'data line))
+	 (data (get-text-property 1 'vtable-object line))
 	 (inhibit-read-only t)
 	 (result
 	  (ewp-call 'ewp-edit-comment ewp-address
@@ -1761,7 +1748,7 @@ All normal editing commands are switched off.
 (defun ewp-make-comment (&optional editp)
   "Post a new comment or a reply to the comment under point."
   (interactive)
-  (let ((data (get-text-property (point) 'data))
+  (let ((data (get-text-property (point) 'vtable-object))
 	(address ewp-address))
     (unless data
       (error "No comment under point"))
@@ -1889,7 +1876,7 @@ All normal editing commands are switched off.
 (defun ewp-toggle-media-mark ()
   "Toggle the mark on the media under point."
   (interactive)
-  (let* ((data (get-text-property (point) 'data))
+  (let* ((data (get-text-property (point) 'vtable-object))
 	 (id (cdr (assoc "attachment_id" data)))
 	 (inhibit-read-only t))
     (unless data
@@ -1905,7 +1892,7 @@ All normal editing commands are switched off.
 	      " ")
 	  (push data ewp-marks)
 	  "*")
-	'data data)))))
+	'vtable-object data)))))
 
 (defun ewp-find-mark (id)
   (cl-loop for elem in ewp-marks
@@ -2187,7 +2174,7 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 (defun ewp-trash-post ()
   "Trash (i.e., delete) the post under point."
   (interactive)
-  (let ((data (get-text-property (point) 'data))
+  (let ((data (get-text-property (point) 'vtable-object))
 	(inhibit-read-only t))
     (unless data
       (error "No post under point"))
