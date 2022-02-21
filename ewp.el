@@ -6,7 +6,7 @@
 ;; Keywords: wordpress, blogs
 ;; Package: ewp
 ;; Version: 1.0
-;; Package-Requires: ((emacs "29.0.59") (metaweblog "20210422.326") (xml-rpc "1.6.15"))
+;; Package-Requires: ((emacs "29.0.59") (xml-rpc "1.6.15"))
 
 ;; ewp is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
@@ -619,18 +619,50 @@ If ALL (the prefix), load all the posts in the blog."
     (end-of-line)
     (ewp-save-buffer)))
 
+(defun ewp--upload-file (address name type bits &optional date)
+  (let ((auth (ewp-auth address)))
+    (xml-rpc-xml-to-response
+     (xml-rpc-request
+      (ewp-xmlrpc-url address)
+      (list
+       (ewp-node
+	'methodCall
+        (ewp-node 'methodName "metaWeblog.newMediaObject")
+	(ewp-node
+	 'params
+	 (ewp-param (ewp-node 'string (format "%s" ewp-blog-id)))
+	 (ewp-param (ewp-node 'string (cl-getf auth :user)))
+	 (ewp-param (ewp-node 'string (funcall (cl-getf auth :secret))))
+         (ewp-param
+          (ewp-node
+	   'struct
+           (ewp-member
+            (ewp-node 'name "name")
+            (ewp-value name))
+	   (ewp-member 
+	    (ewp-node 'name "bits")
+            (ewp-node 'base64 bits))
+	   (ewp-member
+	    (ewp-node 'name "type")
+	    (ewp-value type))
+	   (ewp-member
+	    (ewp-node 'name "overwrite")
+	    (ewp-value "t"))
+	   (ewp-member
+            (ewp-node 'name "date")
+	    (ewp-value (or date ""))))))))))))
+
 (defun ewp-upload-file (address file &optional image)
-  (ewp-call
-   'metaweblog-upload-file
+  (ewp--upload-file
    address
-   `(("name" . ,(file-name-nondirectory file))
-     ("type" . ,(mailcap-file-name-to-mime-type file))
-     ("bits" . ,(with-temp-buffer
-		  (set-buffer-multibyte nil)
-		  (insert-file-contents-literally file)
-		  (ewp-possibly-rotate-buffer image)
-		  (base64-encode-region (point-min) (point-max))
-		  (buffer-string))))))
+   (file-name-nondirectory file)
+   (mailcap-file-name-to-mime-type file)
+   (with-temp-buffer
+     (set-buffer-multibyte nil)
+     (insert-file-contents-literally file)
+     (ewp-possibly-rotate-buffer image)
+     (base64-encode-region (point-min) (point-max))
+     (buffer-string))))
 
 (defun ewp-transform-and-upload-images (address)
   "Look for local <img> and upload images from those to Wordpress."
@@ -670,11 +702,10 @@ If ALL (the prefix), load all the posts in the blog."
 		   (base64-encode-region (point-min) (point-max))
 		   (buffer-string))))
 	    (setq result
-		  (ewp-call
-		   'metaweblog-upload-file address
-		   `(("name" . ,(file-name-nondirectory file))
-		     ("type" . ,(mailcap-file-name-to-mime-type file))
-		     ("bits" . ,data))))
+		  (ewp--upload-file address
+				    (file-name-nondirectory file)
+				    (mailcap-file-name-to-mime-type file)
+				    data))
 	    (setq size (ewp-image-size (create-image
 					(with-temp-buffer
 					  (set-buffer-multibyte nil)
@@ -698,13 +729,13 @@ If ALL (the prefix), load all the posts in the blog."
 			(base64-encode-region (point-min) (point-max))
 			(buffer-string))))
 	    (setq result
-		  (ewp-call
-		   'metaweblog-upload-file address
-		   `(("name" . ,(format "%s.%s"
-					(format-time-string "%F")
-					(cadr (split-string mime-type "/"))))
-		     ("type" . ,mime-type)
-		     ("bits" . ,data))))
+		  (ewp--upload-file
+		   address
+		   (format "%s.%s"
+			   (format-time-string "%F")
+			   (cadr (split-string mime-type "/")))
+		   mime-type
+		   data))
 	    (setq size (ewp-image-size (create-image
 					(with-temp-buffer
 					  (set-buffer-multibyte nil)
@@ -727,13 +758,13 @@ If ALL (the prefix), load all the posts in the blog."
 		    (buffer-string)))
 		 (content-type (ewp-content-type data)))
 	    (setq result
-		  (ewp-call
-		   'metaweblog-upload-file address
-		   `(("name" . ,(format "%s.%s"
-					(format-time-string "%F")
-					(cadr (split-string content-type "/"))))
-		     ("type" . ,content-type)
-		     ("bits" . ,(base64-encode-string data)))))
+		  (ewp--upload-file
+		   address
+		   (format "%s.%s"
+			   (format-time-string "%F")
+			   (cadr (split-string content-type "/")))
+		   content-type
+		   (base64-encode-string data)))
 	    (setq size (ewp-image-size (create-image data nil t)))
 	    ;; Remove the <a> that we slap around images.
 	    (when (and link-start
@@ -799,16 +830,16 @@ If ALL (the prefix), load all the posts in the blog."
 	;; Local file.
 	(when (null (url-type url))
 	  (when-let* ((result
-		       (ewp-call
-			'metaweblog-upload-file address
-			`(("name" . ,(file-name-nondirectory file))
-			  ("type" . ,(mailcap-file-name-to-mime-type file))
-			  ("bits" . ,(with-temp-buffer
-				       (set-buffer-multibyte nil)
-				       (insert-file-contents-literally file)
-				       (base64-encode-region (point-min)
-							     (point-max))
-				       (buffer-string))))))
+		       (ewp--upload-file
+			address
+			(file-name-nondirectory file)
+			(mailcap-file-name-to-mime-type file)
+			(with-temp-buffer
+			  (set-buffer-multibyte nil)
+			  (insert-file-contents-literally file)
+			  (base64-encode-region (point-min)
+						(point-max))
+			  (buffer-string))))
 		      (url (cdr (assoc "url" result))))
 	    (delete-region start end)
 	    (goto-char start)
@@ -837,18 +868,17 @@ If ALL (the prefix), load all the posts in the blog."
 			    (format "--out=%s" file))
 	      (when (file-exists-p file)
 		(when-let* ((result
-			     (ewp-call
-			      'metaweblog-upload-file address
-			      `(("name" . ,(file-name-nondirectory file))
-				("type" . ,(mailcap-file-name-to-mime-type
-					    file))
-				("bits" . ,(with-temp-buffer
-					     (set-buffer-multibyte nil)
-					     (insert-file-contents-literally
-					      file)
-					     (base64-encode-region (point-min)
-								   (point-max))
-					     (buffer-string))))))
+			     (ewp--upload-file
+			      address
+			      (file-name-nondirectory file)
+			      (mailcap-file-name-to-mime-type file)
+			      (with-temp-buffer
+				(set-buffer-multibyte nil)
+				(insert-file-contents-literally
+				 file)
+				(base64-encode-region (point-min)
+						      (point-max))
+				(buffer-string))))
 			    (image-url (cdr (assoc "url" result))))
 		  (delete-region start (point))
 		  (dom-remove-attribute dom 'screenshot)
@@ -1034,12 +1064,18 @@ All normal editing commands are switched off.
 	   (completion-in-region b (line-end-position) statuses)
 	   'completion-attempted))))
 
+(defun ewp-get-categories (address)
+  (let ((auth (ewp-auth address)))
+    (xml-rpc-method-call (ewp-xmlrpc-url address)
+                       "metaWeblog.getCategories"
+                       (format "%s" ewp-blog-id)
+		       (cl-getf auth :user) (funcall (cl-getf auth :secret)))))
+
 (defun ewp-categories ()
   (if (boundp 'ewp-categories)
       ewp-categories
     (setq-local ewp-categories
-		(cl-loop for elem in (ewp-call 'metaweblog-get-categories
-					       ewp-address)
+		(cl-loop for elem in (ewp-get-categories ewp-address)
 			 collect (cons (cdr (assoc "categoryName" elem))
 				       (cdr (assoc "categoryId" elem)))))))
 
@@ -2306,12 +2342,11 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	      (base64-encode-region (point) (point-max))
 	      (message "Uploading %s..." url)
 	      (setq result
-		    (ewp-call
-		     'metaweblog-upload-file address
-		     `(("name" . ,file)
-		       ("type" . ,(mailcap-file-name-to-mime-type file))
-		       ("bits" . ,(buffer-substring (point) (point-max)))
-		       ("date" . ,date)))))
+		    (ewp--upload-file
+		     address file
+		     (mailcap-file-name-to-mime-type file)
+		     (buffer-substring (point) (point-max))
+		     date)))
 	    (kill-buffer (current-buffer)))
 	  (when result
 	    (let ((new-id (format "wp-image-%s" (cdr (assoc "id" result)))))
