@@ -519,7 +519,7 @@ If ALL (the prefix), load all the posts in the blog."
   `(,symbol nil ,@(delq nil values)))
 
 (defun ewp-param (&rest values)
-  (apply #'ewp-node 'param values))
+  (ewp-node 'param (apply #'ewp-value values)))
 
 (defun ewp-value (&rest values)
   (apply #'ewp-node 'value values))
@@ -545,38 +545,36 @@ If ALL (the prefix), load all the posts in the blog."
        ;; We send blog-id if it's a new post/page, but we always send
        ;; it if it's a page.
        (and (or pagep (not post-id))
-	    (ewp-param (ewp-value (ewp-node 'string (format "%s" blog-id)))))
+	    (ewp-param (ewp-node 'string (format "%s" blog-id))))
        ;; Only send post-id if we're editing.
        (and post-id
-	    (ewp-param (ewp-value (ewp-node 'string (format "%s" post-id)))))
-       (ewp-param (ewp-value (ewp-node 'string user)))
-       (ewp-param (ewp-value (ewp-node 'string password)))
+	    (ewp-param (ewp-node 'string (format "%s" post-id))))
+       (ewp-param (ewp-node 'string user))
+       (ewp-param (ewp-node 'string password))
        (ewp-param
-	(ewp-value
-         (ewp-node
-	  'struct
-          (ewp-member
-           (ewp-node 'name "title")
-           (ewp-value (ewp-get "title" post)))
-          (ewp-member 
-           (ewp-node 'name "description")
-           (ewp-value (ewp-get "description" post)))
-          (ewp-member
-           (ewp-node 'name "dateCreated")
-           (ewp-node 'dateTime.iso8601 (ewp-get "date" post)))
-          (and (ewp-get "categories" post)
-	       (ewp-member
-		(ewp-node 'name "categories")
-		(ewp-value
-                 (ewp-node 'array
-			   (apply #'ewp-node
-				  'data
-				  (mapcar
-				   (lambda (cat)
-				     (ewp-value (ewp-node 'string nil cat)))
-				   (ewp-get "categories" post))))))))))
-       (ewp-param (ewp-value (ewp-node 'boolean (if publishp "1" "0"))))))))))
-
+        (ewp-node
+	 'struct
+         (ewp-member
+          (ewp-node 'name "title")
+          (ewp-value (ewp-get "title" post)))
+         (ewp-member 
+          (ewp-node 'name "description")
+          (ewp-value (ewp-get "description" post)))
+         (ewp-member
+          (ewp-node 'name "dateCreated")
+          (ewp-node 'dateTime.iso8601 (ewp-get "date" post)))
+         (and (ewp-get "categories" post)
+	      (ewp-member
+	       (ewp-node 'name "categories")
+	       (ewp-value
+                (ewp-node 'array
+			  (apply #'ewp-node
+				 'data
+				 (mapcar
+				  (lambda (cat)
+				    (ewp-value (ewp-node 'string cat)))
+				  (ewp-get "categories" post)))))))))
+       (ewp-param (ewp-node 'boolean (if publishp "1" "0")))))))))
 
 (defun ewp-external-time (time)
   (format-time-string "%Y%m%dT%H:%M:%S" time))
