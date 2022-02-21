@@ -4,6 +4,9 @@
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: wordpress, blogs
+;; Package: ewp
+;; Version: 1.0
+;; Package-Requires: ((emacs "29.0.59") (metaweblog "20210422.326") (xml-rpc "1.6.15"))
 
 ;; ewp is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
@@ -21,7 +24,6 @@
 
 ;; xml-rpc from https://github.com/hexmode/xml-rpc-el
 ;; metaweblog from https://github.com/org2blog/metaweblog
-;; vpt from https://github.com/larsmagne/vpt.el
 
 ;; # apt install exiftool
 ;; if you want images to be properly rotated.
@@ -281,16 +283,6 @@ If ALL (the prefix), load all the posts in the blog."
 			   ["post_title" "post_date" "post_status" "terms"
 			    "link" "post_name"])))
 
-(defun ewp-get-page (blog-xmlrpc user-name password page-id)
-  "Retrieves a page from the weblog. PAGE-ID is the id of the post
-which is to be returned.  Can be used with pages as well."
-  (xml-rpc-method-call blog-xmlrpc
-                       "wp.getPage"
-		       nil
-                       page-id
-                       user-name
-                       password))
-
 (defun ewp-xmlrpc-url (address)
   (format "https://%s/xmlrpc.php"
 	  (or (cadr (assoc address ewp-address-map))
@@ -305,13 +297,14 @@ which is to be returned.  Can be used with pages as well."
 			(cdr (assoc "page_id" data))
 		      (cdr (assoc "post_id" data)))))
 	 (auth (ewp-auth (or address ewp-address)))
-	 (post (funcall
-		(if pagep
-		    'ewp-get-page
-		  'metaweblog-get-post)
-		(ewp-xmlrpc-url (or address ewp-address))
-		(cl-getf auth :user) (funcall (cl-getf auth :secret))
-		id))
+	 (post (apply
+		#'xml-rpc-method-call
+		`(,(ewp-xmlrpc-url (or address ewp-address))
+		  ,@(if pagep
+			'("wp.getPage" nil)
+		      '("metaWeblog.getPost"))
+		  ,id ,(cl-getf auth :user)
+		  ,(funcall (cl-getf auth :secret)))))
 	 (date (or (caddr (assoc "post_date" post))
 		   (caddr (assoc "date_created_gmt" post))))
 	 (status (cdr (assoc (if pagep
