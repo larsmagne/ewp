@@ -190,7 +190,7 @@ If ALL (the prefix), load all the posts in the blog."
   (interactive "P")
   (ewp-blog ewp-address (ewp-current-data) nil nil all))
 
-(defun wp-get-pagelist (url user password blog-id)
+(defun ewp-get-pagelist (url user password blog-id)
   (xml-rpc-method-call url "wp.getPageList" blog-id user password))
 
 (defun ewp-blog (&optional address old-data status category all)
@@ -425,6 +425,7 @@ If ALL (the prefix), load all the posts in the blog."
   "C-c C-u" #'ewp-unfill-paragraph
   "C-c C-z" #'ewp-schedule
   "C-c C-k" #'ewp-crop-image
+  "C-c C-e" #'ewp-elide-image-rectangle
   "C-c C-f" #'ewp-float-image
   "C-c C-S-t" #'ewp-trim-image
   "C-c C-j" #'ewp-set-image-width
@@ -1977,7 +1978,12 @@ If given a prefix, float to the right instead."
 		       'display (if right "⇢" "⇠")))
   (message "Floating image to the %s" (if right "right" "left")))
 
-(defun ewp-crop-image (&optional square)
+(defun ewp-elide-image-rectangle ()
+  "Elide a square from the image under point."
+  (interactive)
+  (ewp-crop-image nil t))
+
+(defun ewp-crop-image (&optional square elide)
   "Crop the image under point.
 If SQUARE (the prefix), crop a square from the image."
   (interactive "P")
@@ -2035,36 +2041,48 @@ If SQUARE (the prefix), crop a square from the image."
 		    (quit nil))))
 	(delete-region (line-beginning-position) (line-end-position))
 	(if area
-	    (ewp-crop-image-update area orig-data size type)
+	    (ewp-crop-image-update area orig-data size type elide)
 	  ;; If the user didn't complete the crop, re-insert the
 	  ;; original image (and text).
 	  (insert text))
 	(undo-amalgamate-change-group undo-handle)))))
 
-(defun ewp-crop-image-update (area data size type)
+(defun ewp-crop-image-update (area data size type elide)
   (let* ((image-scaling-factor 1)
 	 (osize (image-size (create-image data (ewp--image-type) t) t))
-	 (factor (/ (float (car osize)) (car size))))
+	 (factor (/ (float (car osize)) (car size)))
+	 ;; width x height + left + top
+	 (width (abs (truncate (* factor (- (cl-getf area :right)
+					    (cl-getf area :left))))))
+	 (height (abs (truncate (* factor (- (cl-getf area :bottom)
+					     (cl-getf area :top))))))
+	 (left (truncate (* factor (min (cl-getf area :left)
+					(cl-getf area :right)))))
+	 (top (truncate (* factor (min (cl-getf area :top)
+				       (cl-getf area :bottom))))))
     (ewp-insert-image-data
      (with-temp-buffer
        (set-buffer-multibyte nil)
        (insert data)
-       (call-process-region
-	(point-min) (point-max) "convert"
-	t (list (current-buffer) nil) nil
-	"+repage" "-crop"
-	(format
-	 ;; width x height + left + top
-	 "%dx%d+%d+%d"
-	 (abs (truncate (* factor (- (cl-getf area :right)
-				     (cl-getf area :left)))))
-	 (abs (truncate (* factor (- (cl-getf area :bottom)
-				     (cl-getf area :top)))))
-	 (truncate (* factor (min (cl-getf area :left)
-				  (cl-getf area :right))))
-	 (truncate (* factor (min (cl-getf area :top)
-				  (cl-getf area :bottom)))))
-	"-" (format "%s:-" (cadr (split-string type "/"))))
+       (if elide
+	   (call-process-region
+	    (point-min) (point-max) "convert"
+	    t (list (current-buffer) nil) nil
+	    "-draw"
+	    (format
+	     ;; left,top right,bottom
+	     "rectangle %d,%d %d,%d"
+	     left top (+ left width) (+ top height))
+	    "-"
+	    (format "%s:-" (cadr (split-string type "/"))))
+	 (call-process-region
+	  (point-min) (point-max) "convert"
+	  t (list (current-buffer) nil) nil
+	  "+repage" "-crop"
+	  (format
+	   ;; width x height + left + top
+	   "%dx%d+%d+%d" width height left top)
+	  "-" (format "%s:-" (cadr (split-string type "/")))))
        (buffer-string)))))
       
 (defun ewp-crop-image-1 (svg &optional square image-width image-height)
