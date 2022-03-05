@@ -425,7 +425,6 @@ If ALL (the prefix), load all the posts in the blog."
   "C-c C-u" #'ewp-unfill-paragraph
   "C-c C-z" #'ewp-schedule
   "C-c C-k" #'ewp-crop-image
-  "C-c C-e" #'ewp-elide-image-rectangle
   "C-c C-f" #'ewp-float-image
   "C-c C-S-t" #'ewp-trim-image
   "C-c C-j" #'ewp-set-image-width
