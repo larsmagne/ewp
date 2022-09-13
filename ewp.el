@@ -424,7 +424,7 @@ If ALL (the prefix), load all the posts in the blog."
   "C-c C-t" #'ewp-insert-tag
   "C-c C-u" #'ewp-unfill-paragraph
   "C-c C-z" #'ewp-schedule
-  "C-c C-k" #'ewp-crop-image
+  "C-c C-k" #'image-crop
   "C-c C-f" #'ewp-float-image
   "C-c C-S-t" #'ewp-trim-image
   "C-c C-j" #'ewp-set-image-width
@@ -1977,222 +1977,9 @@ If given a prefix, float to the right instead."
 		       'display (if right "⇢" "⇠")))
   (message "Floating image to the %s" (if right "right" "left")))
 
-(defun ewp-elide-image-rectangle ()
-  "Elide a square from the image under point."
+(defun ewp-fix-aspect-ratio ()
+  "Fix the aspect ratio of the image under point."
   (interactive)
-  (ewp-crop-image nil t))
-
-(defun ewp-crop-image (&optional square elide)
-  "Crop the image under point.
-If SQUARE (the prefix), crop a square from the image."
-  (interactive "P")
-  (let ((image (get-text-property (point) 'display)))
-    (when (or (not image)
-	      (not (consp image))
-	      (not (eq (car image) 'image)))
-      (error "No image under point"))
-    ;; We replace the image under point with an SVG image that looks
-    ;; just like that image.  That allows us to draw lines over it.
-    ;; At the end, we replace that SVG with a cropped version of the
-    ;; original image.
-    (let* ((data (cl-getf (cdr image) :data))
-	   (undo-handle (prepare-change-group))
-	   (orig-data data)
-	   (type (cond
-		  ((cl-getf (cdr image) :format)
-		   (format "%s" (cl-getf (cdr image) :format)))
-		  (data
-		   (ewp-content-type data))))
-	   (image-scaling-factor 1)
-	   (size (image-size image t))
-	   (svg (svg-create (car size) (cdr size)
-			    :xmlns:xlink "http://www.w3.org/1999/xlink"
-			    :stroke-width 5))
-	   (text (buffer-substring (line-beginning-position)
-				   (line-end-position)))
-	   (inhibit-read-only t))
-      (with-temp-buffer
-	(set-buffer-multibyte nil)
-	(if (null data)
-	    (insert-file-contents-literally (cl-getf (cdr image) :file))
-	  (insert data))
-	(let ((ewp-exif-rotate nil))
-	  (ewp-possibly-rotate-buffer image))
-	(setq orig-data (buffer-string))
-	(setq type (ewp-content-type orig-data))
-	(call-process-region (point-min) (point-max)
-			     "convert" t (current-buffer) nil
-			     "-resize" "600x"
-			     "-"
-			     (format "%s:-" (cadr (split-string type "/"))))
-	(setq data (buffer-string)))
-      (svg-embed svg data type t
-		 :width (car size)
-		 :height (cdr size))
-      (delete-region (line-beginning-position)
-		     (line-end-position))
-      (svg-insert-image svg)
-      (let ((area (condition-case _
-		      (save-excursion
-			(forward-line 1)
-			(ewp-crop-image-1 svg square
-					  (car size) (cdr size)))
-		    (quit nil))))
-	(delete-region (line-beginning-position) (line-end-position))
-	(if area
-	    (ewp-crop-image-update area orig-data size type elide)
-	  ;; If the user didn't complete the crop, re-insert the
-	  ;; original image (and text).
-	  (insert text))
-	(undo-amalgamate-change-group undo-handle)))))
-
-(defun ewp-crop-image-update (area data size type elide)
-  (let* ((image-scaling-factor 1)
-	 (osize (image-size (create-image data (ewp--image-type) t) t))
-	 (factor (/ (float (car osize)) (car size)))
-	 ;; width x height + left + top
-	 (width (abs (truncate (* factor (- (cl-getf area :right)
-					    (cl-getf area :left))))))
-	 (height (abs (truncate (* factor (- (cl-getf area :bottom)
-					     (cl-getf area :top))))))
-	 (left (truncate (* factor (min (cl-getf area :left)
-					(cl-getf area :right)))))
-	 (top (truncate (* factor (min (cl-getf area :top)
-				       (cl-getf area :bottom))))))
-    (ewp-insert-image-data
-     (with-temp-buffer
-       (set-buffer-multibyte nil)
-       (insert data)
-       (if elide
-	   (call-process-region
-	    (point-min) (point-max) "convert"
-	    t (list (current-buffer) nil) nil
-	    "-draw"
-	    (format
-	     ;; left,top right,bottom
-	     "rectangle %d,%d %d,%d"
-	     left top (+ left width) (+ top height))
-	    "-"
-	    (format "%s:-" (cadr (split-string type "/"))))
-	 (call-process-region
-	  (point-min) (point-max) "convert"
-	  t (list (current-buffer) nil) nil
-	  "+repage" "-crop"
-	  (format
-	   ;; width x height + left + top
-	   "%dx%d+%d+%d" width height left top)
-	  "-" (format "%s:-" (cadr (split-string type "/")))))
-       (buffer-string)))))
-      
-(defun ewp-crop-image-1 (svg &optional square image-width image-height)
-  (track-mouse
-    (cl-loop with prompt = (if square "Move square" "Set start point")
-	     and state = (if square 'move-unclick 'begin)
-	     and area = (if square
-			    (list :left (- (/ image-width 2)
-					   (/ image-height 2))
-				  :top 0
-				  :right (+ (/ image-width 2)
-					    (/ image-height 2))
-				  :bottom image-height)
-			  (list :left 0
-				:top 0
-				:right 0
-				:bottom 0))
-	     and corner = nil
-	     for event = (read-event prompt)
-	     do (if (or (not (consp event))
-			(not (consp (cadr event)))
-			(not (nth 7 (cadr event)))
-			;; Only do things if point is over the SVG being
-			;; tracked.
-			(not (eq (cl-getf (cdr (nth 7 (cadr event))) :type)
-				 'svg)))
-		    ()
-		  (let ((pos (nth 8 (cadr event))))
-		    (cl-case state
-		      ('begin
-		       (cond
-			((eq (car event) 'down-mouse-1)
-			 (setq state 'stretch
-			       prompt "Stretch to end point")
-			 (setf (cl-getf area :left) (car pos)
-			       (cl-getf area :top) (cdr pos)
-			       (cl-getf area :right) (car pos)
-			       (cl-getf area :bottom) (cdr pos)))))
-		      ('stretch
-		       (cond
-			((eq (car event) 'mouse-movement)
-			 (setf (cl-getf area :right) (car pos)
-			       (cl-getf area :bottom) (cdr pos)))
-			((memq (car event) '(mouse-1 drag-mouse-1))
-			 (setq state 'corner
-			       prompt "Choose corner to adjust (RET to crop)"))))
-		      ('corner
-		       (cond
-			((eq (car event) 'down-mouse-1)
-			 ;; Find out what corner we're close to.
-			 (setq corner (ewp-find-corner
-				       area pos
-				       '((:left :top)
-					 (:left :bottom)
-					 (:right :top)
-					 (:right :bottom))))
-			 (when corner
-			   (setq state 'adjust
-				 prompt "Adjust crop")))))
-		      ('adjust
-		       (cond
-			((memq (car event) '(mouse drag-mouse-1))
-			 (setq state 'corner
-			       prompt "Choose corner to adjust"))
-			((eq (car event) 'mouse-movement)
-			 (setf (cl-getf area (car corner)) (car pos)
-			       (cl-getf area (cadr corner)) (cdr pos)))))
-		      ('move-unclick
-		       (cond
-			((eq (car event) 'down-mouse-1)
-			 (setq state 'move-click
-			       prompt "Move"))))
-		      ('move-click
-		       (cond
-			((eq (car event) 'mouse-movement)
-			 (setf (cl-getf area :left) (car pos)
-			       (cl-getf area :right) (+ (car pos) image-height)))
-			((memq (car event) '(mouse-1 drag-mouse-1))
-			 (setq state 'move-unclick
-			       prompt "Click to move")))))))
-	     do (svg-line svg (cl-getf area :left) (cl-getf area :top)
-			  (cl-getf area :right) (cl-getf area :top)
-			  :id "top-line" :stroke-color "white")
-	     (svg-line svg (cl-getf area :left) (cl-getf area :bottom)
-		       (cl-getf area :right) (cl-getf area :bottom)
-		       :id "bottom-line" :stroke-color "white")
-	     (svg-line svg (cl-getf area :left) (cl-getf area :top)
-		       (cl-getf area :left) (cl-getf area :bottom)
-		       :id "left-line" :stroke-color "white")
-	     (svg-line svg (cl-getf area :right) (cl-getf area :top)
-		       (cl-getf area :right) (cl-getf area :bottom)
-		       :id "right-line" :stroke-color "white")
-	     while (not (member event '(return ?q)))
-	     finally (return (and (eq event 'return)
-				  area)))))
-
-(defun ewp-find-corner (area pos corners)
-  (cl-loop for corner in corners
-	   ;; We accept 10 pixels off.
-	   when (and (< (- (car pos) 10)
-			(cl-getf area (car corner))
-			(+ (car pos) 10))
-		     (< (- (cdr pos) 10)
-			(cl-getf area (cadr corner))
-			(+ (cdr pos) 10)))
-	   return corner))
-
-(defun ewp-trim-image (fuzz)
-  "Trim (i.e., remove black borders) the image under point.
-FUZZ (the numerical prefix) says how much fuzz to apply."
-  (interactive "p")
   (let ((image (get-text-property (point) 'display))
 	new-data)
     (when (or (not image)
@@ -2211,8 +1998,7 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	(insert data)
 	(call-process-region (point-min) (point-max)
 			     "convert" t (current-buffer) nil
-			     "-trim" "+repage"
-			     "-fuzz" (format "%d%%" fuzz)
+			     "-resize" "650x503!"
 			     (format "%s:-" (car (last (split-string
 							(ewp-content-type data)
 							"/"))))
@@ -2492,6 +2278,39 @@ width/height of the logo."
 
 (defun ewp-get (key alist)
   (cdr (assoc key alist)))
+
+(defun ewp-trim-image (fuzz)
+  "Trim (i.e., remove black borders) the image under point.
+FUZZ (the numerical prefix) says how much fuzz to apply."
+  (interactive "p")
+  (let ((image (get-text-property (point) 'display))
+	new-data)
+    (when (or (not image)
+	      (not (consp image))
+	      (not (eq (car image) 'image)))
+      (error "No image under point"))
+    (let* ((data (getf (cdr image) :data))
+	   (inhibit-read-only t))
+      (when (null data)
+	(with-temp-buffer
+	  (set-buffer-multibyte nil)
+	  (insert-file-contents-literally (getf (cdr image) :file))
+	  (setq data (buffer-string)))
+	(setq type (ewp-content-type data)))
+      (with-temp-buffer
+	(set-buffer-multibyte nil)
+	(insert data)
+	(call-process-region (point-min) (point-max)
+			     "convert" t (current-buffer) nil
+			     "-trim" "+repage"
+			     "-fuzz" (format "%d%%" fuzz)
+			     (format "%s:-" (car (last (split-string
+							(ewp-content-type data)
+							"/"))))
+			     "jpg:-")
+	(setq new-data (buffer-string)))
+      (delete-region (line-beginning-position) (line-end-position))
+      (ewp-insert-image-data new-data))))
 
 (provide 'ewp)
 
