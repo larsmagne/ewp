@@ -2325,4 +2325,6 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 
 (provide 'ewp)
 
+;; Testing.
+
 ;;; ewp.el ends here
