@@ -440,8 +440,19 @@ If ALL (the prefix), load all the posts in the blog."
 	      (cons
 	       'ewp-complete-status
 	       (cons 'ewp-complete-category completion-at-point-functions)))
+  (setq-local image-crop-buffer-text-function #'ewp--update-image-crop)
   (auto-save-mode 1)
   (run-hooks 'ewp-edit-hook))
+
+(defun ewp--update-image-crop (_text image)
+  (format "<img src=\"data:%s;base64,%s\">"
+	  (image-crop--content-type image)
+	  ;; Get a base64 version of the image.
+	  (with-temp-buffer
+	    (set-buffer-multibyte nil)
+	    (insert image)
+	    (base64-encode-region (point-min) (point-max) t)
+	    (buffer-string))))
 
 (defun ewp-update-post ()
   "Update the post in the current buffer on Wordpress."
