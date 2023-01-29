@@ -875,6 +875,7 @@ If ALL (the prefix), load all the posts in the blog."
 	    (when (and (not (equal (url-host url) address))
 		       (dom-attr dom 'screenshot)
 		       (not (dom-attr dom 'onmouseenter)))
+	      (message "Capturing %s..." (dom-attr dom 'href))
 	      (call-process "cutycapt" nil nil nil
 			    "--out-format=png"
 			    (format "--url=%s" (dom-attr dom 'href))
@@ -899,7 +900,8 @@ If ALL (the prefix), load all the posts in the blog."
 				     (format-time-string "%FT%T"))
 		  (dom-set-attribute dom 'data-cached-image image-url)
 		  (dom-set-attribute dom 'onmouseenter "hoverLink(event)")
-		  (ewp-print-html dom t))))))))))
+		  (ewp-print-html dom t)
+		  (delete-file file))))))))))
 
 (defun dom-remove-attribute (node attribute)
   "Remove ATTRIBUTE from NODE."
@@ -1203,7 +1205,7 @@ If given a prefix, yank from the clipboard."
   (insert-image
    (create-image image (ewp--image-type) t
 		 :max-width (ewp--display-width)
-		 :max-height (- (frame-pixel-height) 150))
+		 :max-height (- (frame-pixel-height) 500))
    (format "<img src=\"data:%s;base64,%s\">"
 	   (ewp-content-type image)
 	   ;; Get a base64 version of the image.
@@ -1447,7 +1449,9 @@ the media there instead."
 	       (insert prev))
 	     (insert-image (create-image image (ewp--image-type) t
 					 :max-width 500)
-			   (format "<a href=%S><img src=%S></a>\n" url url))
+			   (format "<a href=%S><img src=%S></a>\n"
+				   (replace-regexp-in-string "-scaled" "" url)
+				   url))
 	     (insert "\n\n")
 	     (if elems
 		 (ewp-copy-media-1 elems length (buffer-string))
