@@ -878,6 +878,7 @@ If ALL (the prefix), load all the posts in the blog."
 	      (message "Capturing %s..." (dom-attr dom 'href))
 	      (call-process "cutycapt" nil nil nil
 			    "--out-format=png"
+			    "--max-wait=10000"
 			    (format "--url=%s" (dom-attr dom 'href))
 			    (format "--out=%s" file))
 	      (when (file-exists-p file)
