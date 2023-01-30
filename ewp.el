@@ -1477,6 +1477,13 @@ the media there instead."
 DELAY (the numeric prefix) says how many seconds to wait before
 starting the screenshotting process."
   (interactive "p")
+  (let ((image (ewp--take-screenshot delay)))
+    (set-mark (point))
+    (ewp-insert-image-data image)
+    (insert "\n\n")
+    (message "")))
+
+(defun ewp--take-screenshot (delay)
   (unless (executable-find "import")
     (error "Can't find ImageMagick import command on this system"))
   (cl-decf delay)
@@ -1489,15 +1496,32 @@ starting the screenshotting process."
 		 "s"))
       (sleep-for 1)))
   (message "Take screenshot")
-  (let ((image
-	 (with-temp-buffer
-	   (set-buffer-multibyte nil)
-	   (call-process "import" nil (current-buffer) nil "png:-")
-	   (buffer-string))))
-    (set-mark (point))
-    (ewp-insert-image-data image)
-    (insert "\n\n")
-    (message "")))
+  (with-temp-buffer
+    (set-buffer-multibyte nil)
+    (call-process "import" nil (current-buffer) nil "png:-")
+    (buffer-string)))
+
+(defun ewp-upload-screenshot (delay &optional address)
+  "Take a screenshot and upload to the current Wordpress address.
+DELAY (the numeric prefix) says how many seconds to wait before
+starting the screenshotting process."
+  (interactive "p")
+  (let* ((image (ewp--take-screenshot delay))
+	 (result (ewp--upload-file
+		  (or address ewp-address)
+		  (format-time-string "%Y-%m-%d.png")
+		  "image/png"
+		  (with-temp-buffer
+		    (set-buffer-multibyte nil)
+		    (insert image)
+		    (base64-encode-region (point-min) (point-max))
+		    (buffer-string))))
+	 (url 
+	  ;; Link to the unscaled version of the image.
+	  (replace-regexp-in-string "-scaled\\([.][^.]+\\'\\)" "\\1"
+				    (cdr (assoc "url" result)))))
+    (kill-new url)
+    (message "Copied %S" url)))
 
 (defun ewp--identify (image)
   (with-temp-buffer
