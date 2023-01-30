@@ -43,6 +43,7 @@
 (require 'xml-rpc)
 (require 'sgml-mode)
 (require 'vtable)
+(require 'image-crop)
 
 (defvar ewp-blog-address nil
   "The name/address of the blog, like my.example.blog.")
@@ -2329,14 +2330,13 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	      (not (consp image))
 	      (not (eq (car image) 'image)))
       (error "No image under point"))
-    (let* ((data (getf (cdr image) :data))
+    (let* ((data (cl-getf (cdr image) :data))
 	   (inhibit-read-only t))
       (when (null data)
 	(with-temp-buffer
 	  (set-buffer-multibyte nil)
-	  (insert-file-contents-literally (getf (cdr image) :file))
-	  (setq data (buffer-string)))
-	(setq type (ewp-content-type data)))
+	  (insert-file-contents-literally (cl-getf (cdr image) :file))
+	  (setq data (buffer-string))))
       (with-temp-buffer
 	(set-buffer-multibyte nil)
 	(insert data)
