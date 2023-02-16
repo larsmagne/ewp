@@ -122,7 +122,7 @@ All normal editing commands are switched off."
 
 (defun ewp--display-width ()
   (or ewp-display-width
-      (- (frame-pixel-width) 50)))
+      (truncate (* (frame-pixel-width) 0.9))))
 
 (defun ewp--image-type ()
   (if (or (and (fboundp 'image-transforms-p)
@@ -393,7 +393,7 @@ If ALL (the prefix), load all the posts in the blog."
 				(create-image
 				 image (ewp--image-type) t
 				 :max-width (ewp--display-width)
-				 :max-height (- (frame-pixel-height) 200)
+				 :max-height (* (frame-pixel-height) 200)
 				 :format content-type)
 				'keymap image-map
 				'inhibit-isearch t)))))))))
@@ -666,10 +666,10 @@ If ALL (the prefix), load all the posts in the blog."
             (ewp-node 'name "date")
 	    (ewp-value (or date ""))))))))))))
 
-(defun ewp-upload-file (address file &optional image)
+(defun ewp-upload-file (address file &optional image image-name)
   (ewp--upload-file
    address
-   (file-name-nondirectory file)
+   (or image-name (file-name-nondirectory file))
    (mailcap-file-name-to-mime-type file)
    (with-temp-buffer
      (set-buffer-multibyte nil)
@@ -1137,8 +1137,9 @@ If given a prefix, yank from the clipboard."
   "Prompt for a file and insert an <img>."
   (interactive "fImage file: ")
   (insert-image (create-image file (ewp--image-type) nil
-			      :max-width (ewp--display-width)
-			      :max-height (/ (frame-pixel-height) 1.5))
+			      :max-width (* (frame-pixel-width) 0.5)
+			      :max-height (* (frame-pixel-height) 0.5)
+			      :scale 1)
 		(format "<img src=%S>" file))
   (insert "\n\n"))
 
@@ -1206,7 +1207,7 @@ If given a prefix, yank from the clipboard."
 (defun ewp-insert-image-data (image)
   (insert-image
    (create-image image (ewp--image-type) t
-		 :max-width (ewp--display-width)
+		 :max-width (truncate (ewp--display-width))
 		 :max-height (- (frame-pixel-height) 500))
    (format "<img src=\"data:%s;base64,%s\">"
 	   (ewp-content-type image)
@@ -1356,7 +1357,7 @@ If given a prefix, yank from the clipboard."
 	       (caddr (assoc "date_created_gmt" post))))
 	     ("Type"
 	      (propertize
-	       (cdr (assoc "type" post))
+	       (or (cdr (assoc "type" post)) "")
 	       'face '(:foreground "#808080")))
 	     ("Name"
 	      (cdr (assoc "title" post)))))
@@ -1522,7 +1523,15 @@ starting the screenshotting process."
 	  (replace-regexp-in-string "-scaled\\([.][^.]+\\'\\)" "\\1"
 				    (cdr (assoc "url" result)))))
     (kill-new url)
-    (message "Copied %S" url)))
+    (message "Copied %s %S"
+	     (propertize
+	      " "
+	      'display
+	      (create-image image
+			    'png t
+			    :max-width (/ (frame-pixel-width) 4)
+			    :max-height (/ (frame-pixel-height) 4)))
+	     url)))
 
 (defun ewp--identify (image)
   (with-temp-buffer
