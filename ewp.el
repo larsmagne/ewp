@@ -393,7 +393,8 @@ If ALL (the prefix), load all the posts in the blog."
 				(create-image
 				 image (ewp--image-type) t
 				 :max-width (ewp--display-width)
-				 :max-height (* (frame-pixel-height) 200)
+				 :max-height
+				 (truncate (* (frame-pixel-height) 0.8))
 				 :format content-type)
 				'keymap image-map
 				'inhibit-isearch t)))))))))
@@ -1146,7 +1147,7 @@ If given a prefix, yank from the clipboard."
 (defun ewp-insert-video (file)
   "Prompt for a file and insert a [video ...] shortcode."
   (interactive "fVideo file: ")
-  (insert (format "<video autoplay loop muted controls><source src=%S type=\"video/mp4\"></video>\n\n"
+  (insert (format "<video autoplay loop muted><source src=%S type=\"video/mp4\"></video>\n\n"
 		  file)))
 
 (defun ewp-insert-tag (tag)
