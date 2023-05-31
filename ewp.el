@@ -2362,6 +2362,28 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
       (delete-region (line-beginning-position) (line-end-position))
       (ewp-insert-image-data new-data))))
 
+(defun ewp-copy-title-and-url ()
+  "Copy the title and the URL of the post under point."
+  (interactive)
+  (let ((data (get-text-property (point) 'vtable-object)))
+    (unless data
+      (error "No post under point"))
+    (let* ((link (cdr (assoc "link" data)))
+	   (date (caddr (assoc "post_date" data)))
+	   (url
+	    (if (not (string-match "/[?]p=" link))
+		;; This is not a draft to be published in the future.
+		(replace-regexp-in-string "^http:" "https:" link)
+	      (let ((parse (url-generic-parse-url link)))
+		(format "https://%s/%s/%s/" (url-host parse)
+			(format-time-string "%Y/%m/%d" date)
+			(cdr (assoc "post_name" data))))))
+	   (string (concat (cdr (assoc "post_title" data))
+			   "\n\n"
+			   url)))
+      (kill-new string)
+      (message "Copied %S" string))))
+
 (provide 'ewp)
 
 ;; Testing.
