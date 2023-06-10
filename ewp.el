@@ -1138,10 +1138,11 @@ If given a prefix, yank from the clipboard."
 (defun ewp-insert-img (file)
   "Prompt for a file and insert an <img>."
   (interactive "fImage file: ")
-  (insert-image (create-image file (ewp--image-type) nil
-			      :max-width (* (frame-pixel-width) 0.5)
-			      :max-height (* (frame-pixel-height) 0.5)
-			      :scale 1)
+  (insert-image (create-image
+		 file (ewp--image-type) nil
+		 :max-width (truncate (* (frame-pixel-width) 0.8))
+		 :max-height (truncate (* (frame-pixel-height) 0.5))
+		 :scale 1)
 		(format "<img src=%S>" file))
   (insert "\n\n"))
 
