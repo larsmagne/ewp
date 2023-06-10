@@ -681,6 +681,7 @@ If ALL (the prefix), load all the posts in the blog."
 
 (defun ewp-transform-and-upload-images (address)
   "Look for local <img> and upload images from those to Wordpress."
+  (interactive (list ewp-address))
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward "\\(<a [^>]+>.*?\\)?\\(<img.*?src=\"\\)" nil t)
@@ -1387,12 +1388,15 @@ All normal editing commands are switched off.
   (setq truncate-lines t)
   (setq-local ewp-marks nil))
 
-(defun ewp-upload-media (file)
+(defun ewp-upload-media (file address)
   "Upload media files to Wordpress."
-  (interactive "fFile to upload: ")
-  (let ((result (ewp-upload-file ewp-address file)))
+  (interactive
+   (list (read-file-name "File to upload: ")
+	 (or (and (boundp 'ewp-address) ewp-address)
+	     (completing-read "Blog address: " ewp-blog-addresses))))
+  (let ((result (ewp-upload-file address file)))
     (message "Uploaded %s to %s (copied to clipboard)"
-	     file ewp-address)
+	     file address)
     (with-temp-buffer
       (insert (cdr (assoc "url" result)))
       (copy-region-as-kill (point-min) (point-max)))))
