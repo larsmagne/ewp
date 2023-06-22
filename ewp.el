@@ -236,6 +236,12 @@ If ALL (the prefix), load all the posts in the blog."
 	    (when old
 	      (setq data (delq old data)))
 	    (push post data))))
+      ;; We're sorting by date, but we want the newest post per date
+      ;; to be first.
+      (setq data
+	    (sort data
+		  (lambda (p1 p2)
+		    (> (ewp--post-date p1) (ewp--post-date p2)))))
       (make-vtable
        :columns '((:name "Date" :width 10 :primary descend)
 		  (:name "Status" :width 10)
@@ -266,6 +272,11 @@ If ALL (the prefix), load all the posts in the blog."
 	      (mm-url-decode-entities-string
 	       (or (cdr (assoc (format "%s_title" prefix) post)) ""))))))
        :keymap ewp-list-mode-map))))
+
+(defun ewp--post-date (post)
+  (float-time
+   (or (caddr (assoc "post_date" post))
+       (caddr (assoc "date_created_gmt" post)))))
 
 (defun ewp--categories (post)
   (cl-loop for term in (cdr (assoc "terms" post))
