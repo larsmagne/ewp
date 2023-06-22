@@ -189,12 +189,12 @@ All normal editing commands are switched off."
   "Load more posts from the blog.
 If ALL (the prefix), load all the posts in the blog."
   (interactive "P")
-  (ewp-blog ewp-address (ewp-current-data) nil nil all))
+  (ewp-blog ewp-address (length (ewp-current-data)) nil nil all))
 
 (defun ewp-get-pagelist (url user password blog-id)
   (xml-rpc-method-call url "wp.getPageList" blog-id user password))
 
-(defun ewp-blog (&optional address old-data status category all)
+(defun ewp-blog (&optional address start-at status category all)
   "List the posts on the blog."
   (interactive (list (cond
 		      ((and (boundp 'ewp-address)
@@ -207,21 +207,35 @@ If ALL (the prefix), load all the posts in the blog."
   (switch-to-buffer (format "*%s posts*" address))
   (ewp-save-excursion
     (let ((inhibit-read-only t)
-	  data)
+	  (data (ewp-current-data)))
       (erase-buffer)
       (ewp-list-mode)
       (setq-local ewp-address address)
-      (dolist (post (nconc old-data
-			   (ewp-call 'ewp-get-posts address
-				     (if all 30000 300)
-				     (length old-data) status)))
+      (dolist (post (ewp-call 'ewp-get-posts address
+			      (if all 30000 300)
+			      start-at status))
 	(when (or (null category)
 		  (member category (ewp--categories post)))
-	  (push post data)))
-      (when (and (not old-data)
+	  (let* ((id (cdr (assoc "post_id" post)))
+		 (old (seq-find (lambda (e)
+				  (equal (cdr (assoc "post_id" e)) id))
+				data)))
+	    ;; If we have an old entry, then remove it.
+	    (when old
+	      (setq data (delq old data)))
+	    (push post data))))
+      ;; Also include Pages.
+      (when (and (not start-at)
 		 (not status))
 	(dolist (post (ewp-call 'ewp-get-pagelist address))
-	  (push post data)))
+	  (let* ((id (cdr (assoc "page_id" post)))
+		 (old (seq-find (lambda (e)
+				  (equal (cdr (assoc "page_id" e)) id))
+				data)))
+	    ;; If we have an old entry, then remove it.
+	    (when old
+	      (setq data (delq old data)))
+	    (push post data))))
       (make-vtable
        :columns '((:name "Date" :width 10 :primary descend)
 		  (:name "Status" :width 10)
@@ -1396,6 +1410,7 @@ All normal editing commands are switched off.
 	 (or (and (boundp 'ewp-address) ewp-address)
 	     (completing-read "Blog address: " ewp-blog-addresses))))
   (let ((result (ewp-upload-file address file)))
+    (setq result (replace-regexp-in-string "-scaled" "" result))
     (message "Uploaded %s to %s (copied to clipboard)"
 	     file address)
     (with-temp-buffer
@@ -1473,6 +1488,9 @@ the media there instead."
   (interactive)
   (let* ((data (get-text-property (point) 'vtable-object))
 	 (url (cdr (assoc "link" data))))
+    ;; Link to the unscaled version of the image.
+    (setq url (replace-regexp-in-string "-scaled\\([.][^.]+\\'\\)" "\\1"
+					url))
     (if (not data)
 	(error "No media under point")
       (with-temp-buffer
