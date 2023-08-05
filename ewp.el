@@ -904,33 +904,45 @@ If ALL (the prefix), load all the posts in the blog."
 		       (dom-attr dom 'screenshot)
 		       (not (dom-attr dom 'onmouseenter)))
 	      (message "Capturing %s..." (dom-attr dom 'href))
-	      (call-process "cutycapt" nil nil nil
-			    "--out-format=png"
-			    "--max-wait=10000"
-			    (format "--url=%s" (dom-attr dom 'href))
-			    (format "--out=%s" file))
-	      (when (file-exists-p file)
-		(when-let* ((result
-			     (ewp--upload-file
-			      address
-			      (file-name-nondirectory file)
-			      (mailcap-file-name-to-mime-type file)
-			      (with-temp-buffer
-				(set-buffer-multibyte nil)
-				(insert-file-contents-literally
-				 file)
-				(base64-encode-region (point-min)
-						      (point-max))
-				(buffer-string))))
-			    (image-url (cdr (assoc "url" result))))
-		  (delete-region start (point))
-		  (dom-remove-attribute dom 'screenshot)
-		  (dom-set-attribute dom 'data-cached-time
-				     (format-time-string "%FT%T"))
-		  (dom-set-attribute dom 'data-cached-image image-url)
-		  (dom-set-attribute dom 'onmouseenter "hoverLink(event)")
-		  (ewp-print-html dom t)
-		  (delete-file file))))))))))
+	      (let ((proc
+		     (start-process "capt" nil
+				    "cutycapt"
+				    "--out-format=png"
+				    (format "--url=%s" (dom-attr dom 'href))
+				    (format "--out=%s" file)))
+		    (time (float-time)))
+		(while (and (process-live-p proc)
+			    (< (- (float-time) time) 10))
+		  (sit-for 0.1))
+		(if (process-live-p proc)
+		    (progn
+		      (delete-process proc)
+		      (save-excursion
+			(goto-char start)
+			(when (looking-at "<a screenshot=true ")
+			  (replace-match "<a "))))
+		  (when (file-exists-p file)
+		    (when-let* ((result
+				 (ewp--upload-file
+				  address
+				  (file-name-nondirectory file)
+				  (mailcap-file-name-to-mime-type file)
+				  (with-temp-buffer
+				    (set-buffer-multibyte nil)
+				    (insert-file-contents-literally
+				     file)
+				    (base64-encode-region (point-min)
+							  (point-max))
+				    (buffer-string))))
+				(image-url (cdr (assoc "url" result))))
+		      (delete-region start (point))
+		      (dom-remove-attribute dom 'screenshot)
+		      (dom-set-attribute dom 'data-cached-time
+					 (format-time-string "%FT%T"))
+		      (dom-set-attribute dom 'data-cached-image image-url)
+		      (dom-set-attribute dom 'onmouseenter "hoverLink(event)")
+		      (ewp-print-html dom t)
+		      (delete-file file))))))))))))
 
 (defun dom-remove-attribute (node attribute)
   "Remove ATTRIBUTE from NODE."
