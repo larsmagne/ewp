@@ -438,7 +438,8 @@ If ALL (the prefix), load all the posts in the blog."
   "C-c C-c" #'ewp-update-post
   "C-c C-d" #'ewp-download-and-insert-image
   "C-c C-i" #'ewp-insert-img
-  "C-c C-v" #'ewp-insert-video
+  "C-c C-v" #'ewp-insert-video-file
+  "C-c C-V" #'ewp-insert-video-url
   "C-c C-l" #'ewp-remove-html-layer
   "C-c C-m" #'ewp-yank-html
   "C-c C-n" #'ewp-clean-link
@@ -1183,11 +1184,17 @@ If given a prefix, yank from the clipboard."
 		(format "<img src=%S>" file))
   (insert "\n\n"))
 
-(defun ewp-insert-video (file)
-  "Prompt for a file and insert a [video ...] shortcode."
+(defun ewp-insert-video-file (file)
+  "Prompt for a file and insert a <video> tag.."
   (interactive "fVideo file: ")
   (insert (format "<video autoplay loop muted><source src=%S type=\"video/mp4\"></video>\n\n"
 		  file)))
+
+(defun ewp-insert-video-url (url)
+  "Prompt for an URL and insert a <video> tag."
+  (interactive "sVideo URL: ")
+  (insert (format "<video autoplay loop muted><source src=%S type=\"video/mp4\"></video>\n\n"
+		  url)))
 
 (defun ewp-insert-tag (tag)
   "Insert a balanced pair of tags."
