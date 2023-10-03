@@ -438,6 +438,7 @@ If ALL (the prefix), load all the posts in the blog."
   "C-c C-c" #'ewp-update-post
   "C-c C-d" #'ewp-download-and-insert-image
   "C-c C-i" #'ewp-insert-img
+  "C-c C-M-t" #'ewp-insert-title
   "C-c C-v" #'ewp-insert-video-file
   "C-c C-V" #'ewp-insert-video-url
   "C-c C-l" #'ewp-remove-html-layer
@@ -1183,6 +1184,29 @@ If given a prefix, yank from the clipboard."
 		 :scale 1)
 		(format "<img src=%S>" file))
   (insert "\n\n"))
+
+(defun ewp-insert-title (title)
+  "Prompt for a title and insert it in the closest <img>."
+  (interactive "sTitle: ")
+  (save-excursion
+    (beginning-of-line)
+    (if (not (search-forward "<img" (pos-eol) t))
+	(error "No <img> on the current line")
+      (goto-char (match-beginning 0))
+      (let ((start (point))
+	    end)
+	(with-syntax-table sgml-mode-syntax-table
+	  (forward-sexp))
+	(setq end (point))
+	(goto-char start)
+	(when (re-search-forward " +title=\"" end t)
+	  (let ((tstart (match-beginning 0)))
+	    (forward-char -1)
+	    (with-syntax-table sgml-mode-syntax-table
+	      (forward-sexp))
+	    (delete-region tstart (point))))
+	(goto-char (+ start 4))
+	(insert (format " title=%S" title))))))
 
 (defun ewp-insert-video-file (file)
   "Prompt for a file and insert a <video> tag.."
