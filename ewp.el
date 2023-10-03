@@ -1187,26 +1187,33 @@ If given a prefix, yank from the clipboard."
 
 (defun ewp-insert-title (title)
   "Prompt for a title and insert it in the closest <img>."
-  (interactive "sTitle: ")
+  (interactive (list (read-string "Title: " (ewp--current-title))))
   (save-excursion
-    (beginning-of-line)
-    (if (not (search-forward "<img" (pos-eol) t))
-	(error "No <img> on the current line")
-      (goto-char (match-beginning 0))
-      (let ((start (point))
-	    end)
-	(with-syntax-table sgml-mode-syntax-table
-	  (forward-sexp))
-	(setq end (point))
-	(goto-char start)
-	(when (re-search-forward " +title=\"" end t)
-	  (let ((tstart (match-beginning 0)))
-	    (forward-char -1)
-	    (with-syntax-table sgml-mode-syntax-table
-	      (forward-sexp))
-	    (delete-region tstart (point))))
-	(goto-char (+ start 4))
-	(insert (format " title=%S" title))))))
+    (ewp--current-title t)
+    (search-forward "<img" (pos-eol))
+    (insert (format " title=%S" title))))
+
+(defun ewp--current-title (&optional delete)
+  (save-excursion
+  (beginning-of-line)
+  (if (not (search-forward "<img" (pos-eol) t))
+      (error "No <img> on the current line")
+    (goto-char (match-beginning 0))
+    (let ((start (point))
+	  end)
+      (with-syntax-table sgml-mode-syntax-table
+	(forward-sexp))
+      (setq end (point))
+      (goto-char start)
+      (when (re-search-forward " +title=\"" end t)
+	(let ((tstart (match-beginning 0))
+	      (tend (match-end 0)))
+	  (forward-char -1)
+	  (with-syntax-table sgml-mode-syntax-table
+	    (forward-sexp))
+	  (if delete
+	      (delete-region tstart (point))
+	    (buffer-substring tend (1- (point))))))))))
 
 (defun ewp-insert-video-file (file)
   "Prompt for a file and insert a <video> tag.."
