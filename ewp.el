@@ -1488,6 +1488,7 @@ the media there instead."
 			(length (or ewp-marks (list data)))))))
 
 (defun ewp-copy-media-1 (elems length &optional prev)
+  (setq elems (reverse elems))
   (let ((url (cdr (assoc "link" (pop elems)))))
     (url-retrieve
      url
@@ -1501,8 +1502,11 @@ the media there instead."
 	   (with-temp-buffer
 	     (when prev
 	       (insert prev))
-	     (insert-image (create-image image (ewp--image-type) t
-					 :max-width 500)
+	     (insert-image (create-image
+			    image (ewp--image-type) t
+			    :max-width (ewp--display-width)
+			    :max-height
+			    (truncate (* (frame-pixel-height) 0.8)))
 			   (format "<a href=%S><img src=%S></a>\n"
 				   (replace-regexp-in-string "-scaled" "" url)
 				   url))
