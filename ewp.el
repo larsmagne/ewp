@@ -1191,7 +1191,8 @@ If given a prefix, yank from the clipboard."
   (save-excursion
     (ewp--current-title t)
     (search-forward "<img" (pos-eol))
-    (insert (format " title=%S" title))))
+    (insert (apply #'propertize (format " title=%S" title)
+		   (text-properties-at (match-beginning 0))))))
 
 (defun ewp--current-title (&optional delete)
   (save-excursion
@@ -1213,7 +1214,7 @@ If given a prefix, yank from the clipboard."
 	    (forward-sexp))
 	  (if delete
 	      (delete-region tstart (point))
-	    (buffer-substring tend (1- (point))))))))))
+	    (buffer-substring-no-properties tend (1- (point))))))))))
 
 (defun ewp-insert-video-file (file)
   "Prompt for a file and insert a <video> tag.."
