@@ -706,6 +706,20 @@ If ALL (the prefix), load all the posts in the blog."
      (base64-encode-region (point-min) (point-max))
      (buffer-string))))
 
+(defun ewp-current-image ()
+  "Return the image under point."
+  (save-excursion
+    (beginning-of-line)
+    (when (re-search-forward "<img.*?src=\"\\([^\"]+\\)"
+			     (pos-eol) t)
+      (match-string-no-properties 1))))
+
+(defun ewp-open-image-in-browser ()
+  "Open the image under point in the secondary browser."
+  (interactive)
+  (funcall browse-url-secondary-browser-function
+	   (concat "file://" (ewp-current-image))))
+
 (defun ewp-transform-and-upload-images (address)
   "Look for local <img> and upload images from those to Wordpress."
   (interactive (list ewp-address))
@@ -982,11 +996,14 @@ If ALL (the prefix), load all the posts in the blog."
 	   (point-min) (point-max) "convert" t (list (current-buffer) nil) nil
 	   "-rotate" (format "%d" (image-property image :rotation))
 	   "-" "-")
+	  ;; This is apparently necessary to avoid having Twitter
+	  ;; believe that the picture should be rotated again.
 	  (when (and (equal content-type "image/jpeg")
 		     (executable-find "exiftool"))
 	    (call-process-region
 	     (point-min) (point-max) "exiftool" t (list (current-buffer) nil) nil
 	     "-Orientation#=0"
+	     "-CameraOrientation#=0"
 	     "-o" "-" "-"))))))
     (when (and (image-property image :width)
 	       (executable-find "convert"))
@@ -1590,7 +1607,7 @@ starting the screenshotting process."
   (message "Take screenshot")
   (with-temp-buffer
     (set-buffer-multibyte nil)
-    (call-process "import" nil (current-buffer) nil "png:-")
+    (call-process "import" nil (current-buffer) nil "jpeg:-")
     (buffer-string)))
 
 (defun ewp-upload-screenshot (delay &optional address)
@@ -1601,8 +1618,8 @@ starting the screenshotting process."
   (let* ((image (ewp--take-screenshot delay))
 	 (result (ewp--upload-file
 		  (or address ewp-address)
-		  (format-time-string "%Y-%m-%d.png")
-		  "image/png"
+		  (format-time-string "%Y-%m-%d.jpg")
+		  "image/jpeg"
 		  (with-temp-buffer
 		    (set-buffer-multibyte nil)
 		    (insert image)
@@ -1618,7 +1635,7 @@ starting the screenshotting process."
 	      " "
 	      'display
 	      (create-image image
-			    'png t
+			    'jpeg t
 			    :max-width (/ (frame-pixel-width) 4)
 			    :max-height (/ (frame-pixel-height) 4)))
 	     url)))
