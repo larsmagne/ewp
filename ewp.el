@@ -883,8 +883,9 @@ If ALL (the prefix), load all the posts in the blog."
       (let* ((file (match-string 1))
 	     (start (match-beginning 1))
 	     (end (match-end 1))
+	     (video-start (match-beginning 0))
 	     (url (url-generic-parse-url file)))
-	;; Local file.
+	;; Local file; upload it.
 	(when (null (url-type url))
 	  (when-let* ((result
 		       (ewp--upload-file
@@ -900,7 +901,32 @@ If ALL (the prefix), load all the posts in the blog."
 		      (url (cdr (assoc "url" result))))
 	    (delete-region start end)
 	    (goto-char start)
-	    (insert url)))))))
+	    (insert url)))
+	;; Check for <video ... poster="">.
+	(save-excursion
+	  (goto-char video-start)
+	  (when (re-search-forward "poster=\"\\([^\"]+\\)\"" end t)
+	    (let* ((file (match-string 1))
+		   (start (match-beginning 1))
+		   (end (match-end 1))
+		   (url (url-generic-parse-url file)))
+	      ;; Local file; upload it.
+	      (when (null (url-type url))
+		(when-let* ((result
+			     (ewp--upload-file
+			      address
+			      (file-name-nondirectory file)
+			      (mailcap-file-name-to-mime-type file)
+			      (with-temp-buffer
+				(set-buffer-multibyte nil)
+				(insert-file-contents-literally file)
+				(base64-encode-region (point-min)
+						      (point-max))
+				(buffer-string))))
+			    (url (cdr (assoc "url" result))))
+		  (delete-region start end)
+		  (goto-char start)
+		  (insert url))))))))))
 
 (defun ewp-transform-and-upload-links (address)
   "Look for external links and create cached screenshots for those."
