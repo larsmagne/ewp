@@ -635,7 +635,8 @@ If ALL (the prefix), load all the posts in the blog."
 	 (- (time-convert (current-time) 'integer)
 	    (car (current-time-zone)))))))
 
-(defun ewp-new-post (&optional address buffer)
+(defun ewp-new-post (&optional address buffer
+			       title categories status)
   "Start editing a new post."
   (interactive)
   (let ((address (or address ewp-address)))
@@ -643,7 +644,10 @@ If ALL (the prefix), load all the posts in the blog."
     (ewp-edit-mode)
     (setq-local ewp-post nil)
     (setq-local ewp-address address)
-    (insert "Title: \nCategories: \nStatus: draft\n\n")
+    (insert (format "Title: %s\nCategories: %s\nStatus: %s\n\n"
+		    (or title "")
+		    (or categories "")
+		    (or status "draft")))
     (goto-char (point-min))
     (end-of-line)
     (ewp-save-buffer)))
