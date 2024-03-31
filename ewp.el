@@ -360,12 +360,12 @@ If ALL (the prefix), load all the posts in the blog."
     (ewp-save-buffer id)
     (setq-local ewp-post post)))
 
-(defun ewp-update-images ()
+(defun ewp-update-images (max)
   (ewp-update-image
    (cl-loop for img in (dom-by-tag (libxml-parse-html-region
 				    (point) (point-max))
 				   'img)
-	    repeat 100
+	    repeat (or max 100)
 	    when (dom-attr img 'src)
 	    collect (dom-attr img 'src))
    (current-buffer)))
@@ -1042,11 +1042,14 @@ If ALL (the prefix), load all the posts in the blog."
        "-resize" (format "%dx" (image-property image :width))
        "-" "-"))))
 
-(defun ewp-insert-image-thumbnails ()
-  "Insert thumbnails."
-  (interactive)
-  (ewp-remove-image-thumbnails)
-  (ewp-update-images)
+(defun ewp-insert-image-thumbnails (&optional max)
+  "Insert thumbnails.
+If MAX (the numerical prefix), just do that many thumbnails."
+  (interactive (list (and current-prefix-arg
+			  (prefix-numeric-value current-prefix-arg))))
+  (unless max
+    (ewp-remove-image-thumbnails))
+  (ewp-update-images max)
   (message "Inserting image thumbnails..."))
 
 (defun ewp-remove-image-thumbnails ()
