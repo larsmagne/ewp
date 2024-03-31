@@ -730,8 +730,12 @@ If ALL (the prefix), load all the posts in the blog."
     (beginning-of-line)
     (if (re-search-forward "wp-image-\\([0-9]+\\)" (pos-eol) t)
 	(let ((image-id (match-string 1)))
-	  (setcdr (assoc "wp_post_thumbnail" ewp-post)
-		  (string-to-number image-id))
+	  (if (assoc "wp_post_thumbnail" ewp-post)
+	      (setcdr (assoc "wp_post_thumbnail" ewp-post)
+		      (string-to-number image-id))
+	    (setq ewp-post (append ewp-post
+				   (list (list "wp_post_thumbnail"
+					       (string-to-number image-id))))))
 	  (message
 	   (format "Featured image will be updated to %s upon `C-c C-c'"
 		   image-id)))

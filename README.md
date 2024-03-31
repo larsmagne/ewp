@@ -76,6 +76,8 @@ There are five different modes made available by this package:
 * C-c C-j: Set the width of the image under point.
 * TAB:     In the Categories header, provide category completion.
 
+* M-x ewp-set-featured-image: Set the featured image to image under point.
+
 ## ewp-list-media-mode:
 
 * RET: Look at the media item (i.e., image) under point
