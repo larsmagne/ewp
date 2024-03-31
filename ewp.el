@@ -615,7 +615,12 @@ If ALL (the prefix), load all the posts in the blog."
 				 (mapcar
 				  (lambda (cat)
 				    (ewp-value (ewp-node 'string cat)))
-				  (ewp-get "categories" post)))))))))
+				  (ewp-get "categories" post)))))))
+	 (and (ewp-get "wp_post_thumbnail" post)
+              (ewp-member
+               (ewp-node 'name "wp_post_thumbnail")
+	       (ewp-value
+		(format "%s" (ewp-get "wp_post_thumbnail" post)))))))
        (ewp-param (ewp-node 'boolean (if publishp "1" "0")))))))))
 
 (defun ewp-external-time (time)
@@ -717,6 +722,20 @@ If ALL (the prefix), load all the posts in the blog."
     (when (re-search-forward "<img.*?src=\"\\([^\"]+\\)"
 			     (pos-eol) t)
       (match-string-no-properties 1))))
+
+(defun ewp-set-featured-image ()
+  "Set the current post's featured image to the image under point."
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (if (re-search-forward "wp-image-\\([0-9]+\\)" (pos-eol) t)
+	(let ((image-id (match-string 1)))
+	  (setcdr (assoc "wp_post_thumbnail" ewp-post)
+		  (string-to-number image-id))
+	  (message
+	   (format "Featured image will be updated to %s upon `C-c C-c'"
+		   image-id)))
+      (user-error "No (uploaded) image at point"))))
 
 (defun ewp-open-image-in-browser ()
   "Open the image under point in the secondary browser."
