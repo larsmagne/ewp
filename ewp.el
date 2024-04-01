@@ -616,11 +616,11 @@ If ALL (the prefix), load all the posts in the blog."
 				  (lambda (cat)
 				    (ewp-value (ewp-node 'string cat)))
 				  (ewp-get "categories" post)))))))
-	 (and (ewp-get "wp_post_thumbnail" post)
+	 (and (ewp-get "new_post_thumbnail" post)
               (ewp-member
                (ewp-node 'name "wp_post_thumbnail")
 	       (ewp-value
-		(format "%s" (ewp-get "wp_post_thumbnail" post)))))))
+		(format "%d" (ewp-get "new_post_thumbnail" post)))))))
        (ewp-param (ewp-node 'boolean (if publishp "1" "0")))))))))
 
 (defun ewp-external-time (time)
@@ -730,11 +730,11 @@ If ALL (the prefix), load all the posts in the blog."
     (beginning-of-line)
     (if (re-search-forward "wp-image-\\([0-9]+\\)" (pos-eol) t)
 	(let ((image-id (match-string 1)))
-	  (if (assoc "wp_post_thumbnail" ewp-post)
-	      (setcdr (assoc "wp_post_thumbnail" ewp-post)
+	  (if (assoc "new_post_thumbnail" ewp-post)
+	      (setcdr (assoc "new_post_thumbnail" ewp-post)
 		      (string-to-number image-id))
 	    (setq ewp-post (append ewp-post
-				   (list (list "wp_post_thumbnail"
+				   (list (list "new_post_thumbnail"
 					       (string-to-number image-id))))))
 	  (message
 	   (format "Featured image will be updated to %s upon `C-c C-c'"
