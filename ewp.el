@@ -620,7 +620,7 @@ If ALL (the prefix), load all the posts in the blog."
               (ewp-member
                (ewp-node 'name "wp_post_thumbnail")
 	       (ewp-value
-		(format "%d" (ewp-get "new_post_thumbnail" post)))))))
+		(format "%d" (car (ewp-get "new_post_thumbnail" post))))))))
        (ewp-param (ewp-node 'boolean (if publishp "1" "0")))))))))
 
 (defun ewp-external-time (time)
