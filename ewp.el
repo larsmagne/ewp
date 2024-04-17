@@ -1474,6 +1474,17 @@ If given a prefix, yank from the clipboard."
 		       `(("number" . ,count)
 			 ("offset" . ,(or offset 0)))))
 
+(defconst ewp--thumbnail-placeholder
+  (propertize
+   " "
+   'display (svg-image
+	     (let ((svg (svg-create 150 150)))
+	       (svg-gradient svg "gradient" 'linear
+			     '((0 . "#202020") (100 . "#303030")))
+	       (svg-rectangle svg 0 0 150 150 :gradient "gradient")
+	       svg)
+	     :scale 1)))
+
 (defun ewp-list-media (&optional address old-media)
   "List the media on the ADDRESS blog."  
   (interactive)
@@ -1493,7 +1504,8 @@ If given a prefix, yank from the clipboard."
 	(make-vtable
 	 :columns '((:name "" :width 1)
 		    (:name "Date" :width 10)
-		    (:name "Type" :width 20)
+		    (:name "Type" :width 5)
+		    (:name "Thumbnail" :width "150px")
 		    (:name "Name"))
 	 :objects media
 	 :getter
@@ -1509,11 +1521,76 @@ If given a prefix, yank from the clipboard."
 	       (caddr (assoc "date_created_gmt" post))))
 	     ("Type"
 	      (propertize
-	       (or (cdr (assoc "type" post)) "")
+	       (let ((type (cdr (assoc "type" post))))
+		 (cond
+		  ((null type)
+		   "")
+		  ((string-match "^image/" type)
+		   "img")
+		  ((string-match "^video/\\(.*\\)" type)
+		   (match-string 1 type))
+		  (t type)))
 	       'face '(:foreground "#808080")))
+	     ("Thumbnail"
+	      (if (string-match "^image/" (or (cdr (assoc "type" post)) ""))
+		  (progn
+		    (let* ((url (cdr (assoc "thumbnail" post)))
+			   (cache (url-cache-create-filename url)))
+		      (if (file-exists-p cache)
+			  (with-temp-buffer
+			    (set-buffer-multibyte nil)
+			    (insert-file-contents-literally cache)
+			    (search-forward "\n\n")
+			    (propertize
+			     " "
+			     'display (create-image
+				       (buffer-substring (point) (point-max))
+				       nil t :scale 1)))
+			(propertize
+			 ewp--thumbnail-placeholder
+			 'thumbnail url))))
+		""))
 	     ("Name"
 	      (cdr (assoc "title" post)))))
-	 :keymap ewp-list-media-mode-map)))))
+	 :keymap ewp-list-media-mode-map)))
+    (ewp--insert-media-thumbnails)))
+
+(defun ewp--insert-media-thumbnails ()
+  (let ((buffer (current-buffer))
+	func)
+    (setq func
+	  (lambda ()
+	    (when (buffer-live-p buffer)
+	      (with-current-buffer buffer
+		(save-excursion
+		  (goto-char (point-min))
+		  (when-let ((match (text-property-search-forward 'thumbnail)))
+		    (ewp-url-retrieve
+		     (prop-match-value match)
+		     (lambda (&rest _)
+		       (url-store-in-cache)
+		       (goto-char (point-min))
+		       (let (img)
+			 (when (search-forward "\n\n" nil t)
+			   (setq img (create-image
+				      (buffer-substring (point) (point-max))
+				      nil t :scale 1)))
+			 (kill-buffer (current-buffer))
+			 (when (buffer-live-p buffer)
+			   (with-current-buffer buffer
+			     (save-excursion
+			       (goto-char (prop-match-beginning match))
+			       (let ((inhibit-read-only t))
+				 (if (not img)
+				     (put-text-property (point)
+							(prop-match-end match)
+							'thumbnail nil)
+				   (delete-region
+				    (point) (prop-match-end match))
+				   (insert
+				    (propertize " " 'display img))))))
+			   (run-at-time 0.1 nil func)))))))))))
+    (run-at-time 0.1 nil func)))
 
 (defun ewp-load-more-media ()
   "Load more media from the blog."
