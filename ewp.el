@@ -1504,7 +1504,6 @@ If given a prefix, yank from the clipboard."
 	(make-vtable
 	 :columns '((:name "" :width 1)
 		    (:name "Date" :width 10)
-		    (:name "Type" :width 5)
 		    (:name "Thumbnail" :width "150px")
 		    (:name "Name"))
 	 :objects media
@@ -1519,18 +1518,6 @@ If given a prefix, yank from the clipboard."
 	      (format-time-string
 	       "%Y-%m-%d"
 	       (caddr (assoc "date_created_gmt" post))))
-	     ("Type"
-	      (propertize
-	       (let ((type (cdr (assoc "type" post))))
-		 (cond
-		  ((null type)
-		   "")
-		  ((string-match "^image/" type)
-		   "img")
-		  ((string-match "^video/\\(.*\\)" type)
-		   (match-string 1 type))
-		  (t type)))
-	       'face '(:foreground "#808080")))
 	     ("Thumbnail"
 	      (if (string-match "^image/" (or (cdr (assoc "type" post)) ""))
 		  (progn
@@ -1549,7 +1536,15 @@ If given a prefix, yank from the clipboard."
 			(propertize
 			 ewp--thumbnail-placeholder
 			 'thumbnail url))))
-		""))
+		(propertize
+		 (let ((type (cdr (assoc "type" post))))
+		   (cond
+		    ((null type)
+		     "")
+		    ((string-match "^video/\\(.*\\)" type)
+		     (match-string 1 type))
+		    (t type)))
+		 'face '(:foreground "#808080"))))
 	     ("Name"
 	      (cdr (assoc "title" post)))))
 	 :keymap ewp-list-media-mode-map)))
