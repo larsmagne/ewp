@@ -1563,8 +1563,11 @@ If given a prefix, yank from the clipboard."
 		    (ewp-url-retrieve
 		     (prop-match-value match)
 		     (lambda (&rest _)
-		       (url-store-in-cache)
 		       (goto-char (point-min))
+		       ;; These resources are pretty constant, so
+		       ;; avoid re-fetching them.
+		       (insert "Expires: Thu, 18 Apr 2224 10:52:21 +0200\n")
+		       (url-store-in-cache)
 		       (let (img)
 			 (when (search-forward "\n\n" nil t)
 			   (setq img (create-image
@@ -1654,6 +1657,22 @@ the media there instead."
 					   :max-width 800))
 	       (let ((max-mini-window-height 0.9))
 		 (message "%s" (buffer-string)))))))))))
+
+(defun ewp-copy-urls-as-curl ()
+  "Copy URLs as a series of curl commands."
+  (interactive)
+  (let ((data (get-text-property (point) 'vtable-object)))
+    (if (not (or ewp-marks data))
+	(error "No media under point")
+      (kill-new
+       (mapconcat (lambda (elem)
+		    (format "curl -O %S"
+			    (replace-regexp-in-string
+			     "-scaled" ""
+			     (cdr (assoc "link" elem)))))
+		  (or ewp-marks (list data))
+		  "; "))
+      (message "Copied"))))
 
 (defun ewp-copy-media ()
   "Copy the media under point to the kill ring."
@@ -2619,7 +2638,5 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
       (message "Copied %S" string))))
 
 (provide 'ewp)
-
-;; Testing.
 
 ;;; ewp.el ends here
