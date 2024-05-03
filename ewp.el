@@ -316,6 +316,18 @@ If ALL (the prefix), load all the posts in the blog."
 	  (or (cadr (assoc address ewp-address-map))
 	      address)))
 
+(defun ewp-get-post-content (address id pagep)
+  (let* ((auth (ewp-auth (or address ewp-address)))
+	 (post (apply
+		#'xml-rpc-method-call
+		`(,(ewp-xmlrpc-url (or address ewp-address))
+		  ,@(if pagep
+			'("wp.getPage" nil)
+		      '("metaWeblog.getPost"))
+		  ,id ,(cl-getf auth :user)
+		  ,(funcall (cl-getf auth :secret))))))
+    (cdr (assoc "description" post))))  
+
 (defun ewp-select-post (&optional address id)
   "Edit the post under point."
   (interactive)
