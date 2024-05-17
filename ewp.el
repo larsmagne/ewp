@@ -87,6 +87,21 @@ If nil, rotate the images \"physically\".")
 This is useful if, for instance, the blog is behind Cloudflare, but
 you want the xmlrpc stuff to go directly to the blog.")
 
+(defvar ewp-upload-ssh-addresses nil
+  "Directory to upload large video files to.
+This is a list where every entry is on the form:
+
+ (\"example.blog\"
+  (* 20 1024 1024)
+  \"/ssh:foo@example.blog:/var/www/html/video/\"
+  \"/video/\")
+
+The first element is the blog name -- you can have different
+upload addresses for different blogs.
+Video files larger than the second element will be uploaded via ssh.
+The third element is the Tramp address to upload to.
+The fourth element is the URL prefix to be used for the resulting URL.")
+
 (defvar ewp-post)
 (defvar ewp-address)
 (defvar ewp-categories)
@@ -914,6 +929,35 @@ If ALL (the prefix), load all the posts in the blog."
 		(put-text-property start (point)
 				   'ewp-thumbnail thumbnailp)))))))))
 
+(defun ewp--upload-via-ssh (file address)
+  (let* (frag
+	 (target
+	  ;; Check whether the file exists, and if it does, make a new,
+	  ;; unique name.
+	  (cl-loop with extension = (file-name-extension file)
+		   and base = (file-name-sans-extension
+			       (file-name-nondirectory file))
+		   for i from 0
+		   for counter = "" then (format "-%d" i)
+		   for fragment = (concat (format-time-string "%Y/%m/")
+					  base counter "." extension)
+		   for target = (expand-file-name fragment address)
+		   while (file-exists-p target)
+		   finally (progn
+			     (setq frag fragment)
+			     (cl-return target)))))
+    (unless (file-exists-p (file-name-directory target))
+      (make-directory (file-name-directory target) t))
+    (copy-file file target)
+    frag))
+
+(defun ewp--possibly-upload-via-ssh (file address)
+  (when-let ((elem (assoc address ewp-upload-ssh-addresses)))
+    (when (> (file-attribute-size (file-attributes file))
+	     (nth 1 elem))
+      (let ((fragment (ewp--upload-via-ssh file (nth 2 elem))))
+	(format "https://%s%s%s" ewp-address (nth 3 elem) fragment)))))
+
 (defun ewp-transform-and-upload-videos (address)
   "Look for local <video ...> and upload mp4s from those to Wordpress."
   (save-excursion
@@ -923,24 +967,26 @@ If ALL (the prefix), load all the posts in the blog."
 	     (start (match-beginning 1))
 	     (end (match-end 1))
 	     (video-start (match-beginning 0))
-	     (url (url-generic-parse-url file)))
+	     (url (url-generic-parse-url file))
+	     new-url)
 	;; Local file; upload it.
 	(when (null (url-type url))
-	  (when-let* ((result
-		       (ewp--upload-file
-			address
-			(file-name-nondirectory file)
-			(mailcap-file-name-to-mime-type file)
-			(with-temp-buffer
-			  (set-buffer-multibyte nil)
-			  (insert-file-contents-literally file)
-			  (base64-encode-region (point-min)
-						(point-max))
-			  (buffer-string))))
-		      (url (cdr (assoc "url" result))))
+	  (when (or (setq new-url (ewp--possibly-upload-via-ssh file address))
+		    (when-let* ((result
+				 (ewp--upload-file
+				  address
+				  (file-name-nondirectory file)
+				  (mailcap-file-name-to-mime-type file)
+				  (with-temp-buffer
+				    (set-buffer-multibyte nil)
+				    (insert-file-contents-literally file)
+				    (base64-encode-region (point-min)
+							  (point-max))
+				    (buffer-string)))))
+		      (setq new-url (cdr (assoc "url" result)))))
 	    (delete-region start end)
 	    (goto-char start)
-	    (insert url)))
+	    (insert new-url)))
 	;; Check for <video ... poster="">.
 	(save-excursion
 	  (goto-char video-start)
