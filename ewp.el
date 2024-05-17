@@ -969,8 +969,9 @@ If ALL (the prefix), load all the posts in the blog."
 	     (video-start (match-beginning 0))
 	     (url (url-generic-parse-url file))
 	     new-url)
-	;; Local file; upload it.
+	;; Local file; add poster and upload the file
 	(when (null (url-type url))
+	  (ewp--add-video-poster file)
 	  (when (or (setq new-url (ewp--possibly-upload-via-ssh file address))
 		    (when-let* ((result
 				 (ewp--upload-file
@@ -990,7 +991,8 @@ If ALL (the prefix), load all the posts in the blog."
 	;; Check for <video ... poster="">.
 	(save-excursion
 	  (goto-char video-start)
-	  (when (re-search-forward "poster=\"\\([^\"]+\\)\"" end t)
+	  (when (re-search-forward "poster=\"\\([^\"]+\\)\""
+				   (max end (line-end-position)) t)
 	    (let* ((file (match-string 1))
 		   (start (match-beginning 1))
 		   (end (match-end 1))
@@ -1012,6 +1014,19 @@ If ALL (the prefix), load all the posts in the blog."
 		  (delete-region start end)
 		  (goto-char start)
 		  (insert url))))))))))
+
+(defun ewp--add-video-poster (file)
+  (when (executable-find "ffmpeg")
+    (let ((prefix (make-temp-name "/tmp/poster")))
+      (when (zerop
+	     (call-process
+	      "ffmpeg" nil nil nil
+	      "-i" (expand-file-name file)
+	      "-r" "30" "-f" "image2"
+	      "-frames:v" "1" "-ss" "0"
+	      "-vf" "thumbnail,scale=iw*sar:ih"
+	      (concat prefix "%03d.png")))
+	(insert (format " poster=%S " (concat prefix "001.png")))))))
 
 (defun ewp-transform-and-upload-links (address)
   "Look for external links and create cached screenshots for those."
