@@ -971,7 +971,11 @@ If ALL (the prefix), load all the posts in the blog."
 	     new-url)
 	;; Local file; add poster and upload the file
 	(when (null (url-type url))
-	  (ewp--add-video-poster file)
+	  ;; If there's already a poster here, don't make a new one.
+	  (unless (save-excursion
+		    (re-search-forward "poster=\"\\([^\"]+\\)\""
+				       (max end (line-end-position)) t))
+	    (ewp--add-video-poster file))
 	  (when (or (setq new-url (ewp--possibly-upload-via-ssh file address))
 		    (when-let* ((result
 				 (ewp--upload-file
