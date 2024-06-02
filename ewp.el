@@ -1680,6 +1680,7 @@ If given a prefix, yank from the clipboard."
   "RET" #'ewp-show-media
   "n" #'ewp-show-media-goto-next
   "SPC" #'ewp-toggle-media-mark
+  "U" #'ewp-remove-media-marks
   ">" #'ewp-load-more-media)
 
 (define-derived-mode ewp-list-media-mode special-mode "ewp"
@@ -2321,22 +2322,22 @@ All normal editing commands are switched off.
   "Toggle the mark on the media under point."
   (interactive)
   (let* ((data (get-text-property (point) 'vtable-object))
-	 (id (cdr (assoc "attachment_id" data)))
-	 (inhibit-read-only t))
+	 (id (cdr (assoc "attachment_id" data))))
     (unless data
-      (error "No comment under point"))
-    (save-excursion
-      (beginning-of-line)
-      (delete-char 1)
-      (insert
-       (propertize
-	(if (ewp-find-mark id)
-	    (progn
-	      (setq ewp-marks (delq (ewp-find-mark id) ewp-marks))
-	      " ")
-	  (push data ewp-marks)
-	  "*")
-	'vtable-object data)))))
+      (error "No media under point"))
+    (if (ewp-find-mark id)
+	(setq ewp-marks (delq (ewp-find-mark id) ewp-marks))
+      (push data ewp-marks))
+    (vtable-update-object (vtable-current-table)
+			  data data)))
+
+(defun ewp-remove-media-marks ()
+  "Remove the mark from all media items."
+  (interactive)
+  (save-excursion
+    (dolist (elem (copy-sequence ewp-marks))
+      (vtable-goto-object elem)
+      (ewp-toggle-media-mark))))
 
 (defun ewp-find-mark (id)
   (cl-loop for elem in ewp-marks
