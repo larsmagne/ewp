@@ -1678,6 +1678,7 @@ If given a prefix, yank from the clipboard."
   "u" #'ewp-copy-url
   "m" #'ewp-upload-media
   "RET" #'ewp-show-media
+  "DEL" #'ewp-delete-media
   "n" #'ewp-show-media-goto-next
   "SPC" #'ewp-toggle-media-mark
   "U" #'ewp-remove-media-marks
@@ -1735,6 +1736,25 @@ the media there instead."
 					   :max-width 800))
 	       (let ((max-mini-window-height 0.9))
 		 (message "%s" (buffer-string)))))))))))
+
+(defun ewp-delete-media-1 (url user password blog-id id)
+  (xml-rpc-method-call url "wp.deletePost" blog-id user password
+		       id))
+
+(defun ewp-delete-media ()
+  "Delete the media under point."
+  (interactive)
+  (let ((data (get-text-property (point) 'vtable-object)))
+    (if (not data)
+	(error "No media under point")
+      (let ((id (cdr (assoc "attachment_id" data))))
+	(when (yes-or-no-p (format "Are you sure you want to delete media %s?"
+				   id))
+	  (let ((result (ewp-call 'ewp-delete-media-1 ewp-address id)))
+	    (if (not (eq result t))
+		(message "Got an error: %s" result)
+	      (message "Media deleted")
+	      (vtable-remove-object (vtable-current-table) data))))))))
 
 (defun ewp-copy-urls-as-curl ()
   "Copy URLs as a series of curl commands."
