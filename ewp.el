@@ -102,6 +102,11 @@ Video files larger than the second element will be uploaded via ssh.
 The third element is the Tramp address to upload to.
 The fourth element is the URL prefix to be used for the resulting URL.")
 
+(defvar ewp-screenshot-function #'ewp-screenshot-gnome
+  "Function called to insert a screenshot in the current buffer.
+Possible functions are `ewp-screenshot-imagemagick' and
+`ewp-screenshot-gnome'.")
+
 (defvar ewp-post)
 (defvar ewp-address)
 (defvar ewp-categories)
@@ -1837,6 +1842,18 @@ starting the screenshotting process."
     (insert "\n\n")
     (message "")))
 
+(defun ewp-screenshot-imagemagick ()
+  (call-process "import" nil (current-buffer) nil "jpeg:-"))
+
+(defun ewp-screenshot-gnome ()
+  (let ((file (concat (make-temp-file "/tmp/ewp-screenshot") ".jpg")))
+    (unwind-protect
+	(call-process "gnome-screenshot" nil nil nil
+		      "-a" "-f" file)
+      (when (file-exists-p file)
+	(insert-file-contents-literally file)
+	(delete-file file)))))
+
 (defun ewp--take-screenshot (delay)
   (unless (executable-find "import")
     (error "Can't find ImageMagick import command on this system"))
@@ -1852,7 +1869,7 @@ starting the screenshotting process."
   (message "Take screenshot")
   (with-temp-buffer
     (set-buffer-multibyte nil)
-    (call-process "import" nil (current-buffer) nil "jpeg:-")
+    (funcall ewp-screenshot-function)
     (buffer-string)))
 
 (defun ewp-upload-screenshot (delay &optional address)
