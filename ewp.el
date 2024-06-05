@@ -1819,9 +1819,10 @@ the media there instead."
 	       (message "Copied %s image%s to the kill ring"
 			length (if (= length 1) "" "s"))))))))))
 
-(defun ewp-copy-url ()
-  "Copy the URL under point to the kill ring."
-  (interactive)
+(defun ewp-copy-url (&optional shortlink)
+  "Copy the URL under point to the kill ring.
+If SHORTLINK (interactively, the prefix), get a shortlink instead."
+  (interactive "P")
   (let* ((data (get-text-property (point) 'vtable-object))
 	 (url (cdr (assoc "link" data))))
     ;; Link to the unscaled version of the image.
@@ -1829,6 +1830,10 @@ the media there instead."
 					url))
     (if (not data)
 	(error "No media under point")
+      (when shortlink
+	(setq url (format "https://%s/?p=%s"
+			  (url-host (url-generic-parse-url url))
+			  (cdr (assoc "attachment_id" data)))))
       (with-temp-buffer
 	(insert url)
 	(copy-region-as-kill (point-min) (point-max))
