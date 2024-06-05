@@ -648,12 +648,21 @@ If ALL (the prefix), load all the posts in the blog."
 				  (lambda (cat)
 				    (ewp-value (ewp-node 'string cat)))
 				  (ewp-get "categories" post)))))))
-	 (and (ewp-get "new_post_thumbnail" post)
-              (ewp-member
-               (ewp-node 'name "wp_post_thumbnail")
-	       (ewp-value
-		(format "%d" (car (ewp-get "new_post_thumbnail" post))))))))
+	 (let ((thumbnail-id (or (car (ewp-get "new_post_thumbnail" post))
+				 (ewp--automatic-featured-image))))
+	   (and thumbnail-id
+		(ewp-member
+		 (ewp-node 'name "wp_post_thumbnail")
+		 (ewp-value
+		  (format "%d" thumbnail-id)))))))
        (ewp-param (ewp-node 'boolean (if publishp "1" "0")))))))))
+
+(defun ewp--automatic-featured-image ()
+  (save-excursion
+    (goto-char (point-min))
+    (when (and (search-forward "<img " nil t)
+	       (re-search-forward "wp-image-\\([0-9]+\\)" (pos-eol) t))
+      (string-to-number (match-string 1)))))
 
 (defun ewp-external-time (time)
   (format-time-string "%Y%m%dT%H:%M:%S" time))
