@@ -1875,10 +1875,12 @@ starting the screenshotting process."
     (funcall ewp-screenshot-function)
     (buffer-string)))
 
-(defun ewp-upload-screenshot (delay &optional address)
+(defun ewp-upload-screenshot (delay &optional address shortlink)
   "Take a screenshot and upload to the current Wordpress address.
 DELAY (the numeric prefix) says how many seconds to wait before
-starting the screenshotting process."
+starting the screenshotting process.
+
+If SHORTLINK, return a \"/?p=42434\" link instead of the full URL."
   (interactive "p")
   (let* ((image (ewp--take-screenshot delay))
 	 (result (ewp--upload-file
@@ -1894,6 +1896,10 @@ starting the screenshotting process."
 	  ;; Link to the unscaled version of the image.
 	  (replace-regexp-in-string "-scaled\\([.][^.]+\\'\\)" "\\1"
 				    (cdr (assoc "url" result)))))
+    (when shortlink
+      (setq url (format "https://%s/?p=%s"
+			(url-host (url-generic-parse-url url))
+			(cdr (assoc "attachment_id" result)))))
     (kill-new url)
     (message "Copied %s %S"
 	     (propertize
