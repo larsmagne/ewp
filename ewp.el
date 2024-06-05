@@ -1788,7 +1788,9 @@ the media there instead."
 
 (defun ewp-copy-media-1 (elems length &optional prev)
   (setq elems (reverse elems))
-  (let ((url (cdr (assoc "link" (pop elems)))))
+  (let* ((elem (pop elems))
+	 (url (cdr (assoc "link" elem)))
+	 (id (cdr (assoc "attachment_id" elem))))
     (url-retrieve
      url
      (lambda (_)
@@ -1801,14 +1803,15 @@ the media there instead."
 	   (with-temp-buffer
 	     (when prev
 	       (insert prev))
-	     (insert-image (create-image
-			    image (ewp--image-type) t
-			    :max-width (ewp--display-width)
-			    :max-height
-			    (truncate (* (frame-pixel-height) 0.8)))
-			   (format "<a href=%S><img src=%S></a>\n"
-				   (replace-regexp-in-string "-scaled" "" url)
-				   url))
+	     (insert-image
+	      (create-image
+	       image (ewp--image-type) t
+	       :max-width (ewp--display-width)
+	       :max-height
+	       (truncate (* (frame-pixel-height) 0.8)))
+	      (format "<a href=%S><img src=%S class=\"wp-image-%s\"></a>\n"
+		      (replace-regexp-in-string "-scaled" "" url)
+		      url id))
 	     (insert "\n\n")
 	     (if elems
 		 (ewp-copy-media-1 elems length (buffer-string))
