@@ -1670,14 +1670,13 @@ If given a prefix, yank from the clipboard."
 			     (save-excursion
 			       (goto-char (prop-match-beginning match))
 			       (let ((inhibit-read-only t))
-				 (if (not img)
-				     (put-text-property (point)
-							(prop-match-end match)
-							'thumbnail nil)
-				   (delete-region
-				    (point) (prop-match-end match))
-				   (insert
-				    (propertize " " 'display img))))))
+				 (put-text-property (point)
+						    (prop-match-end match)
+						    'thumbnail nil)
+				 (when img
+				   (put-text-property
+				    (point) (prop-match-end match)
+				    'display img)))))
 			   (run-at-time 0.1 nil func)))))))))))
     (run-at-time 0.1 nil func)))
 
