@@ -651,6 +651,10 @@ If ALL (the prefix), load all the posts in the blog."
 	 (let ((thumbnail-id (or (car (ewp-get "new_post_thumbnail" post))
 				 (ewp--automatic-featured-image))))
 	   (and thumbnail-id
+		;; Wordpress doesn't like when we set the thumbnail to
+		;; what it already is.
+		(not (equal thumbnail-id
+			    (ewp-get "wp_post_thumbnail" post)))
 		(ewp-member
 		 (ewp-node 'name "wp_post_thumbnail")
 		 (ewp-value
