@@ -2183,29 +2183,8 @@ All normal editing commands are switched off.
       (if (not (eq result t))
 	  (message "Got an error: %s" result)
 	(message "Updated comment successfully")
-	(ewp-update-field status 2)))))
-
-(defun ewp-update-field (string field)
-  (save-excursion
-    (beginning-of-line)
-    (let ((count 1))
-      (while (and (not (eolp))
-		  (< count field))
-	(forward-char 1)
-	(let ((prop (get-text-property (point) 'display)))
-	  (when (and prop
-		     (consp prop)
-		     (eq (car prop) 'space))
-	    (cl-incf count))))
-      (forward-char 1)
-      (let ((start (point))
-	    (face (get-text-property (point) 'face)))
-	(while (not (get-text-property (point) 'display))
-	  (forward-char))
-	(delete-region start (point))
-	(insert string)
-	(put-text-property start (point) 'face face)
-	(put-text-property start (point) 'vtp-value string)))))
+	(setcdr (assoc "status" data) status)
+	(vtable-update-object (vtable-current-table) data data)))))
 
 (defun ewp-delete-comment (blog-xmlrpc user-name password blog-id comment-id)
   "Deletes a comment system. Uses wp.deleteComment."
