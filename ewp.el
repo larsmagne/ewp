@@ -502,6 +502,8 @@ If ALL (the prefix), load all the posts in the blog."
 	       'ewp-complete-status
 	       (cons 'ewp-complete-category completion-at-point-functions)))
   (setq-local image-crop-buffer-text-function #'ewp--update-image-crop)
+  (keymap-set image-map "i c" #'ewp-image-crop)
+  (keymap-set image-map "i x" #'ewp-image-cut)
   (auto-save-mode 1)
   (run-hooks 'ewp-edit-hook))
 
@@ -1928,11 +1930,15 @@ If SHORTLINK, return a \"/?p=42434\" link instead of the full URL."
 			    :max-height (/ (frame-pixel-height) 4)))
 	     url)))
 
+(defun ewp--image-file (image)
+  (or (plist-get (cdr image) :original-file)
+      (plist-get (cdr image) :file)))
+
 (defun ewp--identify (image)
   (with-temp-buffer
     (set-buffer-multibyte nil)
     (if (plist-get (cdr image) :file)
-	(insert-file-contents-literally (plist-get (cdr image) :file))
+	(insert-file-contents-literally (ewp--image-file image))
       (insert (plist-get (cdr image) :data)))
     (call-process-region (point-min) (point-max) "identify" t (current-buffer)
 			 nil "-")
@@ -2415,7 +2421,7 @@ If given a prefix, float to the right instead."
       (when (null data)
 	(with-temp-buffer
 	  (set-buffer-multibyte nil)
-	  (insert-file-contents-literally (cl-getf (cdr image) :file))
+	  (insert-file-contents-literally (ewp--image-file image))
 	  (setq data (buffer-string))))
       (with-temp-buffer
 	(set-buffer-multibyte nil)
@@ -2444,7 +2450,7 @@ If given a prefix, float to the right instead."
       (when (null data)
 	(with-temp-buffer
 	  (set-buffer-multibyte nil)
-	  (insert-file-contents-literally (cl-getf (cdr image) :file))
+	  (insert-file-contents-literally (ewp--image-file image))
 	  (setq data (buffer-string))))
       (with-temp-buffer
 	(set-buffer-multibyte nil)
@@ -2660,7 +2666,7 @@ width/height of the logo."
       (with-temp-buffer
 	(set-buffer-multibyte nil)
 	(if (null data)
-	    (insert-file-contents-literally (cl-getf (cdr image) :file))
+	    (insert-file-contents-literally (ewp--image-file image))
 	  (insert data))
 	(let ((ewp-exif-rotate nil))
 	  (ewp-possibly-rotate-buffer image))
@@ -2718,7 +2724,7 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
       (when (null data)
 	(with-temp-buffer
 	  (set-buffer-multibyte nil)
-	  (insert-file-contents-literally (cl-getf (cdr image) :file))
+	  (insert-file-contents-literally (ewp--image-file image))
 	  (setq data (buffer-string))))
       (with-temp-buffer
 	(set-buffer-multibyte nil)
@@ -2756,6 +2762,24 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 			   url)))
       (kill-new string)
       (message "Copied %S" string))))
+
+(defun ewp-image-cut (&optional color)
+  "Wrapper for `image-cut'."
+  (interactive (list (and current-prefix-arg (read-color "Use color: "))))
+  (ewp-image-crop (if (zerop (length color)) image-cut-color color)))
+
+(defun ewp-image-crop (&optional cut)
+  "Wrapper for `image-crop'."
+  (interactive)
+  ;; Swap back the original image file if we're displaying a smaller
+  ;; resized one.
+  (when-let* ((image (get-text-property (point) 'display))
+	      (file (and (consp image)
+			 (eq (car image) 'image)
+			 (plist-get (cdr image) :file)
+			 (plist-get (cdr image) :original-file))))
+    (plist-put (cdr image) :file file))
+  (image-crop cut))
 
 (provide 'ewp)
 
