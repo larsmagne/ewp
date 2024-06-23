@@ -504,6 +504,7 @@ If ALL (the prefix), load all the posts in the blog."
   (setq-local image-crop-buffer-text-function #'ewp--update-image-crop)
   (keymap-set image-map "i c" #'ewp-image-crop)
   (keymap-set image-map "i x" #'ewp-image-cut)
+  (keymap-set image-map "i w" #'ewp-image-view)
   (auto-save-mode 1)
   (run-hooks 'ewp-edit-hook))
 
@@ -2780,6 +2781,17 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 			 (plist-get (cdr image) :original-file))))
     (plist-put (cdr image) :file file))
   (image-crop cut))
+
+(defun ewp-image-view ()
+  "View the image under point with an external viewer."
+  (interactive)
+  (let* ((image (get-text-property (point) 'display))
+	 (file (and (consp image)
+		    (eq (car image) 'image)
+		    (ewp--image-file image))))
+    (unless file
+      (user-error "No image with a file under point"))
+    (start-process "feh" nil "feh" "-ZF" (expand-file-name file))))
 
 (provide 'ewp)
 
