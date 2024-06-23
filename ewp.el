@@ -131,6 +131,7 @@ Possible functions are `ewp-screenshot-imagemagick' and
   "c" #'ewp-make-comment
   "C" #'ewp-list-comments
   "A" #'ewp-list-posts-with-category
+  "S" #'ewp-search-posts
   ">" #'ewp-load-more-posts)
 
 (define-derived-mode ewp-list-mode special-mode "ewp"
@@ -214,6 +215,20 @@ If ALL (the prefix), load all the posts in the blog."
 (defun ewp-get-pagelist (url user password blog-id)
   (xml-rpc-method-call url "wp.getPageList" blog-id user password))
 
+(defun ewp-search-posts (string)
+  "Search for posts that match a string."
+  (interactive "sSearch for: ")
+  (let ((address ewp-address))
+    (switch-to-buffer (format "*%s search*" address))
+    (ewp-save-excursion
+      (let ((inhibit-read-only t))
+	(erase-buffer)
+	(ewp-list-mode)
+	(setq-local ewp-address address)
+	(ewp--prepare-post-list
+	 (ewp-call 'ewp-get-posts address
+		   300 nil nil nil string))))))
+
 (defun ewp-blog (&optional address start-at status category all)
   "List the posts on the blog."
   (interactive (list (cond
@@ -256,42 +271,45 @@ If ALL (the prefix), load all the posts in the blog."
 	    (when old
 	      (setq data (delq old data)))
 	    (push post data))))
-      ;; We're sorting by date, but we want the newest post per date
-      ;; to be first.
-      (setq data
-	    (sort data
-		  (lambda (p1 p2)
-		    (> (ewp--post-date p1) (ewp--post-date p2)))))
-      (make-vtable
-       :columns '((:name "Date" :width 10 :primary descend)
-		  (:name "Status" :width 10)
-		  (:name "Categories" :width 15)
-		  "Title")
-       :objects data
-       :getter
-       (lambda (post column vtable)
-	 (let* ((prefix (if (assoc "page_title" post)
-			    "page"
-			  "post"))
-		(date (or (caddr (assoc "post_date" post))
-			  (caddr (assoc "date_created_gmt" post))))
-		(status (cdr (assoc (format "%s_status" prefix) post))))
-	   (when (and (equal status "publish")
-		      (time-less-p (current-time) date))
-	     (setq status "schedule"))
-           (pcase (vtable-column vtable column)
-	     ("Date" (format-time-string "%Y-%m-%d" date))
-	     ("Status" (propertize (or status "")
-				   'face '(:foreground "#a0a0a0")))
-	     ("Categories"
-	      (propertize 
-	       (mapconcat 'mm-url-decode-entities-string
-			  (ewp--categories post) ",")
-	       'face '(:foreground "#b0b0b0")))
-	     ("Title" 
-	      (mm-url-decode-entities-string
-	       (or (cdr (assoc (format "%s_title" prefix) post)) ""))))))
-       :keymap ewp-list-mode-map))))
+      (ewp--prepare-post-list data))))
+
+(defun ewp--prepare-post-list (data)
+  ;; We're sorting by date, but we want the newest post per date
+  ;; to be first.
+  (setq data
+	(sort data
+	      (lambda (p1 p2)
+		(> (ewp--post-date p1) (ewp--post-date p2)))))
+  (make-vtable
+   :columns '((:name "Date" :width 10 :primary descend)
+	      (:name "Status" :width 10)
+	      (:name "Categories" :width 15)
+	      "Title")
+   :objects data
+   :getter
+   (lambda (post column vtable)
+     (let* ((prefix (if (assoc "page_title" post)
+			"page"
+		      "post"))
+	    (date (or (caddr (assoc "post_date" post))
+		      (caddr (assoc "date_created_gmt" post))))
+	    (status (cdr (assoc (format "%s_status" prefix) post))))
+       (when (and (equal status "publish")
+		  (time-less-p (current-time) date))
+	 (setq status "schedule"))
+       (pcase (vtable-column vtable column)
+	 ("Date" (format-time-string "%Y-%m-%d" date))
+	 ("Status" (propertize (or status "")
+			       'face '(:foreground "#a0a0a0")))
+	 ("Categories"
+	  (propertize
+	   (mapconcat 'mm-url-decode-entities-string
+		      (ewp--categories post) ",")
+	   'face '(:foreground "#b0b0b0")))
+	 ("Title"
+	  (mm-url-decode-entities-string
+	   (or (cdr (assoc (format "%s_title" prefix) post)) ""))))))
+   :keymap ewp-list-mode-map))
 
 (defun ewp--post-date (post)
   (float-time
@@ -317,7 +335,7 @@ If ALL (the prefix), load all the posts in the blog."
 
 (defun ewp-get-posts (blog-xmlrpc user-name password blog-id posts
 				  &optional offset status
-				  fields)
+				  fields search)
   "Retrieves list of posts from the weblog system. Uses wp.getPosts."
   (xml-rpc-method-call blog-xmlrpc
                        "wp.getPosts"
@@ -326,7 +344,8 @@ If ALL (the prefix), load all the posts in the blog."
                        password
 		       `(("number" . ,posts)
 			 ("offset" . ,(or offset 0))
-			 ,@(and status (list `("post_status" . ,status))))
+			 ,@(and status (list `("post_status" . ,status)))
+			 ,@(and search (list `("s" . ,search))))
 		       (or fields
 			   ["post_title" "post_date" "post_status" "terms"
 			    "link" "post_name"])))
