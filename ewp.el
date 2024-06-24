@@ -1950,6 +1950,10 @@ If SHORTLINK, return a \"/?p=42434\" link instead of the full URL."
 			    :max-height (/ (frame-pixel-height) 4)))
 	     url)))
 
+;; Emacs can get slow when displaying very large images, so it's
+;; convenient to be able to display a rescaled, smaller image.  But
+;; when we're looking to interact with the image (to crop it, for
+;; instance), we want to work on the original image.
 (defun ewp--image-file (image)
   (or (plist-get (cdr image) :original-file)
       (plist-get (cdr image) :file)))
