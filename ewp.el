@@ -225,9 +225,11 @@ If ALL (the prefix), load all the posts in the blog."
 	(erase-buffer)
 	(ewp-list-mode)
 	(setq-local ewp-address address)
-	(ewp--prepare-post-list
-	 (ewp-call 'ewp-get-posts address
-		   300 nil nil nil string))))))
+	(let ((posts (ewp-call 'ewp-get-posts address
+			       300 nil nil nil string)))
+	  (unless posts
+	    (error "No posts matched %S" string))
+	  (ewp--prepare-post-list posts))))))
 
 (defun ewp-blog (&optional address start-at status category all)
   "List the posts on the blog."
