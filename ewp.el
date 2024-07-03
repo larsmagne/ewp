@@ -218,18 +218,18 @@ If ALL (the prefix), load all the posts in the blog."
 (defun ewp-search-posts (string)
   "Search for posts that match a string."
   (interactive "sSearch for: ")
-  (let ((address ewp-address))
+  (let ((address ewp-address)
+	(posts (ewp-call 'ewp-get-posts ewp-address
+			 300 nil nil nil string)))
+    (unless posts
+      (error "No posts matched %S" string))
     (switch-to-buffer (format "*%s search*" address))
     (ewp-save-excursion
       (let ((inhibit-read-only t))
 	(erase-buffer)
 	(ewp-list-mode)
 	(setq-local ewp-address address)
-	(let ((posts (ewp-call 'ewp-get-posts address
-			       300 nil nil nil string)))
-	  (unless posts
-	    (error "No posts matched %S" string))
-	  (ewp--prepare-post-list posts))))))
+	(ewp--prepare-post-list posts)))))
 
 (defun ewp-blog (&optional address start-at status category all)
   "List the posts on the blog."
