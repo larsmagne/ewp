@@ -2818,6 +2818,16 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
       (user-error "No image with a file under point"))
     (start-process "feh" nil "feh" "-ZF" (expand-file-name file))))
 
+(defun ewp-rotate-all-images ()
+  "Rotate all images 270 degrees."
+  (interactive)
+  (while-let ((match (text-property-search-forward
+		      'display nil (lambda (_ prop)
+				     (and (consp prop)
+					  (eq (car prop) 'image))))))
+    (setf (image-property (prop-match-value match) :rotation)
+	  (float 270))))
+
 (provide 'ewp)
 
 ;;; ewp.el ends here
