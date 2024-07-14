@@ -523,6 +523,10 @@ If ALL (the prefix), load all the posts in the blog."
 	       'ewp-complete-status
 	       (cons 'ewp-complete-category completion-at-point-functions)))
   (setq-local image-crop-buffer-text-function #'ewp--update-image-crop)
+  ;; This preserves the keymap on images, which is somewhat important
+  ;; for ewp buffers.
+  (setq-local yank-excluded-properties
+	      (delete 'keymap yank-excluded-properties))
   (keymap-set image-map "i c" #'ewp-image-crop)
   (keymap-set image-map "i x" #'ewp-image-cut)
   (keymap-set image-map "i w" #'ewp-image-view)
