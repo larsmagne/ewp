@@ -1333,13 +1333,23 @@ All normal editing commands are switched off.
 			 collect (cons (cdr (assoc "categoryName" elem))
 				       (cdr (assoc "categoryId" elem)))))))
 
-(defun ewp-yank-with-href ()
-  "Yank the current kill ring item as an <a href>."
-  (interactive)
-  (set-mark (point))
-  (insert (format "<a screenshot=true href=%S></a>"
-                  (substring-no-properties (current-kill 0))))
-  (forward-char -4))
+(defun ewp-yank-with-href (&optional surround)
+  "Yank the current kill ring item as an <a href>.
+If SURROUND (the prefix interactively), put the <a ...></a>
+around the text between mark and point."
+  (interactive "P")
+  (let ((link (format "<a screenshot=true href=%S>"
+		      (substring-no-properties (current-kill 0)))))
+    (if surround
+	(let ((point (point-marker)))
+	  (goto-char (mark))
+	  (insert link)
+	  (goto-char point)
+	  (insert "</a>")
+	  (set-marker point nil))
+      (set-mark (point))
+      (insert link "</a>")
+      (forward-char -4))))
 
 (defun ewp-yank-with-blockquote (&optional clipboard)
   "Yank the current kill ring item as a <blockquote>.
