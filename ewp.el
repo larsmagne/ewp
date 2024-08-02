@@ -1074,9 +1074,9 @@ If ALL (the prefix), load all the posts in the blog."
 	      "-i" (expand-file-name file)
 	      "-r" "30" "-f" "image2"
 	      "-frames:v" "1" "-ss" "0"
-	      "-vf" "thumbnail,scale=iw*sar:ih"
-	      (concat prefix "%03d.png")))
-	(insert (format " poster=%S " (concat prefix "001.png")))))))
+	      "-vf" "thumbnail,scale=-1:720"
+	      (concat prefix "%03d.jpg")))
+	(insert (format " poster=%S " (concat prefix "001.jpg")))))))
 
 (defun ewp-transform-and-upload-links (address)
   "Look for external links and create cached screenshots for those."
@@ -1665,7 +1665,8 @@ If given a prefix, yank from the clipboard."
 			     " "
 			     'display (create-image
 				       (buffer-substring (point) (point-max))
-				       nil t :scale 1)))
+				       nil t :scale 1)
+			     'local-map image-map))
 			(propertize
 			 ewp--thumbnail-placeholder
 			 'thumbnail url))))
@@ -1732,6 +1733,7 @@ If given a prefix, yank from the clipboard."
   "w" #'ewp-copy-media
   "u" #'ewp-copy-url
   "m" #'ewp-upload-media
+  "r" #'ewp-rotate-media
   "RET" #'ewp-show-media
   "DEL" #'ewp-delete-media
   "n" #'ewp-show-media-goto-next
@@ -1888,6 +1890,46 @@ If SHORTLINK (interactively, the prefix), get a shortlink instead."
 	(insert url)
 	(copy-region-as-kill (point-min) (point-max))
 	(message "Copied %s to the kill ring" url)))))
+
+(defun ewp-rotate-media ()
+  "Rotate the media under point."
+  (interactive)
+  (let* ((data (get-text-property (point) 'vtable-object))
+	 (image (get-text-property (point) 'display))
+	 (url (cdr (assoc "link" data)))
+	 (image-name (cdr (assoc "title" data)))
+	 (address ewp-address))
+    ;; Link to the unscaled version of the image.
+    (setq url (replace-regexp-in-string "-scaled\\([.][^.]+\\'\\)" "\\1"
+					url))
+    (if (or (not data)
+	    (not image)
+	    (not (eq (car image) 'image)))
+	(error "No media under point")
+      (url-retrieve
+       url
+       (lambda (_)
+	 (goto-char (point-min))
+	 (let (idata)
+	   (when (search-forward "\n\n")
+	     (setq idata (buffer-substring (point) (point-max))))
+	   (kill-buffer (current-buffer))
+	   (when idata
+	     (let* ((result
+		     (ewp--upload-file
+		      address
+		      image-name
+		      (mailcap-file-name-to-mime-type image-name)
+		      (with-temp-buffer
+			(set-buffer-multibyte nil)
+			(insert idata)
+			(ewp-possibly-rotate-buffer image)
+			(base64-encode-region (point-min) (point-max))
+			(buffer-string))))
+		    (url (replace-regexp-in-string "-scaled" ""
+						   (cdr (assoc "url" result)))))
+	       (kill-new url)
+	       (message "Copied %s" url)))))))))
 
 (defun ewp-import-screenshot (delay)
   "Take a screenshot and insert in the current buffer.
