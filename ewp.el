@@ -1719,7 +1719,8 @@ If given a prefix, yank from the clipboard."
 				 (when img
 				   (put-text-property
 				    (point) (prop-match-end match)
-				    'display img)))))
+				    'display img
+				    'local-map image-map)))))
 			   (run-at-time 0.1 nil func)))))))))))
     (run-at-time 0.1 nil func)))
 
