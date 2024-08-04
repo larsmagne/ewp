@@ -1717,10 +1717,10 @@ If given a prefix, yank from the clipboard."
 						    (prop-match-end match)
 						    'thumbnail nil)
 				 (when img
-				   (put-text-property
+				   (add-text-properties
 				    (point) (prop-match-end match)
-				    'display img
-				    'local-map image-map)))))
+				    (list 'display img
+					  'local-map image-map))))))
 			   (run-at-time 0.1 nil func)))))))))))
     (run-at-time 0.1 nil func)))
 
