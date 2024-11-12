@@ -494,7 +494,7 @@ If ALL (the prefix), load all the posts in the blog."
   "C-c C-M-t" #'ewp-insert-title
   "C-c C-v" #'ewp-insert-video-file
   "C-c C-V" #'ewp-insert-video-url
-  "C-c C-l" #'ewp-remove-html-layer
+  "C-c C-l" #'ewp-insert-lyte
   "C-c C-m" #'ewp-yank-html
   "C-c C-n" #'ewp-clean-link
   "C-c C-o" #'ewp-html-quote-region
@@ -1142,11 +1142,12 @@ If ALL (the prefix), load all the posts in the blog."
   (when-let ((old (assoc attribute (cadr node))))
     (setcar (cdr node) (delq old (cadr node)))))
 
-(defun ewp-possibly-rotate-buffer (image)
+(defun ewp-possibly-rotate-buffer (image &optional rotation)
   (when (and image
 	     (consp image)
 	     (eq (car image) 'image))
-    (when (image-property image :rotation)
+    (setq rotation (or rotation (image-property image :rotation)))
+    (when rotation
       (let ((content-type (ewp-content-type (buffer-string))))
 	(cond
 	 ;; We can rotate jpegs losslessly by setting the correct
@@ -1157,7 +1158,7 @@ If ALL (the prefix), load all the posts in the blog."
 	  (call-process-region
 	   (point-min) (point-max) "exiftool" t (list (current-buffer) nil) nil
 	   (format "-Orientation#=%d"
-		   (cl-case (truncate (image-property image :rotation))
+		   (cl-case (truncate rotation)
 		     (0 0)
 		     (90 6)
 		     (180 3)
@@ -1350,6 +1351,13 @@ around the text between mark and point."
       (set-mark (point))
       (insert link "</a>")
       (forward-char -4))))
+
+(defun ewp-insert-lyte ()
+  "Insert a [lyte] tag."
+  (interactive)
+  (ensure-empty-lines 1)
+  (insert (format "[lyte id='%s']\n\n"
+		  (substring-no-properties (current-kill 0)))))
 
 (defun ewp-yank-with-blockquote (&optional clipboard)
   "Yank the current kill ring item as a <blockquote>.
@@ -2741,11 +2749,7 @@ width/height of the logo."
 		   (format "%s" (cl-getf (cdr image) :format)))
 		  (data
 		   (ewp-content-type data))))
-	   (size (image-size image t))
-	   (svg (svg-create (car size) (cdr size)
-			    :xmlns:xlink "http://www.w3.org/1999/xlink"
-			    :stroke-width 5))
-	   logo-type logo-size lwidth lheight)
+	   svg logo-type logo-size lwidth lheight size)
       (with-temp-buffer
 	(set-buffer-multibyte nil)
 	(if (null data)
@@ -2755,6 +2759,11 @@ width/height of the logo."
 	  (ewp-possibly-rotate-buffer image))
 	(setq data (buffer-string))
 	(setq type (ewp-content-type data)))
+      (setq size (image-size (create-image data nil t :scaling 1) t))
+      (setq svg
+	    (svg-create (car size) (cdr size)
+			:xmlns:xlink "http://www.w3.org/1999/xlink"
+			:stroke-width 5))
       (svg-embed svg data type t
 		 :width (car size)
 		 :height (cdr size))
@@ -2784,9 +2793,13 @@ width/height of the logo."
        (with-temp-buffer
 	 (set-buffer-multibyte nil)
 	 (svg-print svg)
-	 (call-process-region (point-min) (point-max) "convert"
-			      t (list (current-buffer) nil) nil
-			      "svg:-" "jpg:-")
+	 (write-region (point-min) (point-max) "/tmp/ewp.svg")
+	 (erase-buffer)
+	 (call-process "convert" nil nil nil
+		       "/tmp/ewp.svg" "/tmp/ewp.jpg")
+	 (insert-file-literally "/tmp/ewp.jpg")
+	 (delete-file "/tmp/ewp.jpg")
+	 (delete-file "/tmp/ewp.svg")
 	 (buffer-string))))))
 
 (defun ewp-get (key alist)
