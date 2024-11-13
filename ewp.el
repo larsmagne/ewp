@@ -2759,7 +2759,7 @@ width/height of the logo."
 	  (ewp-possibly-rotate-buffer image))
 	(setq data (buffer-string))
 	(setq type (ewp-content-type data)))
-      (setq size (image-size (create-image data nil t :scaling 1) t))
+      (setq size (image-size (create-image data nil t :scale 1) t))
       (setq svg
 	    (svg-create (car size) (cdr size)
 			:xmlns:xlink "http://www.w3.org/1999/xlink"
