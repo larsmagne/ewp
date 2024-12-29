@@ -1171,7 +1171,7 @@ If ALL (the prefix), load all the posts in the blog."
 	 ((executable-find "convert")
 	  (call-process-region
 	   (point-min) (point-max) "convert" t (list (current-buffer) nil) nil
-	   "-rotate" (format "%d" (image-property image :rotation))
+	   "-rotate" (format "%d" rotation)
 	   "-" "-")
 	  ;; This is apparently necessary to avoid having Twitter
 	  ;; believe that the picture should be rotated again.
