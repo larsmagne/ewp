@@ -2725,13 +2725,17 @@ If given a prefix, float to the right instead."
 	(kill-buffer (current-buffer))
 	(ewp-select-post (url-host parsed) id)))))
 
-(defun ewp-composite-image (logo size-ratio placement)
+(defun ewp-composite-image (logo size-ratio placement &optional callback)
   "Composite LOGO (a file) on top of the image under point.
 SIZE-RATIO should be a floating point number smaller than 1.
 
 PLACEMENT should be a function that returns x/y coordinates.
 It's called with four parameters: width/height of the image, and
-width/height of the logo."
+width/height of the logo.
+
+If given, CALLBACK should be a function that will be called with
+the SVG object and width/height of the SVG, and should return an
+SVG object (possibly the same)."
   (interactive "P")
   (let ((image (get-text-property (point) 'display))
 	lpos)
@@ -2787,6 +2791,8 @@ width/height of the logo."
 					  lwidth lheight))
 		      (car lpos))
 		 :y (cdr lpos))
+      (when callback
+	(setq svg (funcall callback svg (car size) (cdr size))))
       (delete-region (line-beginning-position)
 		     (line-end-position))
       (ewp-insert-image-data
