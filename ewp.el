@@ -1663,18 +1663,13 @@ If given a prefix, yank from the clipboard."
 	      (if (string-match "^image/" (or (cdr (assoc "type" post)) ""))
 		  (progn
 		    (let* ((url (cdr (assoc "thumbnail" post)))
-			   (cache (url-cache-create-filename url)))
+			   (cache (ewp--cache-file url)))
 		      (if (file-exists-p cache)
-			  (with-temp-buffer
-			    (set-buffer-multibyte nil)
-			    (insert-file-contents-literally cache)
-			    (search-forward "\n\n")
-			    (propertize
-			     " "
-			     'display (create-image
-				       (buffer-substring (point) (point-max))
-				       nil t :scale 1)
-			     'local-map image-map))
+			  (propertize
+			   " "
+			   'display (create-image
+				     cache nil t :scale 1)
+			   'local-map image-map)
 			(propertize
 			 ewp--thumbnail-placeholder
 			 'thumbnail url))))
@@ -1701,36 +1696,57 @@ If given a prefix, yank from the clipboard."
 	      (with-current-buffer buffer
 		(save-excursion
 		  (goto-char (point-min))
-		  (when-let ((match (text-property-search-forward 'thumbnail)))
-		    (ewp-url-retrieve
-		     (prop-match-value match)
-		     (lambda (&rest _)
-		       (goto-char (point-min))
-		       ;; These resources are pretty constant, so
-		       ;; avoid re-fetching them.
-		       (insert "Expires: Thu, 18 Apr 2224 10:52:21 +0200\n")
-		       (url-store-in-cache)
-		       (let (img)
-			 (when (search-forward "\n\n" nil t)
-			   (setq img (create-image
-				      (buffer-substring (point) (point-max))
-				      nil t :scale 1)))
-			 (kill-buffer (current-buffer))
-			 (when (buffer-live-p buffer)
-			   (with-current-buffer buffer
-			     (save-excursion
-			       (goto-char (prop-match-beginning match))
-			       (let ((inhibit-read-only t))
-				 (put-text-property (point)
-						    (prop-match-end match)
-						    'thumbnail nil)
-				 (when img
-				   (add-text-properties
-				    (point) (prop-match-end match)
-				    (list 'display img
-					  'local-map image-map))))))
-			   (run-at-time 0.1 nil func)))))))))))
+		  (when-let ((match (text-property-search-forward 'thumbnail))
+			     (url (prop-match-value match))
+			     (cache (ewp--cache-file url)))
+		    (if (file-exists-p cache)
+			(progn
+			  (ewp--insert-thumbnail
+			   match buffer (create-image cache nil t :scale 1))
+			  (run-at-time 0.1 nil func))
+		      (ewp-url-retrieve
+		       url
+		       (lambda (&rest _)
+			 (goto-char (point-min))
+			 ;; These resources are pretty constant, so
+			 ;; avoid re-fetching them.
+			 (insert "Expires: Thu, 18 Apr 2224 10:52:21 +0200\n")
+			 (url-store-in-cache)
+			 (let (img)
+			   (when (search-forward "\n\n" nil t)
+			     (setq img (create-image
+					(buffer-substring (point) (point-max))
+					nil t :scale 1))
+			     (let ((dir (file-name-directory cache)))
+			       (unless (file-exists-p dir)
+				 (make-directory dir t)))
+			     (write-region (point) (point-max)
+					   cache nil 'silent))
+			   (kill-buffer (current-buffer))
+			   (when (buffer-live-p buffer)
+			     (ewp--insert-thumbnail match buffer img)
+			     (run-at-time 0.1 nil func))))))))))))
     (run-at-time 0.1 nil func)))
+
+(defun ewp--cache-file (url)
+  (expand-file-name (concat (substring (sha1 url) 0 2)
+			    "/"
+			    (substring (sha1 url) 2))
+		    "~/.cache/ewp/media/"))
+
+(defun ewp--insert-thumbnail (match buffer img)
+  (with-current-buffer buffer
+    (save-excursion
+      (goto-char (prop-match-beginning match))
+      (let ((inhibit-read-only t))
+	(put-text-property (point)
+			   (prop-match-end match)
+			   'thumbnail nil)
+	(when img
+	  (add-text-properties
+	   (point) (prop-match-end match)
+	   (list 'display img
+		 'local-map image-map)))))))
 
 (defun ewp-load-more-media ()
   "Load more media from the blog."
@@ -2803,7 +2819,7 @@ SVG object (possibly the same)."
 	 (erase-buffer)
 	 (call-process "convert" nil nil nil
 		       "/tmp/ewp.svg" "/tmp/ewp.jpg")
-	 (insert-file-literally "/tmp/ewp.jpg")
+	 (insert-file-contents-literally "/tmp/ewp.jpg")
 	 (delete-file "/tmp/ewp.jpg")
 	 (delete-file "/tmp/ewp.svg")
 	 (buffer-string))))))
