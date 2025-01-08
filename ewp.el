@@ -1667,8 +1667,7 @@ If given a prefix, yank from the clipboard."
 		      (if (file-exists-p cache)
 			  (propertize
 			   " "
-			   'display (create-image
-				     cache nil t :scale 1)
+			   'display (create-image cache nil nil :scale 1)
 			   'local-map image-map)
 			(propertize
 			 ewp--thumbnail-placeholder
