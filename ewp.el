@@ -60,6 +60,9 @@
 (defvar ewp-send-hook nil
   "Hook functions run after posting/editing a blog article.")
 
+(defvar ewp-set-featured-image nil
+  "Whether to set featured image automatically.")
+
 (defvar ewp-image-width 840
   "What width to tell Wordpress to resize images to when displaying on the blog.")
 
@@ -677,8 +680,10 @@ If ALL (the prefix), load all the posts in the blog."
 				    (ewp-value (ewp-node 'string cat)))
 				  (ewp-get "categories" post)))))))
 	 (let ((thumbnail-id (or (car (ewp-get "new_post_thumbnail" post))
-				 (ewp--automatic-featured-image))))
+				 (and ewp-set-featured-image
+				      (ewp--automatic-featured-image)))))
 	   (and thumbnail-id
+		(not pagep)
 		;; Wordpress doesn't like when we set the thumbnail to
 		;; what it already is.
 		(not (equal thumbnail-id
@@ -1779,12 +1784,13 @@ All normal editing commands are switched off.
    (list (read-file-name "File to upload: ")
 	 (or (and (boundp 'ewp-address) ewp-address)
 	     (completing-read "Blog address: " ewp-blog-addresses))))
-  (let ((result (ewp-upload-file address file)))
-    (setq result (replace-regexp-in-string "-scaled" "" result))
+  (let* ((result (ewp-upload-file address file))
+	 (url (cdr (assoc "url" result))))
+    (setq url (replace-regexp-in-string "-scaled" "" url))
     (message "Uploaded %s to %s (copied to clipboard)"
 	     file address)
     (with-temp-buffer
-      (insert (cdr (assoc "url" result)))
+      (insert url)
       (copy-region-as-kill (point-min) (point-max)))))
 
 (defun ewp-show-media-goto-next ()
