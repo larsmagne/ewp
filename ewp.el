@@ -1222,9 +1222,10 @@ If MAX (the numerical prefix), just do that many thumbnails."
 	  (if-let ((end
 		    (save-excursion
 		      (and (looking-at " *<img[ \n]")
-			   (with-syntax-table sgml-mode-syntax-table
-			     (forward-sexp))
-			   (looking-at " *</a>")
+			   (progn
+			     (with-syntax-table sgml-mode-syntax-table
+			       (forward-sexp))
+			     (looking-at " *</a>"))
 			   (match-end 0)))))
 	      (progn
 		(goto-char end)
