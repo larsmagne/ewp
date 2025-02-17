@@ -1244,7 +1244,15 @@ If MAX (the numerical prefix), just do that many thumbnails."
 	  (let ((start (point)))
 	    (with-syntax-table sgml-mode-syntax-table
 	      (forward-sexp))
-	    (ewp--hide-region "⬜" start (point))))))))
+	    (ewp--hide-region "⬜" start (point)))))
+      ;; Hide <video>.
+      (goto-char (point-min))
+      (while (re-search-forward "<video[ \n]" nil t)
+	(unless (get-text-property (match-beginning 0) 'ewp-element)
+	  (goto-char (match-beginning 0))
+	  (let ((start (point)))
+	    (search-forward "</video>")
+	    (ewp--hide-region "🎥" start (point))))))))
 
 (defvar ewp--element-id 0)
 
