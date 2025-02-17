@@ -1222,11 +1222,10 @@ If MAX (the numerical prefix), just do that many thumbnails."
 	  (if-let ((end
 		    (save-excursion
 		      (and (looking-at " *<img[ \n]")
-			   (progn
-			     (with-syntax-table sgml-mode-syntax-table
-			       (forward-sexp))
-			     (looking-at " *</a>")
-			     (match-end 0))))))
+			   (with-syntax-table sgml-mode-syntax-table
+			     (forward-sexp))
+			   (looking-at " *</a>")
+			   (match-end 0)))))
 	      (progn
 		(goto-char end)
 		(ewp--hide-region "🔳" start end))
@@ -1239,7 +1238,7 @@ If MAX (the numerical prefix), just do that many thumbnails."
       ;; Hide <img>.
       (goto-char (point-min))
       (while (re-search-forward "<img[ \n]" nil t)
-	(unless (get-text-property (match-beginning 0) 'ewp-element)
+	(unless (get-text-property (match-end 0) 'ewp-element)
 	  (goto-char (match-beginning 0))
 	  (let ((start (point)))
 	    (with-syntax-table sgml-mode-syntax-table
