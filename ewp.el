@@ -1275,17 +1275,17 @@ If MAX (the numerical prefix), just do that many thumbnails."
 			   (get-text-property start 'ewp-display)))))))
 
 (defun ewp-remove-image-thumbnails ()
-  "Remove thumbnails."
+  "Remove thumbnails and display hidden HTML."
   (interactive)
   (with-silent-modifications
     (save-excursion
       (goto-char (point-min))
-      (while (not (eobp))
-	(when-let* ((props (get-text-property (point) 'display)))
-	  (when (and (consp props)
-		     (eq (car props) 'image))
-	    (put-text-property (point) (1+ (point)) 'display nil)))
-	(forward-char 1)))))
+      (while-let ((props (text-property-search-forward 'display)))
+	(when (or (imagep (prop-match-value props))
+		  (stringp (prop-match-value props)))
+	  (put-text-property (prop-match-beginning props)
+			     (prop-match-end props)
+			     'display nil))))))
 
 (defun ewp-browse ()
   "Display the blog post under point with `eww'."
