@@ -414,6 +414,7 @@ If ALL (the prefix), load all the posts in the blog."
     (insert (or (cdr (assoc "description" post)) ""))
     (goto-char (point-min))
     (ewp-save-buffer id)
+    (ewp--hide-links)
     (setq-local ewp-post post)))
 
 (defun ewp-update-images (max)
