@@ -1204,6 +1204,31 @@ If MAX (the numerical prefix), just do that many thumbnails."
   (ewp-update-images max)
   (message "Inserting image thumbnails..."))
 
+(defun ewp--hide-links ()
+  (save-excursion
+    (with-buffer-unmodified-if-unchanged
+      (goto-char (point-min))
+      (while (re-search-forward "\\(<a .*?>\\).*?\\(</a>\\)" nil t)
+	(ewp--hide-region "[" (match-beginning 1) (match-end 1))
+	(ewp--hide-region "]" (match-beginning 2) (match-end 2))))))
+
+(defvar ewp--element-id 0)
+
+(defun ewp--hide-region (string start end)
+  (put-text-property start end 'ewp-element (cl-incf ewp--element-id))
+  (let ((st (propertize string 'face 'font-lock-keyword-face)))
+    (put-text-property start end 'ewp-display st)
+    (put-text-property start end 'display st)))
+
+(defun ewp--toggle-element-display ()
+  (let ((end (prop-match-end (text-property-search-forward 'ewp-element)))
+	(start (prop-match-beginning
+		(text-property-search-backward 'ewp-element))))
+    (if (get-text-property (point) 'display)
+	(put-text-property start end 'display nil)
+      (put-text-property start end 'display
+			 (get-text-property start 'ewp-display)))))
+
 (defun ewp-remove-image-thumbnails ()
   "Remove thumbnails."
   (interactive)
@@ -1289,7 +1314,10 @@ All normal editing commands are switched off.
       (completion-at-point))
     ;; Completion was performed; nothing else to do.
     nil)
-   (t (indent-relative))))
+   ((get-text-property (point) 'ewp-element)
+    (ewp--toggle-element-display))
+   (t
+    (indent-relative))))
 
 (defun ewp-complete-category ()
   (and (save-excursion
