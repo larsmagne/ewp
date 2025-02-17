@@ -1207,10 +1207,43 @@ If MAX (the numerical prefix), just do that many thumbnails."
 (defun ewp--hide-links ()
   (save-excursion
     (with-buffer-unmodified-if-unchanged
+      ;; Hide <a> links.
       (goto-char (point-min))
-      (while (re-search-forward "\\(<a .*?>\\).*?\\(</a>\\)" nil t)
-	(ewp--hide-region "[" (match-beginning 1) (match-end 1))
-	(ewp--hide-region "]" (match-beginning 2) (match-end 2))))))
+      (while (re-search-forward "<a[ \n]" nil t)
+	(goto-char (match-beginning 0))
+	(let ((start (point)))
+	  (with-syntax-table sgml-mode-syntax-table
+	    (forward-sexp))
+	  ;; Images in WordPress are typically represented as
+	  ;; <a ...><img ...></a> so that you can click on them
+	  ;; to see a bigger version.  Handle this specially so we only
+	  ;; get one symbol for the entire construction instead of three.
+	  (if-let ((end
+		    (save-excursion
+		      (and (looking-at " *<img[ \n]")
+			   (progn
+			     (with-syntax-table sgml-mode-syntax-table
+			       (forward-sexp))
+			     (looking-at " *</a>")
+			     (match-end 0))))))
+	      (progn
+		(goto-char end)
+		(ewp--hide-region "🔳" start end))
+	    (ewp--hide-region "[" start (point)))))
+      ;; Hide </a>.
+      (goto-char (point-min))
+      (while (re-search-forward "</a>" nil t)
+	(unless (get-text-property (match-beginning 0) 'ewp-element)
+	  (ewp--hide-region "]" (match-beginning 0) (match-end 0))))
+      ;; Hide <img>.
+      (goto-char (point-min))
+      (while (re-search-forward "<img[ \n]" nil t)
+	(unless (get-text-property (match-beginning 0) 'ewp-element)
+	  (goto-char (match-beginning 0))
+	  (let ((start (point)))
+	    (with-syntax-table sgml-mode-syntax-table
+	      (forward-sexp))
+	    (ewp--hide-region "⬜" start (point))))))))
 
 (defvar ewp--element-id 0)
 
@@ -1218,16 +1251,27 @@ If MAX (the numerical prefix), just do that many thumbnails."
   (put-text-property start end 'ewp-element (cl-incf ewp--element-id))
   (let ((st (propertize string 'face 'font-lock-keyword-face)))
     (put-text-property start end 'ewp-display st)
-    (put-text-property start end 'display st)))
+    (put-text-property start end 'display st)
+    (put-text-property (1- end) end 'rear-nonsticky t)))
 
 (defun ewp--toggle-element-display ()
   (let ((end (prop-match-end (text-property-search-forward 'ewp-element)))
 	(start (prop-match-beginning
 		(text-property-search-backward 'ewp-element))))
-    (if (get-text-property (point) 'display)
+    (with-buffer-unmodified-if-unchanged
+      (cond
+       ((stringp (get-text-property (point) 'display))
 	(put-text-property start end 'display nil)
-      (put-text-property start end 'display
-			 (get-text-property start 'ewp-display)))))
+	;; See if we have an image to expand.
+	(when-let* ((dom (libxml-parse-html-region start end))
+		    (img (dom-by-tag dom 'img)))
+	  (ewp-update-image (list (dom-attr img 'src))
+			    (current-buffer))))
+       ((imagep (get-text-property (point) 'display))
+	(put-text-property start end 'display nil))
+       (t
+	(put-text-property start end 'display
+			   (get-text-property start 'ewp-display)))))))
 
 (defun ewp-remove-image-thumbnails ()
   "Remove thumbnails."
