@@ -24,14 +24,14 @@
 
 ;; xml-rpc from https://github.com/hexmode/xml-rpc-el
 
-;; # apt install exiftool
-;; if you want images to be properly rotated.
-
 ;; `M-x ewp' to get started.
 
-;; To handle image and videos you should have ImageMagick and ffmpeg
-;; installed.  To enable screenshots of sites you link to, install
-;; cutycapt.
+;; To deal with image rotation, install exiftool.  To handle image and
+;; videos you should have ImageMagick and ffmpeg installed.  To enable
+;; screenshots of sites you link to, install cutycapt, so in total,
+;; that's (in Debian):
+
+;; apt install libimage-exiftool-perl ffmpeg imagemagick cutycapt
 
 ;; If you have several blogs you can list them all:
 
