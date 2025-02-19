@@ -44,6 +44,7 @@
 (require 'sgml-mode)
 (require 'vtable)
 (require 'image-crop)
+(require 'exif)
 
 (defvar ewp-blog-address nil
   "The name/address of the blog, like my.example.blog.")
@@ -109,6 +110,12 @@ The fourth element is the URL prefix to be used for the resulting URL.")
   "Function called to insert a screenshot in the current buffer.
 Possible functions are `ewp-screenshot-imagemagick' and
 `ewp-screenshot-gnome'.")
+
+(defvar ewp-watch-directory nil
+  "Directory to automatically insert images from.")
+
+(defvar ewp--timers nil)
+(defvar ewp--deletable-files nil)
 
 (defvar ewp-post)
 (defvar ewp-address)
@@ -531,10 +538,15 @@ If ALL (the prefix), load all the posts in the blog."
   ;; for ewp buffers.
   (setq-local yank-excluded-properties
 	      (delete 'keymap yank-excluded-properties))
+  (setq-local ewp--timers nil
+	      ewp--deletable-files nil)
   (keymap-set image-map "i c" #'ewp-image-crop)
   (keymap-set image-map "i x" #'ewp-image-cut)
   (keymap-set image-map "i w" #'ewp-image-view)
   (auto-save-mode 1)
+  ;; Automatically insert images.
+  (when ewp-watch-directory
+    (ewp-watch-directory ewp-watch-directory))
   (run-hooks 'ewp-edit-hook))
 
 (defun ewp--update-image-crop (_text image)
@@ -547,9 +559,21 @@ If ALL (the prefix), load all the posts in the blog."
 	    (base64-encode-region (point-min) (point-max) t)
 	    (buffer-string))))
 
+(defun ewp--delete-files (files)
+  "Delete FILES and if possible, also the parent director{y,ies} of FILES."
+  (dolist (file files)
+    (when (file-exists-p file)
+      (delete-file file))
+    (let ((dir (file-name-directory file)))
+      (when (and (file-exists-p dir)
+		 (directory-empty-p dir))
+	(delete-directory dir)))))
+
 (defun ewp-update-post ()
   "Update the post in the current buffer on Wordpress."
   (interactive)
+  (mapc #'cancel-timer ewp--timers)
+  (setq ewp--timers nil)
   (run-hooks 'ewp-send-hook)
   (when (buffer-file-name)
     (save-buffer))
@@ -619,7 +643,10 @@ If ALL (the prefix), load all the posts in the blog."
 		 (if ewp-post
 		     "Edited"
 		   "Posted"))
-	(bury-buffer)))))
+	(bury-buffer))))
+  ;; Clean up /tmp/ storage.
+  (ewp--delete-files ewp--deletable-files)
+  (setq ewp--deletable-files nil))
 
 (defun ewp-node (symbol &rest values)
   `(,symbol nil ,@(delq nil values)))
@@ -3005,6 +3032,163 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 					  (eq (car prop) 'image))))))
     (setf (image-property (prop-match-value match) :rotation)
 	  (float 270))))
+
+(defvar ewp-watch-directory-rescale nil
+  "Size to rescale images to when inserting.
+This should be a string like \"2048x\".")
+  
+(defvar ewp-watch-directory-trim-fuzz "4%"
+  "Fuzz to use when trimming images.")
+
+(defun ewp-watch-directory (directory &optional match no-ignore-existing
+				      separator trim)
+  "Watch DIRECTORY for new files and insert them in the buffer when they appear.
+If MATCH, insert the files that match this name.  Defaults to .JPG.
+
+If NO-IGNORE-EXISTING, don't ignore existing files in DIRECTORY.
+
+If SEPARATOR, it should be a string to insert after inserting an image.
+
+If TRIM, automatically crop images.  This is useful for
+screenshots from TV, for instance."
+  (interactive "DDirectory to watch: ")
+  (let* ((data (make-vector 2 nil))
+	 (files (if no-ignore-existing
+		    nil
+		  (directory-files directory t)))
+	 timer)
+    (setf (elt data 0) files)
+    (setq timer
+	  (run-at-time
+	   1 1 #'ewp--watch-directory
+	   data files directory (current-buffer) match
+	   separator trim))
+    (setf (elt data 1) timer)
+    (push timer ewp--timers)
+    timer))
+
+(defun ewp--watch-directory (data orig-files directory buffer match
+				  separator trim)
+  (if (not (buffer-live-p buffer))
+      ;; Cancel ourself if the buffer is killed.
+      (cancel-timer (elt data 1))
+    (let ((files (elt data 0))
+	  new)
+      (dolist (file (directory-files directory t))
+	(when (and (not (member file files))
+		   (string-match (or match "[.][Jj][Pp][Gg]\\'")
+				 (file-name-nondirectory file))
+		   (plusp (file-attribute-size (file-attributes file)))
+		   (ewp--file-complete-p file))
+	  (when (or ewp-watch-directory-rescale trim)
+	    (let ((crop (and trim
+			     (ewp--find-crop
+			      buffer directory (or match "[.][Jj][Pp][Gg]\\'")
+			      orig-files))))
+	      (unless (file-exists-p "/tmp/ewp/")
+		(make-directory "/tmp/ewp/"))
+	      (setq new (ewp--uniqify-file-name
+			 (expand-file-name
+			  (file-name-nondirectory file) "/tmp/ewp/")))
+	      (apply
+	       #'call-process
+	       `("convert" nil nil nil
+		 ,@(if ewp-watch-directory-rescale
+		       `("-scale" ,ewp-watch-directory-rescale))
+		 ,@(if trim
+		       (if crop
+			   ;; If we have a crop factor, use it.
+			   (list "-crop"
+				 (apply #'format "%dx%d+%d+%d" crop))
+			 ;; If not, auto-fuzz.
+			 (list "-trim" "-fuzz"
+			       ewp-watch-directory-trim-fuzz)))
+		 ,file ,new)))
+	    (push file files)
+	    (setq file new)
+	    (push new ewp--deletable-files))
+	  (with-current-buffer buffer
+	    (let ((edges (window-inside-pixel-edges
+			  (get-buffer-window (current-buffer) t))))
+	      (save-excursion
+		(goto-char (point-max))
+		;; If we're just after an image, leave
+		;; several empty lines (to type in).  If not,
+		;; just one empty line.
+		(if (save-excursion
+		      (and (re-search-backward "^[^\n]" nil t)
+			   (looking-at "<img")))
+		    (ensure-empty-lines 3)
+		  (ensure-empty-lines 1))
+		(unless (file-exists-p "/tmp/ewp/")
+		  (make-directory "/tmp/ewp/"))
+		(let ((start (point))
+		      ;; Emacs can get really slow when
+		      ;; displaying large images.  So resize
+		      ;; and display a smaller one instead.
+		      (smaller-file
+		       (concat
+			(make-temp-name "/tmp/ewp/wd-")
+			(file-name-nondirectory file))))
+		  (push smaller-file ewp--deletable-files)
+		  (call-process "convert" nil nil nil
+				"-resize" "800x"
+				file smaller-file)
+		  (insert-image
+		   (create-image
+		    smaller-file (ewp--image-type) nil
+		    :max-width
+		    (truncate
+		     (* 0.95 (- (nth 2 edges) (nth 0 edges))))
+		    :max-height
+		    (truncate
+		     (* 0.7 (- (nth 3 edges) (nth 1 edges))))
+		    :rotation
+		    (exif-orientation
+		     (ignore-error exif-error
+		       (exif-parse-file file))))
+		   (format "<img src=%S>" file))
+		  (put-text-property start (point) 'help-echo file)
+		  (plist-put (cdr (get-text-property start 'display))
+			     :original-file file))
+		(insert "\n\n")
+		(when separator
+		  (insert separator)))))
+	  ;; Keep track of the inserted files.
+	  (push file files)
+	  (setf (elt data 0) files))))))
+
+(defun ewp--file-complete-p (file)
+  "Say whether FILE has been completely written to file."
+  (with-temp-buffer
+    (zerop (call-process "identify" nil t nil
+			 "-regard-warnings" file))))
+
+(defvar-local ewp--crop-factor nil)
+
+(defun ewp--find-crop (buffer dir match &optional ignore-files)
+  "Find a crop factor based on the files in DIR matching MATCH."
+  (with-current-buffer buffer
+    (or ewp--crop-factor
+	(when-let* ((files (seq-take (reverse
+				      (seq-difference
+				       (directory-files dir t match)
+				       ignore-files))
+				     10))
+		    (crop (meme--find-crop files)))
+	  ;; If we have a reasonable number of files, then cache the
+	  ;; results so that things are less slow.
+	  (when (> (length files) 9)
+	    (setq-local ewp--crop-factor crop))
+	  crop))))
+
+(defun ewp--uniqify-file-name (file)
+  (let ((num 2))
+    (while (file-exists-p file)
+      (setq file (replace-regexp-in-string "\\(-[0-9]+\\)?[.]"
+					   (format "-%d." num) file))
+      (cl-incf num)))
+  file)
 
 (provide 'ewp)
 

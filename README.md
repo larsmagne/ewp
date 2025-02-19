@@ -61,7 +61,7 @@ There are five different modes made available by this package:
 * C-c C-c: Post your edits to the blog.  This will update your Wordpress.
 * C-c C-d: Download the image in the kill ring and insert it.
 * C-c C-i: Insert an image into the buffer.
-* C-c C-l: Remove one layer of HTML tagging.
+* C-c C-l: Insert a Lyte tag.
 * C-c C-m: Yank the current text/html markup from the X selection.
 * C-c C-n: Extract the <a>...</a> bit from the region.
 * C-c C-o: Quote HTML entities in region.
@@ -78,6 +78,7 @@ There are five different modes made available by this package:
 * TAB:     In the Categories header, provide category completion.
 
 * M-x ewp-set-featured-image: Set the featured image to image under point.
+* M-x ewp-remove-html-layer: Remove one layer of HTML tagging.
 
 ## ewp-list-media-mode:
 
@@ -109,3 +110,20 @@ There are five different modes made available by this package:
 ## Other commands:
 
 * `M-x ewp-edit-url': Prompt for an URL and edit that post.
+
+## Images.
+
+You can insert images "manually" with the commands described above,
+but ewp can also insert images automatically.  This is usually useful
+when doing things like screenshots of movies (where the screenshots
+land in some directory while you're watching the movie), or you have a
+camera that automatically uploads images you snap.
+
+If you set the variable `ewp-watch-directory' to point to a directory
+(before starting a blog post edit), all new images in that directory
+will be inserted into the blog post you're editing.
+
+You can also use the `M-x ewp-watch-directory' command manually in an
+ewp edit mode buffer.  It takes optional parameters to allow you to
+further specify which files to match, and whether to crop/resize
+images automatically.
