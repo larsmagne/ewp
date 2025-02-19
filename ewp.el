@@ -1,6 +1,6 @@
 ;;; ewp.el --- Manage and Edit Wordpress Posts -*- lexical-binding: t -*-
 
-;; Copyright (C) 2018-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2018-2025 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: wordpress, blogs
@@ -28,6 +28,9 @@
 ;; if you want images to be properly rotated.
 
 ;; `M-x ewp' to get started.
+
+;; To handle image and videos you should have ImageMagick and ffmpeg
+;; installed.
 
 ;; If you have several blogs you can list them all:
 
