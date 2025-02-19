@@ -1054,7 +1054,7 @@ If ALL (the prefix), load all the posts in the blog."
 	  (unless (save-excursion
 		    (re-search-forward "poster=\"\\([^\"]+\\)\""
 				       (max end (line-end-position)) t))
-	    (ewp--add-video-poster file))
+	    (push (ewp--add-video-poster file) ewp--deletable-files))
 	  (when (or (setq new-url (ewp--possibly-upload-via-ssh file address))
 		    (when-let* ((result
 				 (ewp--upload-file
@@ -1109,7 +1109,9 @@ If ALL (the prefix), load all the posts in the blog."
 	      "-frames:v" "1" "-ss" "0"
 	      "-vf" "thumbnail,scale=-1:720"
 	      (concat prefix "%03d.jpg")))
-	(insert (format " poster=%S " (concat prefix "001.jpg")))))))
+	(let ((output (concat prefix "001.jpg")))
+	  (insert (format " poster=%S " output))
+	  output)))))
 
 (defun ewp-transform-and-upload-links (address)
   "Look for external links and create cached screenshots for those."
