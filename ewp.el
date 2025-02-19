@@ -1100,7 +1100,7 @@ If ALL (the prefix), load all the posts in the blog."
 
 (defun ewp--add-video-poster (file)
   (when (executable-find "ffmpeg")
-    (let ((prefix (make-temp-name "/tmp/poster")))
+    (let ((prefix (ewp--temp-name "poster")))
       (when (zerop
 	     (call-process
 	      "ffmpeg" nil nil nil
@@ -1123,7 +1123,7 @@ If ALL (the prefix), load all the posts in the blog."
 	    (forward-sexp))
 	  (let* ((dom (nth 2 (nth 2 (libxml-parse-html-region start (point)))))
 		 (url (url-generic-parse-url (dom-attr dom 'href)))
-		 (file (concat (make-temp-name "/tmp/ewp") ".png")))
+		 (file (ewp--temp-name "ewp" ".png")))
 	    ;; Local file.
 	    (when (and (not (equal (url-host url) address))
 		       (dom-attr dom 'screenshot)
@@ -1543,9 +1543,16 @@ If given a prefix, yank from the clipboard."
 	      (delete-region tstart (point))
 	    (buffer-substring-no-properties tend (1- (point))))))))))
 
-(defun ewp-insert-video-file (file)
-  "Prompt for a file and insert a <video> tag.."
-  (interactive "fVideo file: ")
+(defun ewp-insert-video-file (file &optional rescale)
+  "Prompt for a file and insert a <video> tag.
+If RESCALE (interactively, the prefix, non-interactively the
+width), rescale and convert the file to mp4."
+  (interactive "fVideo file: \nP")
+  (when rescale
+    (unless (numberp rescale)
+      (setq rescale (read-number "Rescale video to width (in pixels): "))
+      (setq file (ewp-rescale-video file rescale))
+      (push file ewp--deletable-files)))
   (insert (format "<video autoplay loop muted><source src=%S type=\"video/mp4\"></video>\n\n"
 		  file)))
 
@@ -2084,7 +2091,7 @@ starting the screenshotting process."
   (call-process "import" nil (current-buffer) nil "jpeg:-"))
 
 (defun ewp-screenshot-gnome ()
-  (let ((file (concat (make-temp-file "/tmp/ewp-screenshot") ".jpg")))
+  (let ((file (ewp--temp-name "ewp-screenshot" ".jpg")))
     (unwind-protect
 	(call-process "gnome-screenshot" nil nil nil
 		      "-a" "-f" file)
@@ -3085,8 +3092,6 @@ screenshots from TV, for instance."
 			     (ewp--find-crop
 			      buffer directory (or match "[.][Jj][Pp][Gg]\\'")
 			      orig-files))))
-	      (unless (file-exists-p "/tmp/ewp/")
-		(make-directory "/tmp/ewp/"))
 	      (setq new (ewp--uniqify-file-name
 			 (expand-file-name
 			  (file-name-nondirectory file) "/tmp/ewp/")))
@@ -3120,15 +3125,13 @@ screenshots from TV, for instance."
 			   (looking-at "<img")))
 		    (ensure-empty-lines 3)
 		  (ensure-empty-lines 1))
-		(unless (file-exists-p "/tmp/ewp/")
-		  (make-directory "/tmp/ewp/"))
 		(let ((start (point))
 		      ;; Emacs can get really slow when
 		      ;; displaying large images.  So resize
 		      ;; and display a smaller one instead.
 		      (smaller-file
 		       (concat
-			(make-temp-name "/tmp/ewp/wd-")
+			(ewp--temp-name "wd" (file-name-extension file))
 			(file-name-nondirectory file))))
 		  (push smaller-file ewp--deletable-files)
 		  (call-process "convert" nil nil nil
@@ -3189,6 +3192,24 @@ screenshots from TV, for instance."
 					   (format "-%d." num) file))
       (cl-incf num)))
   file)
+
+(defun ewp--temp-name (prefix &rest bits)
+  (let* ((dir "/tmp/ewp/")
+	 (file (apply #'concat
+		      (make-temp-name (expand-file-name prefix dir))
+		      bits)))
+    (unless (file-exists-p dir)
+      (make-directory dir))
+    (expand-file-name file dir)))
+
+(defun ewp-rescale-video (file width)
+  "Rescale FILE and convert into mp4."
+  (interactive "fVideo file: \nnWidth (in pixels): ")
+  (let ((output (ewp--temp-name "video-" ".mp4")))
+    (call-process "ffmpeg" nil nil nil
+		  "-i" file
+		  "-vf" (format "scale=%d:-1" width) output)
+    output))
 
 (provide 'ewp)
 
