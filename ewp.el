@@ -48,6 +48,8 @@
 (require 'vtable)
 (require 'image-crop)
 (require 'exif)
+(require 'filenotify)
+(require 'iso8601)
 
 (defvar ewp-blog-address nil
   "The name/address of the blog, like my.example.blog.")
@@ -119,6 +121,7 @@ Possible functions are `ewp-screenshot-imagemagick' and
 
 (defvar ewp--timers nil)
 (defvar ewp--deletable-files nil)
+(defvar ewp--notification-descriptors nil)
 
 (defvar ewp-post)
 (defvar ewp-address)
@@ -542,6 +545,7 @@ If ALL (the prefix), load all the posts in the blog."
   (setq-local yank-excluded-properties
 	      (delete 'keymap yank-excluded-properties))
   (setq-local ewp--timers nil
+	      ewp--notification-descriptors nil
 	      ewp--deletable-files nil)
   (keymap-set image-map "i c" #'ewp-image-crop)
   (keymap-set image-map "i x" #'ewp-image-cut)
@@ -577,6 +581,8 @@ If ALL (the prefix), load all the posts in the blog."
   (interactive)
   (mapc #'cancel-timer ewp--timers)
   (setq ewp--timers nil)
+  (mapc #'file-notify-rm-watch ewp--notification-descriptors)
+  (setq ewp--notification-descriptors nil)
   (run-hooks 'ewp-send-hook)
   (when (buffer-file-name)
     (save-buffer))
@@ -1751,6 +1757,27 @@ width), rescale and convert the file to mp4."
 	       svg)
 	     :scale 1)))
 
+(defvar-keymap ewp-list-media-mode-map
+  "g" #'ewp-list-media
+  "w" #'ewp-copy-media
+  "u" #'ewp-copy-url
+  "m" #'ewp-upload-media
+  "r" #'ewp-rotate-media
+  "RET" #'ewp-show-media
+  "DEL" #'ewp-delete-media
+  "n" #'ewp-show-media-goto-next
+  "SPC" #'ewp-toggle-media-mark
+  "U" #'ewp-remove-media-marks
+  ">" #'ewp-load-more-media)
+
+(define-derived-mode ewp-list-media-mode special-mode "ewp"
+  "Major mode for listing Wordpress media.
+
+All normal editing commands are switched off.
+\\<ewp-list-media-mode-map>"
+  (setq truncate-lines t)
+  (setq-local ewp-marks nil))
+
 (defun ewp-list-media (&optional address old-media)
   "List the media on the ADDRESS blog."  
   (interactive)
@@ -1876,27 +1903,6 @@ width), rescale and convert the file to mp4."
   "Load more media from the blog."
   (interactive)
   (ewp-list-media ewp-address (ewp-current-data)))
-
-(defvar-keymap ewp-list-media-mode-map
-  "g" #'ewp-list-media
-  "w" #'ewp-copy-media
-  "u" #'ewp-copy-url
-  "m" #'ewp-upload-media
-  "r" #'ewp-rotate-media
-  "RET" #'ewp-show-media
-  "DEL" #'ewp-delete-media
-  "n" #'ewp-show-media-goto-next
-  "SPC" #'ewp-toggle-media-mark
-  "U" #'ewp-remove-media-marks
-  ">" #'ewp-load-more-media)
-
-(define-derived-mode ewp-list-media-mode special-mode "ewp"
-  "Major mode for listing Wordpress media.
-
-All normal editing commands are switched off.
-\\<ewp-list-media-mode-map>"
-  (setq truncate-lines t)
-  (setq-local ewp-marks nil))
 
 (defun ewp-upload-media (file address)
   "Upload media files to Wordpress."
@@ -2239,6 +2245,26 @@ If SHORTLINK, return a \"/?p=42434\" link instead of the full URL."
 		       `(("number" . ,comments)
 			 ("offset" . ,(or offset 0)))))
 
+(defvar-keymap ewp-list-comments-mode-map
+  "g" #'ewp-list-comments
+  "RET" #'ewp-display-comment
+  "a" #'ewp-approve-comment
+  "h" #'ewp-hold-comment
+  "d" #'ewp-trash-comment
+  "u" #'ewp-undelete-comment
+  "r" #'ewp-make-comment
+  "e" #'ewp-make-comment-edit
+  ">" #'ewp-load-more-comments)
+
+(define-derived-mode ewp-list-comments-mode special-mode "ewp"
+  "Major mode for listing Wordpress comments.
+
+All normal editing commands are switched off.
+\\<ewp-list-comments-mode-map>"
+  (buffer-disable-undo)
+  (setq-local ewp-deleted-comments nil)
+  (setq truncate-lines t))
+
 (defun ewp-list-comments (&optional address old-data)
   "List the recent comments for the blog."
   (interactive)
@@ -2298,26 +2324,6 @@ If SHORTLINK, return a \"/?p=42434\" link instead of the full URL."
 	  (push elem data))
 	(forward-line 1)))
     (nreverse data)))
-
-(defvar-keymap ewp-list-comments-mode-map
-  "g" #'ewp-list-comments
-  "RET" #'ewp-display-comment
-  "a" #'ewp-approve-comment
-  "h" #'ewp-hold-comment
-  "d" #'ewp-trash-comment
-  "u" #'ewp-undelete-comment
-  "r" #'ewp-make-comment
-  "e" #'ewp-make-comment-edit
-  ">" #'ewp-load-more-comments)
-
-(define-derived-mode ewp-list-comments-mode special-mode "ewp"
-  "Major mode for listing Wordpress comments.
-
-All normal editing commands are switched off.
-\\<ewp-list-comments-mode-map>"
-  (buffer-disable-undo)
-  (setq-local ewp-deleted-comments nil)
-  (setq truncate-lines t))
 
 (defun ewp-display-comment ()
   "Display the comment under point."
@@ -3064,107 +3070,112 @@ If SEPARATOR, it should be a string to insert after inserting an image.
 If TRIM, automatically crop images.  This is useful for
 screenshots from TV, for instance."
   (interactive "DDirectory to watch: ")
-  (let* ((data (make-vector 2 nil))
+  (let* ((data (make-vector 1 nil))
 	 (files (if no-ignore-existing
 		    nil
 		  (directory-files directory t)))
-	 timer)
+	 (buffer (current-buffer))
+	 desc)
     (setf (elt data 0) files)
-    (setq timer
-	  (run-at-time
-	   1 1 #'ewp--watch-directory
-	   data files directory (current-buffer) match
-	   separator trim))
-    (setf (elt data 1) timer)
-    (push timer ewp--timers)
-    timer))
+    (setq desc (file-notify-add-watch
+		"/home/sony/ftp/" '(change)
+		(lambda (event)
+		  (cond
+		   ((eq (cadr event) 'stopped)
+		    nil)
+		   ((not (buffer-live-p buffer))
+		    ;; Cancel ourself if the buffer is killed.
+		    (file-notify-rm-watch (car event)))
+		   ((memq (cadr event) '(created changed))
+		    (ewp--watch-directory
+		     (nth 2 event)
+		     data files directory buffer match
+		     separator trim))))))
+    (push desc ewp--notification-descriptors)
+    desc))
 
-(defun ewp--watch-directory (data orig-files directory buffer match
+(defun ewp--watch-directory (file data orig-files directory buffer match
 				  separator trim)
-  (if (not (buffer-live-p buffer))
-      ;; Cancel ourself if the buffer is killed.
-      (cancel-timer (elt data 1))
-    (let ((files (elt data 0))
-	  new)
-      (dolist (file (directory-files directory t))
-	(when (and (not (member file files))
-		   (string-match (or match "[.][Jj][Pp][Gg]\\'")
-				 (file-name-nondirectory file))
-		   (plusp (file-attribute-size (file-attributes file)))
-		   (ewp--file-complete-p file))
-	  (when (or ewp-watch-directory-rescale trim)
-	    (let ((crop (and trim
-			     (ewp--find-crop
-			      buffer directory (or match "[.][Jj][Pp][Gg]\\'")
-			      orig-files))))
-	      (setq new (ewp--uniqify-file-name
-			 (expand-file-name
-			  (file-name-nondirectory file) "/tmp/ewp/")))
-	      (apply
-	       #'call-process
-	       `("convert" nil nil nil
-		 ,@(if ewp-watch-directory-rescale
-		       `("-scale" ,ewp-watch-directory-rescale))
-		 ,@(if trim
-		       (if crop
-			   ;; If we have a crop factor, use it.
-			   (list "-crop"
-				 (apply #'format "%dx%d+%d+%d" crop))
-			 ;; If not, auto-fuzz.
-			 (list "-trim" "-fuzz"
-			       ewp-watch-directory-trim-fuzz)))
-		 ,file ,new)))
-	    (push file files)
-	    (setq file new)
-	    (push new ewp--deletable-files))
-	  (with-current-buffer buffer
-	    (let ((edges (window-inside-pixel-edges
-			  (get-buffer-window (current-buffer) t))))
-	      (save-excursion
-		(goto-char (point-max))
-		;; If we're just after an image, leave
-		;; several empty lines (to type in).  If not,
-		;; just one empty line.
-		(if (save-excursion
-		      (and (re-search-backward "^[^\n]" nil t)
-			   (looking-at "<img")))
-		    (ensure-empty-lines 3)
-		  (ensure-empty-lines 1))
-		(let ((start (point))
-		      ;; Emacs can get really slow when
-		      ;; displaying large images.  So resize
-		      ;; and display a smaller one instead.
-		      (smaller-file
-		       (concat
-			(ewp--temp-name "wd" (file-name-extension file))
-			(file-name-nondirectory file))))
-		  (push smaller-file ewp--deletable-files)
-		  (call-process "convert" nil nil nil
-				"-resize" "800x"
-				file smaller-file)
-		  (insert-image
-		   (create-image
-		    smaller-file (ewp--image-type) nil
-		    :max-width
-		    (truncate
-		     (* 0.95 (- (nth 2 edges) (nth 0 edges))))
-		    :max-height
-		    (truncate
-		     (* 0.7 (- (nth 3 edges) (nth 1 edges))))
-		    :rotation
-		    (exif-orientation
-		     (ignore-error exif-error
-		       (exif-parse-file file))))
-		   (format "<img src=%S>" file))
-		  (put-text-property start (point) 'help-echo file)
-		  (plist-put (cdr (get-text-property start 'display))
-			     :original-file file))
-		(insert "\n\n")
-		(when separator
-		  (insert separator)))))
-	  ;; Keep track of the inserted files.
-	  (push file files)
-	  (setf (elt data 0) files))))))
+  (let ((files (elt data 0))
+	new)
+    (when (and (not (member file files))
+	       (string-match (or match "[.][Jj][Pp][Gg]\\'")
+			     (file-name-nondirectory file))
+	       (plusp (file-attribute-size (file-attributes file)))
+	       (ewp--file-complete-p file))
+      (when (or ewp-watch-directory-rescale trim)
+	(let ((crop (and trim
+			 (ewp--find-crop
+			  buffer directory (or match "[.][Jj][Pp][Gg]\\'")
+			  orig-files))))
+	  (setq new (ewp--uniqify-file-name
+		     (expand-file-name
+		      (file-name-nondirectory file) "/tmp/ewp/")))
+	  (apply
+	   #'call-process
+	   `("convert" nil nil nil
+	     ,@(if ewp-watch-directory-rescale
+		   `("-scale" ,ewp-watch-directory-rescale))
+	     ,@(if trim
+		   (if crop
+		       ;; If we have a crop factor, use it.
+		       (list "-crop"
+			     (apply #'format "%dx%d+%d+%d" crop))
+		     ;; If not, auto-fuzz.
+		     (list "-trim" "-fuzz"
+			   ewp-watch-directory-trim-fuzz)))
+	     ,file ,new)))
+	(push file files)
+	(setq file new)
+	(push new ewp--deletable-files))
+      (with-current-buffer buffer
+	(let ((edges (window-inside-pixel-edges
+		      (get-buffer-window (current-buffer) t))))
+	  (save-excursion
+	    (goto-char (point-max))
+	    ;; If we're just after an image, leave
+	    ;; several empty lines (to type in).  If not,
+	    ;; just one empty line.
+	    (if (save-excursion
+		  (and (re-search-backward "^[^\n]" nil t)
+		       (looking-at "<img")))
+		(ensure-empty-lines 3)
+	      (ensure-empty-lines 1))
+	    (let ((start (point))
+		  ;; Emacs can get really slow when
+		  ;; displaying large images.  So resize
+		  ;; and display a smaller one instead.
+		  (smaller-file
+		   (concat
+		    (ewp--temp-name "wd" (file-name-extension file))
+		    (file-name-nondirectory file))))
+	      (push smaller-file ewp--deletable-files)
+	      (call-process "convert" nil nil nil
+			    "-resize" "800x"
+			    file smaller-file)
+	      (insert-image
+	       (create-image
+		smaller-file (ewp--image-type) nil
+		:max-width
+		(truncate
+		 (* 0.95 (- (nth 2 edges) (nth 0 edges))))
+		:max-height
+		(truncate
+		 (* 0.7 (- (nth 3 edges) (nth 1 edges))))
+		:rotation
+		(exif-orientation
+		 (ignore-error exif-error
+		   (exif-parse-file file))))
+	       (format "<img src=%S>" file))
+	      (put-text-property start (point) 'help-echo file)
+	      (plist-put (cdr (get-text-property start 'display))
+			 :original-file file))
+	    (insert "\n\n")
+	    (when separator
+	      (insert separator)))))
+      ;; Keep track of the inserted files.
+      (push file files)
+      (setf (elt data 0) files))))
 
 (defun ewp--file-complete-p (file)
   "Say whether FILE has been completely written to file."
