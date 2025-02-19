@@ -30,7 +30,8 @@
 ;; `M-x ewp' to get started.
 
 ;; To handle image and videos you should have ImageMagick and ffmpeg
-;; installed.
+;; installed.  To enable screenshots of sites you link to, install
+;; cutycapt.
 
 ;; If you have several blogs you can list them all:
 
