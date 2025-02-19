@@ -3194,12 +3194,54 @@ screenshots from TV, for instance."
 				       (directory-files dir t match)
 				       ignore-files))
 				     10))
-		    (crop (meme--find-crop files)))
+		    (crop (meme--find-crop-1 files)))
 	  ;; If we have a reasonable number of files, then cache the
 	  ;; results so that things are less slow.
 	  (when (> (length files) 9)
 	    (setq-local ewp--crop-factor crop))
 	  crop))))
+
+(defun meme--find-crop-1 (files)
+  (let ((crops nil))
+    (dolist (file files)
+      (with-temp-buffer
+	(call-process
+	 "convert" nil '(t nil) nil
+	 "-trim" "-fuzz" ewp-watch-directory-trim-fuzz
+	 file "info:-")
+	(let* ((data (seq-take
+		      (nreverse
+		       (seq-take (nreverse
+				  (split-string (string-trim
+						 (buffer-string))))
+				 7))
+		      2))
+	       (left (string-to-number (nth 1 (split-string (cadr data)
+							    "[+-]"))))
+	       (top (string-to-number (nth 2 (split-string (cadr data)
+							   "[+-]"))))
+	       (width (string-to-number
+		       (car (split-string (car data) "x"))))
+
+	       (height (string-to-number
+			(cadr (split-string (car data) "x")))))
+	  (push (list width height left top) crops))))
+    ;; We now have a number of crops -- pick the most likely
+    ;; one.  Sort by width first.
+    (setq crops (sort crops
+		      (lambda (c1 c2)
+			(< (car c1) (car c2)))))
+    ;; Pick the ones with the median size.
+    (let* ((m (nth (/ (length crops) 2) crops))
+	   (median (* (car m) (cadr m))))
+      (setq crops (seq-filter (lambda (c)
+				(= (* (car c) (cadr c)) median))
+			      crops)))
+    ;; Pick the median offset.
+    (setq crops (sort crops
+		      (lambda (c1 c2)
+			(< (nth 2 c1) (nth 2 c2)))))
+    (nth (/ (length crops) 2) crops)))
 
 (defun ewp--uniqify-file-name (file)
   (let ((num 2))
