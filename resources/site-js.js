@@ -31,11 +31,32 @@ function hoverLink(e) {
   img.style.top = "-150px";
   img.style.left = e.pageX - left - 75 + "px";
   var time = elem.getAttribute("data-cached-time");
+  var timeParsed = new Date(time);
+  let options = {
+    year: "numeric", month: "long",
+    day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false
+  };
+  let fTime = timeParsed.toLocaleTimeString("en-us", options);
   img.title = "Click to view static version of the web page" +
-    (time? " (cache-time " + time + ")": "");
+    (time? " (cache-time " + fTime + ")": "");
   img.className = "link-hover";
-  img.onclick = function() {
-    window.location = link;
+  var go = function() {
+    window.history.pushState("site-js", "", link);
+    for (var i = 0; i < document.styleSheets.length; i++)
+      document.styleSheets[i].disabled = true;
+    document.getElementsByTagName("body")[0].innerHTML =
+      "<style> body { background: #d0d0d0; font-family: sans-serif; margin: 20px; text-align: center; } </style>" +
+      "Original Link: <a href='" + elem.href + "'>" + elem.href +
+      "</a>; <a href='" + link + "'>page cached " + fTime + "</a>.<p>" +
+      "<img src='" + link + "'>";
+    window.scrollTo(0, 0);
+    window.addEventListener("popstate", function() {
+      window.location.reload();
+    });
+  };
+  img.onclick = function(ev) {
+    ev.preventDefault();
+    go();
     return false;
   };
   elem.appendChild(img);
