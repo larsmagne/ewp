@@ -3266,7 +3266,7 @@ screenshots from TV, for instance."
   (interactive "fVideo file: \nnWidth (in pixels): ")
   (let ((output (ewp--temp-name "video-" ".mp4")))
     (call-process "ffmpeg" nil nil nil
-		  "-i" file
+		  "-i" (expand-file-name file)
 		  "-vf" (format "scale=%d:-1" width) output)
     output))
 
