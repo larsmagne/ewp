@@ -45,7 +45,7 @@ function hoverLink(e) {
     for (var i = 0; i < document.styleSheets.length; i++)
       document.styleSheets[i].disabled = true;
     document.getElementsByTagName("body")[0].innerHTML =
-      "<style> body { background: #d0d0d0; font-family: sans-serif; margin: 20px; text-align: center; } </style>" +
+      "<style> body { background: #d0d0d0; font-family: sans-serif; margin: 20px; text-align: center; } img { box-shadow: 0 30px 40px rgba(0,0,0,1); }</style>" +
       "Original Link: <a href='" + elem.href + "'>" + elem.href +
       "</a>; <a href='" + link + "'>page cached " + fTime + "</a>.<p>" +
       "<img src='" + link + "'>";
