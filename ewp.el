@@ -1946,8 +1946,11 @@ the media there instead."
 	   (kill-buffer (current-buffer))
 	   (when image
 	     (with-temp-buffer
-	       (insert-image (create-image image (ewp--image-type) t
-					   :max-width 800))
+	       (insert-image
+		(create-image
+		 image (ewp--image-type) t
+		 :max-width (truncate (* 0.95 (frame-pixel-width)))
+		 :max-height (truncate (* 0.9 (frame-pixel-height)))))
 	       (let ((max-mini-window-height 0.9))
 		 (message "%s" (buffer-string)))))))))))
 
