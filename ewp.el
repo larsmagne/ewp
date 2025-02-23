@@ -3082,6 +3082,11 @@ screenshots from TV, for instance."
 	 (buffer (current-buffer))
 	 desc)
     (setf (elt data 0) files)
+    (when no-ignore-existing
+      (dolist (file (directory-files directory t match))
+	(ewp--watch-directory
+	 file data files directory buffer match
+	 separator trim)))
     (setq desc (file-notify-add-watch
 		directory '(change attribute-change)
 		(lambda (event)
