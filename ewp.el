@@ -1135,7 +1135,8 @@ If ALL (the prefix), load all the posts in the blog."
 	    (forward-sexp))
 	  (let* ((dom (nth 2 (nth 2 (libxml-parse-html-region start (point)))))
 		 (url (url-generic-parse-url (dom-attr dom 'href)))
-		 (file (ewp--temp-name "ewp" ".png")))
+		 (file (ewp--unique-name "cache-" (format-time-string "%F")
+					 ".png")))
 	    ;; Local file.
 	    (when (and (not (equal (url-host url) address))
 		       (dom-attr dom 'screenshot)
@@ -3082,7 +3083,7 @@ screenshots from TV, for instance."
 	 desc)
     (setf (elt data 0) files)
     (setq desc (file-notify-add-watch
-		"/home/sony/ftp/" '(change)
+		directory '(change attribute-change)
 		(lambda (event)
 		  (cond
 		   ((eq (cadr event) 'stopped)
@@ -3112,9 +3113,7 @@ screenshots from TV, for instance."
 			 (ewp--find-crop
 			  buffer directory (or match "[.][Jj][Pp][Gg]\\'")
 			  orig-files))))
-	  (setq new (ewp--uniqify-file-name
-		     (expand-file-name
-		      (file-name-nondirectory file) "/tmp/ewp/")))
+	  (setq new (ewp--unique-name file))
 	  (apply
 	   #'call-process
 	   `("convert" nil nil nil
@@ -3254,6 +3253,13 @@ screenshots from TV, for instance."
 					   (format "-%d." num) file))
       (cl-incf num)))
   file)
+
+(defun ewp--unique-name (&rest bits)
+  (let* ((dir "/tmp/ewp/")
+	 (file (string-join bits)))
+    (unless (file-exists-p dir)
+      (make-directory dir))
+    (ewp--uniqify-file-name (expand-file-name file dir))))
 
 (defun ewp--temp-name (prefix &rest bits)
   (let* ((dir "/tmp/ewp/")
