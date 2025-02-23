@@ -1935,8 +1935,14 @@ the media there instead."
   (interactive)
   (let* ((data (get-text-property (point) 'vtable-object))
 	 (url (cdr (assoc "link" data))))
-    (if (not data)
-	(error "No media under point")
+    (cond
+     ((not data)
+      (error "No media under point"))
+     ;; View a movie.
+     ((string-match-p "[.]mp4\\'" url)
+      (start-process "mpv" nil "mpv" url))
+     ;; Download and view an image.
+     (t
       (url-retrieve
        url
        (lambda (_)
@@ -1953,7 +1959,7 @@ the media there instead."
 		 :max-width (truncate (* 0.95 (frame-pixel-width)))
 		 :max-height (truncate (* 0.9 (frame-pixel-height)))))
 	       (let ((max-mini-window-height 0.9))
-		 (message "%s" (buffer-string)))))))))))
+		 (message "%s" (buffer-string))))))))))))
 
 (defun ewp-delete-media-1 (url user password blog-id id)
   (xml-rpc-method-call url "wp.deletePost" blog-id user password
