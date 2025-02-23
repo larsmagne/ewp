@@ -3091,9 +3091,15 @@ screenshots from TV, for instance."
 		   ((not (buffer-live-p buffer))
 		    ;; Cancel ourself if the buffer is killed.
 		    (file-notify-rm-watch (car event)))
-		   ((memq (cadr event) '(created changed))
+		   ((memq (cadr event) '(created changed renamed))
 		    (ewp--watch-directory
-		     (nth 2 event)
+		     ;; rsync (for instance) will first write a file
+		     ;; to ...foo.jpg.bQlBGy and then rename to
+		     ;; ...foo.jpg.  In that case, the file name is in
+		     ;; the last element.
+		     (if (eq (cadr event) 'renamed)
+			 (nth 3 event)
+		       (nth 2 event))
 		     data files directory buffer match
 		     separator trim))))))
     (push desc ewp--notification-descriptors)
