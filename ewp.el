@@ -3082,6 +3082,7 @@ screenshots from TV, for instance."
 	 (buffer (current-buffer))
 	 desc)
     (setf (elt data 0) files)
+    ;; Handle initial files, if requested.
     (when no-ignore-existing
       (dolist (file (directory-files directory t match))
 	(ewp--watch-directory
