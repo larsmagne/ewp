@@ -28,10 +28,11 @@
 
 ;; To deal with image rotation, install exiftool.  To handle image and
 ;; videos you should have ImageMagick and ffmpeg installed.  To enable
-;; screenshots of sites you link to, install cutycapt, so in total,
+;; screenshots of sites you link to, install shot-scraper, so in total,
 ;; that's (in Debian):
 
-;; apt install libimage-exiftool-perl ffmpeg imagemagick cutycapt
+;; apt install libimage-exiftool-perl ffmpeg imagemagick
+;; pip install shot-scraper --break-system-packages; shot-scraper install
 
 ;; If you have several blogs you can list them all:
 
@@ -1125,7 +1126,7 @@ If ALL (the prefix), load all the posts in the blog."
 
 (defun ewp-transform-and-upload-links (address)
   "Look for external links and create cached screenshots for those."
-  (when (executable-find "cutycapt")
+  (when (executable-find "shot-scraper")
     (save-excursion
       (goto-char (point-min))
       (while (re-search-forward "<a " nil t)
@@ -1143,11 +1144,11 @@ If ALL (the prefix), load all the posts in the blog."
 		       (not (dom-attr dom 'onmouseenter)))
 	      (message "Capturing %s..." (dom-attr dom 'href))
 	      (let ((proc
-		     (start-process "capt" nil
-				    "cutycapt"
-				    "--out-format=png"
-				    (format "--url=%s" (dom-attr dom 'href))
-				    (format "--out=%s" file)))
+		     (start-process "capture" nil
+				    "shot-scraper" "shot"
+				    "-o" file
+				    "--wait" "2000"
+				    (dom-attr dom 'href)))
 		    (time (float-time)))
 		(while (and (process-live-p proc)
 			    (< (- (float-time) time) 10))
@@ -1160,6 +1161,11 @@ If ALL (the prefix), load all the posts in the blog."
 			(when (looking-at "<a screenshot=true ")
 			  (replace-match "<a "))))
 		  (when (file-exists-p file)
+		    (let ((webp (file-name-with-extension file "webp")))
+		      (when (zerop (call-process "convert" nil nil nil
+						 file webp))
+			(delete-file file)
+			(setq file webp)))
 		    (when-let* ((result
 				 (ewp--upload-file
 				  address
