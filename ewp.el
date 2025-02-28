@@ -1770,6 +1770,7 @@ width), rescale and convert the file to mp4."
   "w" #'ewp-copy-media
   "u" #'ewp-copy-url
   "m" #'ewp-upload-media
+  "v" #'ewp-rescale-and-upload-video
   "r" #'ewp-rotate-media
   "RET" #'ewp-show-media
   "DEL" #'ewp-delete-media
@@ -1926,6 +1927,10 @@ All normal editing commands are switched off.
     (with-temp-buffer
       (insert url)
       (copy-region-as-kill (point-min) (point-max)))))
+
+(defun ewp-rescale-and-upload-video (file width)
+  (interactive "fVideo file: \nnWidth: ")
+  (ewp-upload-media (ewp-rescale-video file width) ewp-address))
 
 (defun ewp-show-media-goto-next ()
   "Show the media under point.

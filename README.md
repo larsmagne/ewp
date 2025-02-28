@@ -89,6 +89,7 @@ There are five different modes made available by this package:
 * u: Copy the URL under point to the kill ring.
 * m: Upload a media file to the blog.
 * g: Rescan the media list.
+* v: Rescale and upload a video.
 * &gt;: Load more media.
 
 ## ewp-list-comments-mode:
