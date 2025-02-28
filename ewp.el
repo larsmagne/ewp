@@ -1160,6 +1160,11 @@ If ALL (the prefix), load all the posts in the blog."
 			(when (looking-at "<a screenshot=true ")
 			  (replace-match "<a "))))
 		  (when (file-exists-p file)
+		    (let ((webp (file-name-with-extension file "webp")))
+		      (when (zerop (call-process "convert" nil nil nil
+						 file webp))
+			(delete-file file)
+			(setq file webp)))
 		    (when-let* ((result
 				 (ewp--upload-file
 				  address
