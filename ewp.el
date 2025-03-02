@@ -1123,6 +1123,60 @@ If ALL (the prefix), load all the posts in the blog."
 	  (insert (format " poster=%S " output))
 	  output)))))
 
+(defvar ewp-webshot-command
+  '("cutycapt" "--out-format=png" "--url=%u" "--out=%f"))
+
+(defun ewp--multi-webshot (url)
+  (let ((files (list (ewp--webshot url)
+		     (let ((ewp-webshot-command
+			    '("shot-scraper" "shot" "-o" "%f" "--wait"
+			      "1000" "%u")))
+		       (ewp--webshot url)))))
+    (cl-loop for file in files
+	     for size = (ewp-image-size file)
+	     when (> (cdr size) (car size))
+	     do (call-process "mogrify" nil nil nil
+			      "-crop"
+			      (format "%dx%d-0-0" (car size) (car size))
+			      file))
+    files))
+
+(defun ewp--expand-webshot (command url file)
+  (cl-loop for elem in command
+	   collect (format-spec elem
+				`((?f . ,file)
+				  (?u . ,url)))))
+
+(defun ewp--webshot (url)
+  (message "Capturing %s..." url)
+  (prog1
+      (let ((file (ewp--unique-name "cache-" (format-time-string "%F")
+				    "-web.png")))
+	(let ((proc
+	       (apply #'start-process "capture" nil
+		      (ewp--expand-webshot ewp-webshot-command url file)))
+	      (time (float-time)))
+	  (while (and (process-live-p proc)
+		      (< (- (float-time) time) 10))
+	    (sit-for 0.1))
+	  (if (process-live-p proc)
+	      (progn
+		(delete-process proc)
+		(save-excursion
+		  (when (file-exists-p file)
+		    (delete-file file))
+		  nil))
+	    (when (file-exists-p file)
+	      (let ((webp (ewp--uniqify-file-name
+			   (file-name-with-extension file "webp"))))
+		(if (zerop (call-process "convert" nil nil nil
+					 file webp))
+		    (progn
+		      (delete-file file)
+		      webp)
+		  file))))))
+    (message "Capturing %s...done" url)))
+
 (defun ewp-transform-and-upload-links (address)
   "Look for external links and create cached screenshots for those."
   (when (executable-find "cutycapt")
@@ -1135,57 +1189,37 @@ If ALL (the prefix), load all the posts in the blog."
 	    (forward-sexp))
 	  (let* ((dom (nth 2 (nth 2 (libxml-parse-html-region start (point)))))
 		 (url (url-generic-parse-url (dom-attr dom 'href)))
-		 (file (ewp--unique-name "cache-" (format-time-string "%F")
-					 ".png")))
+		 file)
 	    ;; Local file.
 	    (when (and (not (equal (url-host url) address))
 		       (dom-attr dom 'screenshot)
 		       (not (dom-attr dom 'onmouseenter)))
-	      (message "Capturing %s..." (dom-attr dom 'href))
-	      (let ((proc
-		     (start-process "capt" nil
-				    "cutycapt"
-				    "--out-format=png"
-				    (format "--url=%s" (dom-attr dom 'href))
-				    (format "--out=%s" file)))
-		    (time (float-time)))
-		(while (and (process-live-p proc)
-			    (< (- (float-time) time) 10))
-		  (sit-for 0.1))
-		(if (process-live-p proc)
-		    (progn
-		      (delete-process proc)
-		      (save-excursion
-			(goto-char start)
-			(when (looking-at "<a screenshot=true ")
-			  (replace-match "<a "))))
-		  (when (file-exists-p file)
-		    (let ((webp (file-name-with-extension file "webp")))
-		      (when (zerop (call-process "convert" nil nil nil
-						 file webp))
-			(delete-file file)
-			(setq file webp)))
-		    (when-let* ((result
-				 (ewp--upload-file
-				  address
-				  (file-name-nondirectory file)
-				  (mailcap-file-name-to-mime-type file)
-				  (with-temp-buffer
-				    (set-buffer-multibyte nil)
-				    (insert-file-contents-literally
-				     file)
-				    (base64-encode-region (point-min)
-							  (point-max))
-				    (buffer-string))))
-				(image-url (cdr (assoc "url" result))))
-		      (delete-region start (point))
-		      (dom-remove-attribute dom 'screenshot)
-		      (dom-set-attribute dom 'data-cached-time
-					 (format-time-string "%FT%T"))
-		      (dom-set-attribute dom 'data-cached-image image-url)
-		      (dom-set-attribute dom 'onmouseenter "hoverLink(event)")
-		      (ewp-print-html dom t)
-		      (delete-file file))))))))))))
+	      (if (not (setq file (ewp--webshot url)))
+		  (save-excursion
+		    (goto-char start)
+		    (when (looking-at "<a screenshot=true ")
+		      (replace-match "<a ")))
+		(when-let* ((result
+			     (ewp--upload-file
+			      address
+			      (file-name-nondirectory file)
+			      (mailcap-file-name-to-mime-type file)
+			      (with-temp-buffer
+				(set-buffer-multibyte nil)
+				(insert-file-contents-literally
+				 file)
+				(base64-encode-region (point-min)
+						      (point-max))
+				(buffer-string))))
+			    (image-url (cdr (assoc "url" result))))
+		  (delete-region start (point))
+		  (dom-remove-attribute dom 'screenshot)
+		  (dom-set-attribute dom 'data-cached-time
+				     (format-time-string "%FT%T"))
+		  (dom-set-attribute dom 'data-cached-image image-url)
+		  (dom-set-attribute dom 'onmouseenter "hoverLink(event)")
+		  (ewp-print-html dom t)
+		  (delete-file file))))))))))
 
 (defun dom-remove-attribute (node attribute)
   "Remove ATTRIBUTE from NODE."
@@ -2196,9 +2230,13 @@ If SHORTLINK, return a \"/?p=42434\" link instead of the full URL."
 (defun ewp--identify (image)
   (with-temp-buffer
     (set-buffer-multibyte nil)
-    (if (plist-get (cdr image) :file)
-	(insert-file-contents-literally (ewp--image-file image))
-      (insert (plist-get (cdr image) :data)))
+    (cond
+     ((stringp image)
+      (insert-file-contents-literally image))
+     ((plist-get (cdr image) :file)
+      (insert-file-contents-literally (ewp--image-file image)))
+     (t
+      (insert (plist-get (cdr image) :data))))
     (call-process-region (point-min) (point-max) "identify" t (current-buffer)
 			 nil "-")
     (buffer-string)))
