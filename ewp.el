@@ -1124,22 +1124,19 @@ If ALL (the prefix), load all the posts in the blog."
 	  output)))))
 
 (defvar ewp-webshot-command
-  '("cutycapt" "--out-format=png" "--url=%u" "--out=%f"))
+  '("cutywrap" "%u"))
 
-(defun ewp--multi-webshot (url)
-  (let ((files (list (ewp--webshot url)
-		     (let ((ewp-webshot-command
-			    '("shot-scraper" "shot" "-o" "%f" "--wait"
-			      "1000" "%u")))
-		       (ewp--webshot url)))))
-    (cl-loop for file in files
-	     for size = (ewp-image-size file)
-	     when (> (cdr size) (car size))
-	     do (call-process "mogrify" nil nil nil
-			      "-crop"
-			      (format "%dx%d-0-0" (car size) (car size))
-			      file))
-    files))
+(defun ewp--multi-webshot (url methods)
+  (cl-loop for method in methods
+	   for file = (let ((ewp-webshot-command method))
+			(ewp--webshot url))
+	   for size = (and file (ewp-image-size file))
+	   when (and size (> (cdr size) (car size)))
+	   do (call-process "mogrify" nil nil nil
+			    "-crop"
+			    (format "%dx%d-0-0" (car size) (car size))
+			    file)
+	   collect file))
 
 (defun ewp--expand-webshot (command url file)
   (cl-loop for elem in command
@@ -1151,35 +1148,44 @@ If ALL (the prefix), load all the posts in the blog."
   (message "Capturing %s..." url)
   (prog1
       (let ((file (ewp--unique-name "cache-" (format-time-string "%F")
-				    "-web.png")))
-	(let ((proc
-	       (apply #'start-process "capture" nil
-		      (ewp--expand-webshot ewp-webshot-command url file)))
-	      (time (float-time)))
-	  (while (and (process-live-p proc)
-		      (< (- (float-time) time) 10))
-	    (sit-for 0.1))
-	  (if (process-live-p proc)
-	      (progn
-		(delete-process proc)
-		(save-excursion
-		  (when (file-exists-p file)
-		    (delete-file file))
-		  nil))
-	    (when (file-exists-p file)
-	      (let ((webp (ewp--uniqify-file-name
-			   (file-name-with-extension file "webp"))))
-		(if (zerop (call-process "convert" nil nil nil
-					 file webp))
-		    (progn
-		      (delete-file file)
-		      webp)
-		  file))))))
+				    "-web.png"))
+	    (exec-path (cons (file-name-directory (locate-library "ewp"))
+			     exec-path)))
+	(with-temp-buffer
+	  (set-buffer-multibyte nil)
+	  (let ((proc
+		 (make-process
+		  :name "capture" 
+		  :command (ewp--expand-webshot ewp-webshot-command url file)
+		  :stderr (get-buffer-create "*errors*")
+		  :sentinel (lambda (&rest _))
+		  :buffer (current-buffer)))
+		(time (float-time)))
+	    (while (and (process-live-p proc)
+			(< (- (float-time) time) 10))
+	      (sit-for 0.1))
+	    (if (process-live-p proc)
+		(progn
+		  (delete-process proc)
+		  nil)
+	      (unless (zerop (buffer-size))
+		(let ((webp (ewp--uniqify-file-name
+			     (file-name-with-extension file "webp"))))
+		  (if (zerop (call-process-region
+			      (point-min) (point-max)
+			      "convert" nil nil nil
+			      "png:-" webp))
+		      webp
+		    (write-region (point-min) (point-max)
+				  file nil 'silent)
+		    file)))))))
     (message "Capturing %s...done" url)))
 
 (defun ewp-transform-and-upload-links (address)
   "Look for external links and create cached screenshots for those."
-  (when (executable-find "cutycapt")
+  (when (let ((exec-path (cons (file-name-directory (locate-library "ewp"))
+			       exec-path)))
+	  (executable-find (car ewp-webshot-command)))
     (save-excursion
       (goto-char (point-min))
       (while (re-search-forward "<a " nil t)
