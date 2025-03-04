@@ -1124,7 +1124,8 @@ If ALL (the prefix), load all the posts in the blog."
 	  output)))))
 
 (defvar ewp-webshot-command
-  '("cutywrap" "%u"))
+  '("~/.local/bin/shot-scraper" "shot" "-b" "firefox"
+    "-o" "-" "--wait" "1000" "%u"))
 
 (defun ewp--multi-webshot (url methods)
   (cl-loop for method in methods
@@ -1200,7 +1201,7 @@ If ALL (the prefix), load all the posts in the blog."
 	    (when (and (not (equal (url-host url) address))
 		       (dom-attr dom 'screenshot)
 		       (not (dom-attr dom 'onmouseenter)))
-	      (if (not (setq file (ewp--webshot url)))
+	      (if (not (setq file (ewp--webshot (dom-attr dom 'href))))
 		  (save-excursion
 		    (goto-char start)
 		    (when (looking-at "<a screenshot=true ")
@@ -1285,8 +1286,6 @@ If ALL (the prefix), load all the posts in the blog."
 If MAX (the numerical prefix), just do that many thumbnails."
   (interactive (list (and current-prefix-arg
 			  (prefix-numeric-value current-prefix-arg))))
-  (unless max
-    (ewp-remove-image-thumbnails))
   (ewp-update-images max)
   (message "Inserting image thumbnails..."))
 
