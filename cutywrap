@@ -1,0 +1,14 @@
+#!/bin/bash
+
+tmp=/tmp/cutycapt.png
+
+if [ -f "$tmp" ]; then
+    rm "$tmp"
+fi
+
+cutycapt --delay=1000 --out-format=png "--out=$tmp" "--url=$1" > /dev/null
+if [ -f "$tmp" ]; then
+    cat "$tmp"
+    rm "$tmp"
+fi
+
