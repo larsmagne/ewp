@@ -90,6 +90,7 @@ There are five different modes made available by this package:
 * m: Upload a media file to the blog.
 * g: Rescan the media list.
 * v: Rescale and upload a video.
+* V: Download the video file under point, rescale it, and reupload it.
 * &gt;: Load more media.
 
 ## ewp-list-comments-mode:

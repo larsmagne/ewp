@@ -1809,6 +1809,7 @@ width), rescale and convert the file to mp4."
   "u" #'ewp-copy-url
   "m" #'ewp-upload-media
   "v" #'ewp-rescale-and-upload-video
+  "V" #'ewp-media-rescale-video
   "r" #'ewp-rotate-media
   "RET" #'ewp-show-media
   "DEL" #'ewp-delete-media
@@ -2028,6 +2029,28 @@ the media there instead."
 		(message "Got an error: %s" result)
 	      (message "Media deleted")
 	      (vtable-remove-object (vtable-current-table) data))))))))
+
+(defun ewp-media-rescale-video (width)
+  "Resize the mp4 file under point and re-upload it."
+  (interactive "nNew width: ")
+  (let ((data (get-text-property (point) 'vtable-object))
+	(address ewp-address))
+    (if (not data)
+	(error "No media under point")
+      (let* ((url (cdr (assoc "link" data)))
+	     (file (ewp--unique-name (cdr (assoc "title" data)))))
+	(url-retrieve
+	 url
+	 (lambda (_)
+	   (goto-char (point-min))
+	   (unwind-protect
+	       (when (search-forward "\n\n")
+		 (write-region (point) (point-max) file nil 'silent)
+		 (let ((ewp-address address))
+		   (ewp-rescale-and-upload-video file width)))
+	     (kill-buffer (current-buffer))
+	     (when (file-exists-p file)
+	       (delete-file file)))))))))
 
 (defun ewp-copy-urls-as-curl ()
   "Copy URLs as a series of curl commands."
