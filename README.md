@@ -88,6 +88,7 @@ There are five different modes made available by this package:
 * w: Copy the image under point to the kill ring as an &lt;img&gt; construct
 * u: Copy the URL under point to the kill ring.
 * m: Upload a media file to the blog.
+* d: Download an image and then upload it to the blog.
 * g: Rescan the media list.
 * v: Rescale and upload a video.
 * V: Download the video file under point, rescale it, and reupload it.

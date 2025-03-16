@@ -76,6 +76,9 @@
 (defvar ewp-floating-image-width 300
   "What size to use for images that float.")
 
+(defvar ewp-video-width 840
+  "What width to rescale videos to by default.")
+
 (defvar ewp-embed-smaller-images nil
   "If non-nil, should be a regexp to match blog name to use -1024x768 in the <img>.")
 
@@ -116,6 +119,9 @@ The fourth element is the URL prefix to be used for the resulting URL.")
   "Function called to insert a screenshot in the current buffer.
 Possible functions are `ewp-screenshot-imagemagick' and
 `ewp-screenshot-gnome'.")
+
+(defvar ewp-screencast-directory "~/Screencasts/"
+  "The directory where screencasts are stored.")
 
 (defvar ewp-hide-links 'edit
   "When to hide links.
@@ -520,7 +526,8 @@ If ALL (the prefix), load all the posts in the blog."
   "C-c C-i" #'ewp-insert-img
   "C-c C-M-t" #'ewp-insert-title
   "C-c C-v" #'ewp-insert-video-file
-  "C-c C-V" #'ewp-insert-video-url
+  "C-c C-S-v" #'ewp-insert-video-url
+  "C-c C-S-s" #'ewp-insert-latest-screencast
   "C-c C-l" #'ewp-insert-lyte
   "C-c C-m" #'ewp-yank-html
   "C-c C-n" #'ewp-clean-link
@@ -1631,16 +1638,24 @@ Hitting the undo key once will remove the quote characters."
 	      (delete-region tstart (point))
 	    (buffer-substring-no-properties tend (1- (point))))))))))
 
+(defun ewp-insert-latest-screencast ()
+  "Insert the latest screencast as a <video> element."
+  (interactive)
+  (ewp-insert-video-file
+   (car (sort (directory-files ewp-screencast-directory t "[.]mp4\\'")
+	      #'file-newer-than-file-p))))
+
 (defun ewp-insert-video-file (file &optional rescale)
   "Prompt for a file and insert a <video> tag.
 If RESCALE (interactively, the prefix, non-interactively the
 width), rescale and convert the file to mp4."
   (interactive "fVideo file: \nP")
+  (setq rescale (or rescale ewp-video-width))
   (when rescale
     (unless (numberp rescale)
-      (setq rescale (read-number "Rescale video to width (in pixels): "))
-      (setq file (ewp-rescale-video file rescale))
-      (push file ewp--deletable-files)))
+      (setq rescale (read-number "Rescale video to width (in pixels): ")))
+    (setq file (ewp-rescale-video file rescale))
+    (push file ewp--deletable-files))
   (insert (format "<video autoplay loop muted><source src=%S type=\"video/mp4\"></video>\n\n"
 		  file)))
 
