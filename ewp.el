@@ -1781,7 +1781,16 @@ width), rescale and convert the file to mp4."
     (if (not data)
 	(message "No text/html data in the current selection")
       (set-mark (point))
-      (insert (ewp-decode-text-selection data)))))
+      (save-restriction
+	(let ((start (point)))
+	  (insert (ewp-decode-text-selection data))
+	  (narrow-to-region start (point))
+	  (ignore-errors
+	    (sgml-pretty-print (point-min) (point-max)))
+	  (goto-char (point-min))
+	  (while (looking-at "<meta .*")
+	    (delete-line))
+	  (goto-char (point-max)))))))
 
 (defun ewp-decode-text-selection (data)
   (if (and (> (length data) 2)
