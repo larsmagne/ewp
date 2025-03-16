@@ -1547,7 +1547,8 @@ If given a prefix, yank from the clipboard."
   (insert "</blockquote>\n\n"))
 
 (defun ewp-yank-link-with-text ()
-  "Yank the current kill ring item as <a href=URL>TEXT</a>."
+  "Yank the current kill ring item as <a href=URL>\"TEXT\"</a>.
+Hitting the undo key once will remove the quote characters."
   (interactive)
   (set-mark (point))
   (let ((url (x-get-selection-internal 'PRIMARY 'text/x-moz-url-priv))
@@ -1556,7 +1557,14 @@ If given a prefix, yank from the clipboard."
       (error "No URL in the current kill"))
     (insert (format "<a screenshot=true href=%S>%s</a>"
 		    (ewp-decode-text-selection url)
-		    (string-trim text)))))
+		    (propertize (string-clean-whitespace text) 'ewp-yanked t)))
+    (undo-boundary)
+    (save-excursion
+      (let ((match (text-property-search-backward 'ewp-yanked)))
+	(goto-char (prop-match-end match))
+	(insert "\"")
+	(goto-char (prop-match-beginning match))
+	(insert "\"")))))
 
 (defun ewp-insert-img (file)
   "Prompt for a file and insert an <img>."
@@ -3368,9 +3376,11 @@ screenshots from TV, for instance."
   "Rescale FILE and convert into mp4."
   (interactive "fVideo file: \nnWidth (in pixels): ")
   (let ((output (ewp--temp-name "video-" ".mp4")))
-    (call-process "ffmpeg" nil nil nil
+    (call-process "ffmpeg" nil (get-buffer-create "*video convert*") nil
 		  "-i" (expand-file-name file)
-		  "-vf" (format "scale=%d:-1" width) output)
+		  "-vf" (format "scale=%d:-1" width)
+		  "-vf" "pad=ceil(iw/2)*2:ceil(ih/2)*2"
+		  output)
     output))
 
 (provide 'ewp)
