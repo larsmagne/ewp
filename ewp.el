@@ -51,6 +51,7 @@
 (require 'exif)
 (require 'filenotify)
 (require 'iso8601)
+(require 'yank-media)
 
 (defvar ewp-blog-address nil
   "The name/address of the blog, like my.example.blog.")
