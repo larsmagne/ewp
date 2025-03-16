@@ -1886,7 +1886,7 @@ All normal editing commands are switched off.
   (interactive)
   (let* ((address (or address ewp-address))
 	 (media (nconc old-media
-		       (ewp-call 'ewp-get-media-library address 500
+		       (ewp-call 'ewp-get-media-library address 100
 				 (length old-media))))
 	 marks)
     (switch-to-buffer (format "*%s media*" address))
@@ -2424,7 +2424,7 @@ All normal editing commands are switched off.
 		    (:name "Title" :width 15)
 		    (:name "Comment" :width 100))
 	 :objects (nconc old-data
-			 (ewp-call 'ewp-get-comments address 1000
+			 (ewp-call 'ewp-get-comments address 100
 				   (length old-data)))
 	 :getter
 	 (lambda (comment column vtable)
