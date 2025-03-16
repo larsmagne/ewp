@@ -1718,11 +1718,13 @@ width), rescale and convert the file to mp4."
       (ewp-insert-image-data image)
     ;; We're called from `C-c C-d' to insert a "Copy image" from the
     ;; browser.  We usually have several types available, so choose the best.
-    (ewp-insert-image-data
-     (gui-backend-get-selection
-      'CLIPBOARD (car (sort types (lambda (t1 t2)
-				    (< (ewp--media-rank t1)
-				       (ewp--media-rank t2)))))))))
+    (ewp-insert-image-data (ewp--preferred-media types))))
+
+(defun ewp--preferred-media (types)
+  (gui-backend-get-selection
+   'CLIPBOARD (car (sort types (lambda (t1 t2)
+				 (< (ewp--media-rank t1)
+				    (ewp--media-rank t2)))))))
 
 (defun ewp--media-rank (type)
   (or (seq-position ewp-media-rank
@@ -1863,6 +1865,7 @@ width), rescale and convert the file to mp4."
   "w" #'ewp-copy-media
   "u" #'ewp-copy-url
   "m" #'ewp-upload-media
+  "d" #'ewp-download-media
   "v" #'ewp-rescale-and-upload-video
   "V" #'ewp-media-rescale-video
   "r" #'ewp-rotate-media
@@ -2021,6 +2024,60 @@ All normal editing commands are switched off.
     (with-temp-buffer
       (insert url)
       (copy-region-as-kill (point-min) (point-max)))))
+
+(defun ewp-download-media ()
+  "Download the image (or image link) from the clipboard, and then upload it.
+Put the resulting URL into the kill ring."
+  (interactive)
+  (let ((media (yank-media--find-matching-media "image/.*"))
+	(url (gui-get-selection 'CLIPBOARD 'text/plain))
+	(address ewp-address))
+    (unless (or media url)
+      (user-error "We have nothing on the clipboard to dowload"))
+    (if (not media)
+	;; We don't have a "copy image" clipboard; download the image
+	;; first.
+	(url-retrieve
+	 url
+	 (lambda (_)
+	   (goto-char (point-min))
+	   (let (image)
+	     (when (search-forward "\n\n")
+	       (setq image (buffer-substring (point) (point-max))))
+	     (kill-buffer (current-buffer))
+	     (ewp--upload-and-copy-url
+	      address image
+	      (file-name-nondirectory (url-filename
+				       (url-generic-parse-url url)))))))
+      ;; We have a "copy image"; upload it.
+      (ewp--upload-and-copy-url
+       address (ewp--preferred-media media)
+       ;; Find the image name based on the HTML on the clipboard.
+       (with-temp-buffer
+	 (insert (gui-backend-get-selection 'CLIPBOARD 'text/html))
+	 (let* ((dom (libxml-parse-html-region (point-min) (point)))
+		(img (car (dom-by-tag dom 'img))))
+	   (and img
+		(file-name-nondirectory
+		 (url-filename (url-generic-parse-url
+				(dom-attr img 'src)))))))))))
+
+(defun ewp--upload-and-copy-url (address image name)
+  (let* ((result
+	  (ewp--upload-file
+	   address
+	   name
+	   (mailcap-file-name-to-mime-type name)
+	   (with-temp-buffer
+	     (set-buffer-multibyte nil)
+	     (insert image)
+	     (base64-encode-region (point-min) (point-max))
+	     (buffer-string))))
+	 (url (format "https://%s/?p=%s"
+		      address (cdr (assoc "attachment_id" result)))))
+    (ewp-list-media)
+    (kill-new url)
+    (message "Copied %s" url)))
 
 (defun ewp-rescale-and-upload-video (file width)
   (interactive "fVideo file: \nnWidth: ")
