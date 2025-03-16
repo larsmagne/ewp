@@ -121,6 +121,9 @@ The fourth element is the URL prefix to be used for the resulting URL.")
 Possible functions are `ewp-screenshot-imagemagick' and
 `ewp-screenshot-gnome'.")
 
+(defvar ewp-screenshot-links nil
+  "Whether to do screenshots of all links you post.")
+
 (defvar ewp-screencast-directory "~/Screencasts/"
   "The directory where screencasts are stored.")
 
@@ -1584,9 +1587,6 @@ Hitting the undo key once will remove the quote characters."
 	(insert "\"")
 	(goto-char (prop-match-beginning match))
 	(insert "\"")))))
-
-(defvar ewp-screenshot-links nil
-  "Whether to do screenshots of all links you post.")
 
 (defun ewp--insert-link (url text)
   (let ((link (format "<a %shref=%S>"
