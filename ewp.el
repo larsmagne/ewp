@@ -122,6 +122,9 @@ Possible functions are `ewp-screenshot-imagemagick' and
 This can either be nil (never hide), `edit' (only when editing an
 old post) or `always' (also when inserting new links).")
 
+(defvar ewp-media-rank '(jpeg png webp)
+  "Preferred media formats to use when yanking images.")
+
 (defvar ewp-watch-directory nil
   "Directory to automatically insert images from.")
 
@@ -561,6 +564,8 @@ If ALL (the prefix), load all the posts in the blog."
   ;; Automatically insert images.
   (when ewp-watch-directory
     (ewp-watch-directory ewp-watch-directory))
+  (yank-media-handler 'text/html #'html-mode--html-yank-handler)
+  (yank-media-handler "image/.*" #'ewp--image-yank-handler)
   (run-hooks 'ewp-edit-hook))
 
 (defun ewp--update-image-crop (_text image)
@@ -1678,8 +1683,15 @@ width), rescale and convert the file to mp4."
 (defun ewp-download-and-insert-image ()
   "Download and insert the image from the URL in the kill ring."
   (interactive)
-  (let ((url (substring-no-properties (current-kill 0))))
-    (ewp-download-and-insert-image-1 url (current-buffer) (point))))
+  (let ((media (yank-media--find-matching-media "image/.*")))
+    ;; The user has either chosen "Copy image" or "Copy image link" in
+    ;; the browser.  If it's the former, we get the image from the
+    ;; clipboard, and if it's the latter, download the URL.
+    (if media
+	(ewp--image-yank-handler media)
+      (ewp-download-and-insert-image-1
+       (substring-no-properties (current-kill 0))
+       (current-buffer) (point)))))
 
 (defun ewp-download-and-insert-image-1 (url buffer point &optional callback)
   (url-retrieve
@@ -1699,6 +1711,23 @@ width), rescale and convert the file to mp4."
 	     (insert "\n\n"))
 	   (when callback
 	     (funcall callback))))))))
+
+(defun ewp--image-yank-handler (types &optional image)
+  (if image
+      ;; We're called from the `yank-media' command.
+      (ewp-insert-image-data image)
+    ;; We're called from `C-c C-d' to insert a "Copy image" from the
+    ;; browser.  We usually have several types available, so choose the best.
+    (ewp-insert-image-data
+     (gui-backend-get-selection
+      'CLIPBOARD (car (sort types (lambda (t1 t2)
+				    (< (ewp--media-rank t1)
+				       (ewp--media-rank t2)))))))))
+
+(defun ewp--media-rank (type)
+  (or (seq-position ewp-media-rank
+		    (intern (cadr (split-string (symbol-name type) "/"))))
+      most-positive-fixnum))
 
 (defun ewp-insert-image-data (image)
   (insert-image
