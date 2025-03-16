@@ -1527,18 +1527,14 @@ All normal editing commands are switched off.
 If SURROUND (the prefix interactively), put the <a ...></a>
 around the text between mark and point."
   (interactive "P")
-  (let ((link (format "<a screenshot=true href=%S>"
-		      (substring-no-properties (current-kill 0)))))
-    (if surround
-	(let ((point (point-marker)))
-	  (goto-char (mark))
-	  (insert link)
-	  (goto-char point)
-	  (insert "</a>")
-	  (set-marker point nil))
-      (set-mark (point))
-      (insert link "</a>")
-      (forward-char -4))))
+  (let ((text ""))
+    (when surround
+      (setq text (buffer-substring (mark) (point)))
+      (delete-region (mark) (point)))
+    (set-mark (point))
+    (let ((length (ewp--insert-link (current-kill 0) text)))
+      (unless surround
+	(goto-char (+ (mark) length))))))
 
 (defun ewp-insert-lyte ()
   "Insert a [lyte] tag."
@@ -1552,17 +1548,21 @@ around the text between mark and point."
 If given a prefix, yank from the clipboard."
   (interactive "P")
   (set-mark (point))
-  (when-let ((url (x-get-selection-internal 'PRIMARY 'text/x-moz-url-priv)))
-    (insert (format "<a screenshot=true href=%S></a>:\n\n"
-		    (ewp-decode-text-selection url))))
-  (insert "<blockquote>")
-  (if clipboard
-      (insert (string-trim
-	       (decode-coding-string (x-get-selection-internal
-				      'CLIPBOARD 'text/plain\;charset=utf-8)
-				     'utf-8)))
-    (insert (string-trim (substring-no-properties (current-kill 0)))))
-  (insert "</blockquote>\n\n"))
+  (let ((point nil))
+    (when-let ((url (x-get-selection-internal 'PRIMARY 'text/x-moz-url-priv)))
+      (setq point (+ (point)
+		     (ewp--insert-link (ewp-decode-text-selection url) "")))
+      (insert ":\n\n"))
+    (insert "<blockquote>")
+    (if clipboard
+	(insert (string-trim
+		 (decode-coding-string (x-get-selection-internal
+					'CLIPBOARD 'text/plain\;charset=utf-8)
+				       'utf-8)))
+      (insert (string-trim (substring-no-properties (current-kill 0)))))
+    (insert "</blockquote>\n\n")
+    (when point
+      (goto-char point))))
 
 (defun ewp-yank-link-with-text ()
   "Yank the current kill ring item as <a href=URL>\"TEXT\"</a>.
@@ -1573,9 +1573,9 @@ Hitting the undo key once will remove the quote characters."
 	(text (current-kill 0)))
     (unless url
       (error "No URL in the current kill"))
-    (insert (ewp--insert-link
-	     (ewp-decode-text-selection url)
-	     (propertize (string-clean-whitespace text) 'ewp-yanked t)))
+    (ewp--insert-link
+     (ewp-decode-text-selection url)
+     (propertize (string-clean-whitespace text) 'ewp-yanked t))
     (undo-boundary)
     (save-excursion
       (let ((match (text-property-search-backward 'ewp-yanked)))
@@ -1584,17 +1584,27 @@ Hitting the undo key once will remove the quote characters."
 	(goto-char (prop-match-beginning match))
 	(insert "\"")))))
 
+(defvar ewp-screenshot-links nil
+  "Whether to do screenshots of all links you post.")
+
 (defun ewp--insert-link (url text)
-  (if (not (eq ewp-hide-links 'always))
-      (format "<a screenshot=true href=%S>%s</a>" url text)
-    (with-temp-buffer
-      (insert (format "<a screenshot=true href=%S>" url))
-      (ewp--hide-region "[" (point-min) (point))
-      (insert text)
-      (let ((start (point)))
-	(insert "</a>")
-	(ewp--hide-region "]" start (point)))
-      (buffer-string))))
+  (let ((link (format "<a %shref=%S>"
+		      (if ewp-screenshot-links
+			  "screenshot=true "
+			"")
+		      url)))
+    (insert 
+     (if (not (eq ewp-hide-links 'always))
+	 (format "%s%s</a>" link text)
+       (with-temp-buffer
+	 (insert link)
+	 (ewp--hide-region "[" (point-min) (point))
+	 (insert text)
+	 (let ((start (point)))
+	   (insert "</a>")
+	   (ewp--hide-region "]" start (point)))
+	 (buffer-string))))
+    (length link)))
 
 (defun ewp-insert-img (file)
   "Prompt for a file and insert an <img>."
@@ -2514,8 +2524,10 @@ All normal editing commands are switched off.
 	      (format-time-string "%Y-%m-%d"
 				  (caddr (assoc "date_created_gmt" comment))))
 	     ("Status"
-	      (propertize (cdr (assoc "status" comment))
-			  'face '(:foreground "#a0a0a0")))
+	      (let ((status (cdr (assoc "status" comment))))
+		(when (equal status "approve")
+		  (setq status "approved"))
+		(propertize status 'face '(:foreground "#a0a0a0"))))
 	     ("Author"
 	      (propertize
 	       (mm-url-decode-entities-string
