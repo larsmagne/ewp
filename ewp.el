@@ -117,6 +117,11 @@ The fourth element is the URL prefix to be used for the resulting URL.")
 Possible functions are `ewp-screenshot-imagemagick' and
 `ewp-screenshot-gnome'.")
 
+(defvar ewp-hide-links 'edit
+  "When to hide links.
+This can either be nil (never hide), `edit' (only when editing an
+old post) or `always' (also when inserting new links).")
+
 (defvar ewp-watch-directory nil
   "Directory to automatically insert images from.")
 
@@ -428,7 +433,8 @@ If ALL (the prefix), load all the posts in the blog."
     (insert (or (cdr (assoc "description" post)) ""))
     (goto-char (point-min))
     (ewp-save-buffer id)
-    (ewp--hide-links)
+    (when ewp-hide-links
+      (ewp--hide-links))
     (setq-local ewp-post post)))
 
 (defun ewp-update-images (max)
@@ -1555,9 +1561,9 @@ Hitting the undo key once will remove the quote characters."
 	(text (current-kill 0)))
     (unless url
       (error "No URL in the current kill"))
-    (insert (format "<a screenshot=true href=%S>%s</a>"
-		    (ewp-decode-text-selection url)
-		    (propertize (string-clean-whitespace text) 'ewp-yanked t)))
+    (insert (ewp--insert-link
+	     (ewp-decode-text-selection url)
+	     (propertize (string-clean-whitespace text) 'ewp-yanked t)))
     (undo-boundary)
     (save-excursion
       (let ((match (text-property-search-backward 'ewp-yanked)))
@@ -1565,6 +1571,18 @@ Hitting the undo key once will remove the quote characters."
 	(insert "\"")
 	(goto-char (prop-match-beginning match))
 	(insert "\"")))))
+
+(defun ewp--insert-link (url text)
+  (if (not (eq ewp-hide-links 'always))
+      (format "<a screenshot=true href=%S>%s</a>" url text)
+    (with-temp-buffer
+      (insert (format "<a screenshot=true href=%S>" url))
+      (ewp--hide-region "[" (point-min) (point))
+      (insert text)
+      (let ((start (point)))
+	(insert "</a>")
+	(ewp--hide-region "]" start (point)))
+      (buffer-string))))
 
 (defun ewp-insert-img (file)
   "Prompt for a file and insert an <img>."
