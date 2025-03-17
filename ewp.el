@@ -1758,19 +1758,21 @@ width), rescale and convert the file to mp4."
       most-positive-fixnum))
 
 (defun ewp-insert-image-data (image)
-  (insert-image
-   (create-image image (ewp--image-type) t
-		 :max-width (truncate (ewp--display-width))
-		 :max-height (- (frame-pixel-height) 500))
-   (format "<img src=\"data:%s;base64,%s\">"
-	   (ewp-content-type image)
-	   ;; Get a base64 version of the image.
-	   (with-temp-buffer
-	     (set-buffer-multibyte nil)
-	     (insert image)
-	     (base64-encode-region (point-min) (point-max) t)
-	     (buffer-string)))
-   nil nil t))
+  (let ((im (create-image image (ewp--image-type) t
+			  :max-width (truncate (ewp--display-width))
+			  :max-height (- (frame-pixel-height) 500))))
+    (insert-image
+     im
+     (format "<img src=\"data:%s;base64,%s\">"
+	     (ewp-content-type image)
+	     ;; Get a base64 version of the image.
+	     (with-temp-buffer
+	       (set-buffer-multibyte nil)
+	       (insert image)
+	       (base64-encode-region (point-min) (point-max) t)
+	       (buffer-string)))
+     nil nil t)
+    im))
 
 (defun ewp-content-type (image)
   ;; Get the MIME type by running "file" over it.
