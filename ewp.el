@@ -3613,6 +3613,32 @@ screenshots from TV, for instance."
 	  (ewp-insert-img result)
 	  (goto-char point))))))
 
+(defun ewp-copy-lastest-media-url-to-kill-ring (&optional address)
+  "Copy the URL of the latest media to the kill ring."
+  (interactive)
+  (let* ((address (or address ewp-address))
+	 (data (car (ewp-call 'ewp-get-media-library address 1 0))))
+    (unless data
+      (user-error "No media for this blog"))
+    (let ((url (format "https://%s/?p=%s" address
+		       (cdr (assoc "attachment_id" data)))))
+      (url-retrieve
+       (cdr (assoc "thumbnail" data))
+       (lambda (&rest _)
+	 (kill-new url)
+	 (goto-char (point-min))
+	 (if (search-forward "\n\n" nil t)
+	     (message "Copied %s (%s)"
+		      (propertize " " 'display
+				  (create-image
+				   (buffer-substring (point) (point-max))
+				   nil t
+				   :max-width (frame-pixel-width)
+				   :max-height (/ (frame-pixel-height) 4)))
+		      url)
+	   (message "Copied %s" url))
+	 (kill-buffer (current-buffer)))))))
+
 (provide 'ewp)
 
 ;;; ewp.el ends here
