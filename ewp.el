@@ -1387,7 +1387,9 @@ If MAX (the numerical prefix), just do that many thumbnails."
 	  (ewp-update-image (list (dom-attr img 'src))
 			    (current-buffer))))
        ((imagep (get-text-property (point) 'display))
-	(put-text-property start end 'display nil))
+	(put-text-property start end 'display nil)
+	;; Also remove the image keymap.
+	(put-text-property start end 'keymap nil))
        (t
 	(put-text-property start end 'display
 			   (get-text-property start 'ewp-display)))))))
