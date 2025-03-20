@@ -1319,24 +1319,26 @@ If MAX (the numerical prefix), just do that many thumbnails."
       (while (re-search-forward "<a[ \n]" nil t)
 	(goto-char (match-beginning 0))
 	(let ((start (point)))
-	  (with-syntax-table sgml-mode-syntax-table
-	    (forward-sexp))
-	  ;; Images in WordPress are typically represented as
-	  ;; <a ...><img ...></a> so that you can click on them
-	  ;; to see a bigger version.  Handle this specially so we only
-	  ;; get one symbol for the entire construction instead of three.
-	  (if-let ((end
-		    (save-excursion
-		      (and (looking-at " *<img[ \n]")
-			   (progn
-			     (with-syntax-table sgml-mode-syntax-table
-			       (forward-sexp))
-			     (looking-at " *</a>"))
-			   (match-end 0)))))
-	      (progn
-		(goto-char end)
-		(ewp--hide-region "🔳" start end))
-	    (ewp--hide-region "[" start (point)))))
+	  (when (with-syntax-table sgml-mode-syntax-table
+		  (ignore-errors
+		    (forward-sexp)
+		    t))
+	    ;; Images in WordPress are typically represented as
+	    ;; <a ...><img ...></a> so that you can click on them
+	    ;; to see a bigger version.  Handle this specially so we only
+	    ;; get one symbol for the entire construction instead of three.
+	    (if-let ((end
+		      (save-excursion
+			(and (looking-at " *<img[ \n]")
+			     (progn
+			       (with-syntax-table sgml-mode-syntax-table
+				 (forward-sexp))
+			       (looking-at " *</a>"))
+			     (match-end 0)))))
+		(progn
+		  (goto-char end)
+		  (ewp--hide-region "🔳" start end))
+	      (ewp--hide-region "[" start (point))))))
       ;; Hide </a>.
       (goto-char (point-min))
       (while (re-search-forward "</a>" nil t)
@@ -1348,9 +1350,11 @@ If MAX (the numerical prefix), just do that many thumbnails."
 	(unless (get-text-property (match-end 0) 'ewp-element)
 	  (goto-char (match-beginning 0))
 	  (let ((start (point)))
-	    (with-syntax-table sgml-mode-syntax-table
-	      (forward-sexp))
-	    (ewp--hide-region "⬜" start (point)))))
+	    (when (with-syntax-table sgml-mode-syntax-table
+		    (ignore-errors
+		      (forward-sexp)
+		      t))
+	      (ewp--hide-region "⬜" start (point))))))
       ;; Hide <video>.
       (goto-char (point-min))
       (while (re-search-forward "<video[ \n]" nil t)
@@ -3525,6 +3529,89 @@ screenshots from TV, for instance."
 		  "-vf" "pad=ceil(iw/2)*2:ceil(ih/2)*2"
 		  output)
     output))
+
+(defun ewp-concatenate-images ()
+  "Concatenate the images after point."
+  (interactive)
+  (let (cfiles)
+    (save-excursion
+      (while (re-search-forward "\\(<img.*?src=\"\\)" nil t)
+	(let* ((start (match-beginning 1))
+	       (file (buffer-substring-no-properties
+		      (point) (progn
+				(re-search-forward "\".*?>" nil t)
+				(match-beginning 0))))
+	       (type (and (string-match "^[a-z]+:" file)
+			  (substring file 0 (1- (match-end 0)))))
+	       (image (get-text-property start 'display))
+	       cfile)
+	  (with-temp-buffer
+	    (set-buffer-multibyte nil)
+	    (cond
+	     ;; Local file.
+	     ((null type)
+	      (insert-file-contents-literally file))
+	     ;; data: URL where the image is in the src bit.
+	     ((and (equal type "data")
+		   (string-match "^data:\\([^;]+\\);base64," file))
+	      (insert (substring-no-properties file))
+	      (goto-char (point-min))
+	      (search-forward ",")
+	      (delete-region (point-min) (point))
+	      (base64-decode-region (point-min) (point-max)))
+	     ;; We have a normal <img src="http..."> image.
+	     (t
+	      (insert (cl-getf (cdr image) :data))))
+	    (ewp-possibly-rotate-buffer image)
+	    (setq cfile
+		  (ewp--unique-name
+		   "concat."
+		   (car (last (split-string (ewp-content-type (buffer-string))
+					    "/")))))
+	    (write-region (point-min) (point-max) cfile nil 'silent))
+	  (push cfile cfiles)
+	  (push cfile ewp--deletable-files))))
+    ;; Now we have all the image files.
+    (setq cfiles (nreverse cfiles))
+    (let* ((size (ewp-image-size (car cfiles)))
+	   (ratio (/ (float (car size)) (cdr size)))
+	   (ffiles (list (pop cfiles))))
+      ;; We want to crop all the files to have the same form factor as
+      ;; the first one.
+      (cl-dolist (file cfiles)
+	(let* ((tsize (ewp-image-size file))
+	       (tratio (/ (float (car tsize)) (cdr tsize)))
+	       (ofile (ewp--unique-name "ratio.png")))
+	  (if (> ratio tratio)
+	      (call-process
+	       "convert" nil nil nil
+	       "-crop" (format "%dx%d+0+%d"
+			       (car tsize)
+			       (* (car tsize) ratio)
+			       (/ (- (cdr tsize) (* (car tsize) ratio)) 2))
+	       "-resize" (format "%dx" (car size))
+	       file ofile)
+	    (call-process
+	     "convert" nil nil nil
+	     "-crop" (format "%dx%d+%d+0"
+			     (* (cdr tsize) ratio)
+			     (/ (- (car tsize) (* (cdr tsize) ratio)) 2)
+			     (cdr tsize))
+	     "-resize" (format "%dx" (car size))
+	     file ofile))
+	  (push ofile ffiles)
+	  (push ofile ewp--deletable-files)))
+      ;; We now have all the files in the same size.
+      (let ((result (ewp--unique-name "ewp.jpg")))
+	(push result ewp--deletable-files)
+	(apply #'call-process
+	       `("convert" nil nil nil
+		 "+append" ,@(nreverse ffiles) ,result))
+	(goto-char (point-max))
+	(let ((point (point)))
+	  (ensure-empty-lines 1)
+	  (ewp-insert-img result)
+	  (goto-char point))))))
 
 (provide 'ewp)
 
