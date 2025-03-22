@@ -536,7 +536,6 @@ If ALL (the prefix), load all the posts in the blog."
   "C-c C-m" #'ewp-yank-html
   "C-c C-n" #'ewp-clean-link
   "C-c C-o" #'ewp-html-quote-region
-  "C-c C-p" #'ewp-yank-picture
   "C-c C-q" #'ewp-remove-image-thumbnails
   "C-c C-w" #'ewp-insert-image-thumbnails
   "C-c C-r" #'ewp-tag-region
@@ -1822,25 +1821,6 @@ width), rescale and convert the file to mp4."
     (decode-coding-string
      (replace-regexp-in-string (string 0) "" data)
      'utf-8)))
-
-(defun ewp-yank-picture ()
-  "Yank the contents of the current X image selection/clipboard, if any."
-  (interactive)
-  (let ((data
-	 (cl-loop for type in '(PRIMARY CLIPBOARD)
-		  for st = (cl-loop for st across
-				    (gui-get-selection type 'TARGETS)
-				    when (equal (car (split-string
-						      (symbol-name st) "/"))
-						"image")
-				    return st)
-		  when st
-		  return (x-get-selection-internal type st))))
-    (if (not data)
-	(message "No image data in the current selection/clipboard")
-      (set-mark (point))
-      (ewp-insert-image-data data)
-      (insert "\n\n"))))
 
 (defun ewp-remove-html-layer ()
   "Remove one layer of HTML tagging."
