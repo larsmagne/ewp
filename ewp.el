@@ -33,6 +33,8 @@
 
 ;; apt install libimage-exiftool-perl ffmpeg imagemagick cutycapt
 
+;; pip install shot-scraper --break-system-packages && shot-scraper install && playwright install
+
 ;; If you have several blogs you can list them all:
 
 ;; (setq ewp-blog-addresses '("my.example.com" "other.foo.bar"))
@@ -1210,7 +1212,7 @@ If ALL (the prefix), load all the posts in the blog."
 	  (executable-find (car ewp-webshot-command)))
     (save-excursion
       (goto-char (point-min))
-      (while (re-search-forward "<a " nil t)
+      (while (re-search-forward "<a shot " nil t)
 	(let ((start (match-beginning 0)))
 	  (goto-char start)
 	  (with-syntax-table sgml-mode-syntax-table
@@ -1220,12 +1222,11 @@ If ALL (the prefix), load all the posts in the blog."
 		 file)
 	    ;; Local file.
 	    (when (and (not (equal (url-host url) address))
-		       (dom-attr dom 'screenshot)
 		       (not (dom-attr dom 'onmouseenter)))
 	      (if (not (setq file (ewp--webshot (dom-attr dom 'href))))
 		  (save-excursion
 		    (goto-char start)
-		    (when (looking-at "<a screenshot=true ")
+		    (when (looking-at "<a shot ")
 		      (replace-match "<a ")))
 		(when-let* ((result
 			     (ewp--upload-file
@@ -1241,7 +1242,7 @@ If ALL (the prefix), load all the posts in the blog."
 				(buffer-string))))
 			    (image-url (cdr (assoc "url" result))))
 		  (delete-region start (point))
-		  (dom-remove-attribute dom 'screenshot)
+		  (dom-remove-attribute dom 'shot)
 		  (dom-set-attribute dom 'data-cached-time
 				     (format-time-string "%FT%T"))
 		  (dom-set-attribute dom 'data-cached-image image-url)
@@ -1284,6 +1285,7 @@ If ALL (the prefix), load all the posts in the blog."
 	 ((executable-find "convert")
 	  (call-process-region
 	   (point-min) (point-max) "convert" t (list (current-buffer) nil) nil
+	   "-strip"
 	   "-rotate" (format "%d" rotation)
 	   "-" "-")
 	  ;; This is apparently necessary to avoid having Twitter
@@ -1291,7 +1293,8 @@ If ALL (the prefix), load all the posts in the blog."
 	  (when (and (equal content-type "image/jpeg")
 		     (executable-find "exiftool"))
 	    (call-process-region
-	     (point-min) (point-max) "exiftool" t (list (current-buffer) nil) nil
+	     (point-min) (point-max) "exiftool" t (list (current-buffer) nil)
+	     nil
 	     "-Orientation#=0"
 	     "-CameraOrientation#=0"
 	     "-o" "-" "-"))))))
@@ -1596,7 +1599,7 @@ Hitting the undo key once will remove the quote characters."
 (defun ewp--insert-link (url text)
   (let ((link (format "<a %shref=%S>"
 		      (if ewp-screenshot-links
-			  "screenshot=true "
+			  "shot "
 			"")
 		      url)))
     (insert 
@@ -1948,7 +1951,9 @@ All normal editing commands are switched off.
 		      (if (file-exists-p cache)
 			  (propertize
 			   " "
-			   'display (create-image cache nil nil :scale 1)
+			   'display (create-image cache nil nil :scale 1
+						  :max-width 180
+						  :max-height 180)
 			   'local-map image-map)
 			(propertize
 			 ewp--thumbnail-placeholder
@@ -1996,7 +2001,9 @@ All normal editing commands are switched off.
 			   (when (search-forward "\n\n" nil t)
 			     (setq img (create-image
 					(buffer-substring (point) (point-max))
-					nil t :scale 1))
+					nil t :scale 1
+					:max-width 180
+					:max-height 180))
 			     (let ((dir (file-name-directory cache)))
 			       (unless (file-exists-p dir)
 				 (make-directory dir t)))
@@ -2266,7 +2273,8 @@ If SHORTLINK (interactively, the prefix), get a shortlink instead."
 	(message "Copied %s to the kill ring" url)))))
 
 (defun ewp-rotate-media ()
-  "Rotate the media under point."
+  "Rotate the media under point.
+The image should be rotated with `i r' first."
   (interactive)
   (let* ((data (get-text-property (point) 'vtable-object))
 	 (image (get-text-property (point) 'display))
