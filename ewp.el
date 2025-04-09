@@ -236,7 +236,7 @@ All normal editing commands are switched off."
   "List posts with a specific status."
   (interactive (list (completing-read "List status: "
 				      '("draft" "publish" "schedule"))))
-  (ewp-blog ewp-address nil status))
+  (ewp-blog ewp-address nil status nil nil t))
 
 (defun ewp-list-posts-with-category (category)
   "List posts with from a specific category."
@@ -268,7 +268,8 @@ If ALL (the prefix), load all the posts in the blog."
 	(setq-local ewp-address address)
 	(ewp--prepare-post-list posts)))))
 
-(defun ewp-blog (&optional address start-at status category all)
+(defun ewp-blog (&optional address start-at status category all
+			   inhibit-old-data)
   "List the posts on the blog."
   (interactive (list (cond
 		      ((and (boundp 'ewp-address)
@@ -281,7 +282,9 @@ If ALL (the prefix), load all the posts in the blog."
   (switch-to-buffer (format "*%s posts*" address))
   (ewp-save-excursion
     (let ((inhibit-read-only t)
-	  (data (ewp-current-data)))
+	  (data (if inhibit-old-data
+		    nil
+		  (ewp-current-data))))
       (erase-buffer)
       (ewp-list-mode)
       (setq-local ewp-address address)
