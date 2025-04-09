@@ -1555,8 +1555,11 @@ around the text between mark and point."
   "Insert a [lyte] tag."
   (interactive)
   (ensure-empty-lines 1)
-  (insert (format "[lyte id='%s']\n\n"
-		  (substring-no-properties (current-kill 0)))))
+  (insert
+   (format "[lyte id='%s']\n\n"
+	   (replace-regexp-in-string
+	    "\\https?:.*v=" ""
+	    (substring-no-properties (current-kill 0))))))
 
 (defun ewp-yank-with-blockquote (&optional clipboard)
   "Yank the current kill ring item as a <blockquote>.
