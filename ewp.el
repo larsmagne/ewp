@@ -3253,7 +3253,14 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 (defun ewp-image-cut (&optional color)
   "Wrapper for `image-cut'."
   (interactive (list (and current-prefix-arg (read-color "Use color: "))))
-  (ewp-image-crop (if (zerop (length color)) image-cut-color color)))
+  (ewp-image-crop
+   (cond
+    ((not color)
+     image-cut-color)
+    ((equal color "")
+     'pick)
+    (t
+     (setq image-cut-color color)))))
 
 (defun ewp-image-crop (&optional cut)
   "Wrapper for `image-crop'."
