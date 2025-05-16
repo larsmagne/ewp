@@ -1248,7 +1248,10 @@ If ALL (the prefix), load all the posts in the blog."
 		  (dom-remove-attribute dom 'shot)
 		  (dom-set-attribute dom 'data-cached-time
 				     (format-time-string "%FT%T"))
-		  (dom-set-attribute dom 'data-cached-image image-url)
+		  (dom-set-attribute dom 'data-cached-image
+				     (replace-regexp-in-string
+				      "-scaled.webp" ".webp"
+				      image-url))
 		  (dom-set-attribute dom 'onmouseenter "hoverLink(event)")
 		  (ewp-print-html dom t)
 		  (delete-file file))))))))))
@@ -1602,24 +1605,27 @@ Hitting the undo key once will remove the quote characters."
 	(goto-char (prop-match-beginning match))
 	(insert "\"")))))
 
-(defun ewp--insert-link (url text)
-  (let ((link (format "<a %shref=%S>"
-		      (if ewp-screenshot-links
-			  "shot "
-			"")
-		      url)))
-    (insert 
-     (if (not (eq ewp-hide-links 'always))
-	 (format "%s%s</a>" link text)
-       (with-temp-buffer
-	 (insert link)
-	 (ewp--hide-region "[" (point-min) (point))
-	 (insert text)
-	 (let ((start (point)))
-	   (insert "</a>")
-	   (ewp--hide-region "]" start (point)))
-	 (buffer-string))))
-    (length link)))
+(defun ewp--insert-link (url text &optional return)
+  (let* ((link (format "<a %shref=%S>"
+		       (if ewp-screenshot-links
+			   "shot "
+			 "")
+		       url))
+	 (text
+	  (if (not (eq ewp-hide-links 'always))
+	      (format "%s%s</a>" link text)
+	    (with-temp-buffer
+	      (insert link)
+	      (ewp--hide-region "[" (point-min) (point))
+	      (insert text)
+	      (let ((start (point)))
+		(insert "</a>")
+		(ewp--hide-region "]" start (point)))
+	      (buffer-string)))))
+    (if return
+	text
+      (insert text)
+      (length link))))
 
 (defun ewp-insert-img (file)
   "Prompt for a file and insert an <img>."
