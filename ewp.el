@@ -160,6 +160,7 @@ old post) or `always' (also when inserting new links).")
   "n" #'ewp-new-post
   "N" #'ewp-new-page
   "g" #'ewp-blog
+  "P" #'ewp-make-pingback
   "s" #'ewp-list-posts-with-status
   "RET" #'ewp-browse
   "w" #'ewp-copy-link
@@ -2765,39 +2766,37 @@ All normal editing commands are switched off.
 	  (bury-buffer))
       (message "Error while posting: %s" result))))
 
-(defun ewp-make-pingback (link url)
+(defun ewp--get-domain (host)
+  "Return the shortest domain that refers to an entity.
+I.e., \"google.com\" or \"google.co.uk\"."
+  (let* ((bits (reverse (split-string host "[.]")))
+	 (domain (pop bits)))
+    (cl-loop while (and bits
+			(not (url-domsuf-cookie-allowed-p domain)))
+	     do (setq domain (concat (pop bits) "." domain)))
+    domain))
+
+(defun ewp-make-pingback (post-id url)
   "Make URL a pingback to POST-ID."
-  (interactive (list (cdr (assoc "link" (vtable-current-object)))
-		      (read-string "Pingback URL: ")))
+  (interactive (list (cdr (assoc "post_id" (vtable-current-object)))
+		     (read-string "Pingback URL: ")))
   (when (or (zerop (length url))
 	    (not (string-match "\\`http" url)))
     (user-error "%s is not a valid pingback URL" url))
-  (let ((url-request-method "POST")
-	(url-request-data
-	 (format
-	  "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>
-<methodCall>
-<methodName>pingback.ping</methodName>
-<params>
- <param>
-  <value>
-   <string>%s</string>
-  </value>
- </param>
- <param>
-  <value>
-   <string>%s</string>
-  </value>
- </param>
-</params>
-</methodCall>
-"
-	  url link)))
-    (setq a url-request-data)
-    (with-current-buffer (url-retrieve-synchronously
-			  (format "https://%s/xmlrpc.php" ewp-blog-address))
-      (message "%s" (buffer-string))
-      (kill-buffer (current-buffer)))))
+  (let ((result
+	 (ewp-call 'ewp-new-comment ewp-address
+		   post-id
+		   `(("content" .
+		      ,(format "Pingback: <a class='pingback' href='%s'>%s</a>"
+			       url
+			       (ewp--get-domain
+				(url-host (url-generic-parse-url url)))))
+		     ("author" . "")
+		     ("author_url" . "")))))
+    (if (or (numberp result)
+	    (eq result t))
+	(message "Posted pingback")
+      (message "Error while posting pingback: %s" result))))
 
 (defun ewp-new-comment (blog-xmlrpc user-name password blog-id post-id
 				    data &optional comment-parent)

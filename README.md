@@ -47,6 +47,7 @@ There are five different modes made available by this package:
 * M: List the media on this blog.
 * C: List the comments on this blog.
 * c: Make a comment.
+* p: Make a pingback-like comment.
 * s: List posts with a specific status.
 * S: Search for posts that match a specific string.
 * d: Delete the post under point.
