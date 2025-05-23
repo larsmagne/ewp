@@ -2787,7 +2787,7 @@ I.e., \"google.com\" or \"google.co.uk\"."
 	 (ewp-call 'ewp-new-comment ewp-address
 		   post-id
 		   `(("content" .
-		      ,(format "Pingback: <a class='pingback' href='%s'>%s</a>"
+		      ,(format "Pingback: <a class=\"pingback\" href=%S>%s</a>"
 			       url
 			       (ewp--get-domain
 				(url-host (url-generic-parse-url url)))))
