@@ -2765,6 +2765,40 @@ All normal editing commands are switched off.
 	  (bury-buffer))
       (message "Error while posting: %s" result))))
 
+(defun ewp-make-pingback (link url)
+  "Make URL a pingback to POST-ID."
+  (interactive (list (cdr (assoc "link" (vtable-current-object)))
+		      (read-string "Pingback URL: ")))
+  (when (or (zerop (length url))
+	    (not (string-match "\\`http" url)))
+    (user-error "%s is not a valid pingback URL" url))
+  (let ((url-request-method "POST")
+	(url-request-data
+	 (format
+	  "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>
+<methodCall>
+<methodName>pingback.ping</methodName>
+<params>
+ <param>
+  <value>
+   <string>%s</string>
+  </value>
+ </param>
+ <param>
+  <value>
+   <string>%s</string>
+  </value>
+ </param>
+</params>
+</methodCall>
+"
+	  url link)))
+    (setq a url-request-data)
+    (with-current-buffer (url-retrieve-synchronously
+			  (format "https://%s/xmlrpc.php" ewp-blog-address))
+      (message "%s" (buffer-string))
+      (kill-buffer (current-buffer)))))
+
 (defun ewp-new-comment (blog-xmlrpc user-name password blog-id post-id
 				    data &optional comment-parent)
   "Edits an existing comment."
@@ -2800,7 +2834,11 @@ All normal editing commands are switched off.
                    (value nil ,(cdr (assoc "author_url" data))))
            (member nil
                    (name nil "author_email")
-                   (value nil ,(cdr (assoc "author_email" data)))))))))))))
+                   (value nil ,(cdr (assoc "author_email" data))))
+           (member nil
+                   (name nil "type")
+                   (value nil ,(or (cdr (assoc "type" data))
+				   "comment"))))))))))))
 
 (defun ewp-call (func address &rest args)
   (let ((auth (ewp-auth address)))
