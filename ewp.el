@@ -140,6 +140,13 @@ old post) or `always' (also when inserting new links).")
 (defvar ewp-watch-directory nil
   "Directory to automatically insert images from.")
 
+(defvar ewp-webshot-command
+  '("~/.local/bin/shot-scraper" "shot" "-b" "firefox"
+    "-o" "-" "--wait" "1000" "%u")
+  "Command to \"screenshot\" a web page.
+It \"%u\" is replaced by the URL in question.  It should output
+the resulting image on stdout.")
+
 (defvar ewp--timers nil)
 (defvar ewp--deletable-files nil)
 (defvar ewp--notification-descriptors nil)
@@ -1149,13 +1156,6 @@ If ALL (the prefix), load all the posts in the blog."
 	(let ((output (concat prefix "001.jpg")))
 	  (insert (format " poster=%S " output))
 	  output)))))
-
-(defvar ewp-webshot-command
-  '("~/.local/bin/shot-scraper" "shot" "-b" "firefox"
-    "-o" "-" "--wait" "1000" "%u")
-  "Command to \"screenshot\" a web page.
-It \"%u\" is replaced by the URL in question.  It should output
-the resulting image on stdout.")
 
 (defun ewp--multi-webshot (url methods)
   (cl-loop for method in methods
