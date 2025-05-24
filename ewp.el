@@ -1152,7 +1152,10 @@ If ALL (the prefix), load all the posts in the blog."
 
 (defvar ewp-webshot-command
   '("~/.local/bin/shot-scraper" "shot" "-b" "firefox"
-    "-o" "-" "--wait" "1000" "%u"))
+    "-o" "-" "--wait" "1000" "%u")
+  "Command to \"screenshot\" a web page.
+It \"%u\" is replaced by the URL in question.  It should output
+the resulting image on stdout.")
 
 (defun ewp--multi-webshot (url methods)
   (cl-loop for method in methods
