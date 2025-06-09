@@ -2817,9 +2817,7 @@ I.e., \"google.com\" or \"google.co.uk\"."
   (let* ((post-id (ewp--find-post-id post-url))
 	 (address (url-host (url-generic-parse-url post-url))))
     (if (cl-loop for comment in (ewp--get-post-comments address post-id)
-		 when (string-match (format "Pingback:.*%s"
-					    (regexp-quote url))
-				    (cdr (assoc "content" comment)))
+		 when (string-search url (cdr (assoc "content" comment)))
 		 return t)
 	(message "Pingback already exists")
       (ewp-make-pingback post-id url address))))
