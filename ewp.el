@@ -2481,7 +2481,7 @@ If SHORTLINK, return a \"/?p=42434\" link instead of the full URL."
 	   ("&" "&amp;")))))))
 
 (defun ewp-get-comments (blog-xmlrpc user-name password blog-id comments
-				     &optional offset)
+				     &optional offset post-id)
   "Retrieves list of posts from the weblog system. Uses wp.getComments."
   (xml-rpc-method-call blog-xmlrpc
                        "wp.getComments"
@@ -2489,7 +2489,8 @@ If SHORTLINK, return a \"/?p=42434\" link instead of the full URL."
                        user-name
                        password
 		       `(("number" . ,comments)
-			 ("offset" . ,(or offset 0)))))
+			 ("offset" . ,(or offset 0))
+			 ,@(and post-id `(("post_id" . ,post-id))))))
 
 (defvar-keymap ewp-list-comments-mode-map
   "g" #'ewp-list-comments
@@ -2779,7 +2780,7 @@ I.e., \"google.com\" or \"google.co.uk\"."
 	     do (setq domain (concat (pop bits) "." domain)))
     domain))
 
-(defun ewp-make-pingback (post-id url)
+(defun ewp-make-pingback (post-id url &optional address)
   "Make URL a pingback to POST-ID."
   (interactive (list (cdr (assoc "post_id" (vtable-current-object)))
 		     (read-string "Pingback URL: ")))
@@ -2787,7 +2788,7 @@ I.e., \"google.com\" or \"google.co.uk\"."
 	    (not (string-match "\\`http" url)))
     (user-error "%s is not a valid pingback URL" url))
   (let ((result
-	 (ewp-call 'ewp-new-comment ewp-address
+	 (ewp-call 'ewp-new-comment (or address ewp-address)
 		   post-id
 		   `(("content" .
 		      ,(format "Pingback: <a class=\"pingback\" href=%S>%s</a>"
@@ -2800,6 +2801,27 @@ I.e., \"google.com\" or \"google.co.uk\"."
 	    (eq result t))
 	(message "Posted pingback")
       (message "Error while posting pingback: %s" result))))
+
+(defun ewp--find-post-id (url)
+  "Return the post ID of URL."
+  (cl-loop for post in (ewp-call 'ewp-get-posts
+				 (url-host (url-generic-parse-url url))
+				 30000 nil nil ["link"])
+	   when (equal url (cdr (assoc "link" post)))
+	   return (cdr (assoc "post_id" post))))
+
+(defun ewp--get-post-comments (address post-id)
+  (ewp-call #'ewp-get-comments address 1000 nil post-id))
+
+(defun ewp-possibly-make-pingback (post-url url)
+  (let* ((post-id (ewp--find-post-id post-url))
+	 (address (url-host (url-generic-parse-url post-url))))
+    (unless (cl-loop for comment in (ewp--get-post-comments address post-id)
+		     when (string-match (format "Pingback:.*%s"
+						(regexp-quote url))
+					(cdr (assoc "content" comment)))
+		     return t)
+      (ewp-make-pingback post-id url address))))
 
 (defun ewp-new-comment (blog-xmlrpc user-name password blog-id post-id
 				    data &optional comment-parent)
