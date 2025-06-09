@@ -2816,11 +2816,12 @@ I.e., \"google.com\" or \"google.co.uk\"."
 (defun ewp-possibly-make-pingback (post-url url)
   (let* ((post-id (ewp--find-post-id post-url))
 	 (address (url-host (url-generic-parse-url post-url))))
-    (unless (cl-loop for comment in (ewp--get-post-comments address post-id)
-		     when (string-match (format "Pingback:.*%s"
-						(regexp-quote url))
-					(cdr (assoc "content" comment)))
-		     return t)
+    (if (cl-loop for comment in (ewp--get-post-comments address post-id)
+		 when (string-match (format "Pingback:.*%s"
+					    (regexp-quote url))
+				    (cdr (assoc "content" comment)))
+		 return t)
+	(message "Pingback already exists")
       (ewp-make-pingback post-id url address))))
 
 (defun ewp-new-comment (blog-xmlrpc user-name password blog-id post-id
