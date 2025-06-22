@@ -2813,6 +2813,13 @@ I.e., \"google.com\" or \"google.co.uk\"."
 (defun ewp--get-post-comments (address post-id)
   (ewp-call #'ewp-get-comments address 1000 nil post-id))
 
+(defun ewp-check-pingback (post-url url)
+  (let* ((post-id (ewp--find-post-id post-url))
+	 (address (url-host (url-generic-parse-url post-url))))
+    (cl-loop for comment in (ewp--get-post-comments address post-id)
+	     when (string-search url (cdr (assoc "content" comment)))
+	     return t)))
+
 (defun ewp-possibly-make-pingback (post-url url)
   (let* ((post-id (ewp--find-post-id post-url))
 	 (address (url-host (url-generic-parse-url post-url))))
