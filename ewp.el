@@ -2787,16 +2787,21 @@ I.e., \"google.com\" or \"google.co.uk\"."
   (when (or (zerop (length url))
 	    (not (string-match "\\`http" url)))
     (user-error "%s is not a valid pingback URL" url))
-  (let ((result
-	 (ewp-call 'ewp-new-comment (or address ewp-address)
-		   post-id
-		   `(("content" .
-		      ,(format "Pingback: <a class=\"pingback\" href=%S>%s</a>"
-			       url
-			       (ewp--get-domain
-				(url-host (url-generic-parse-url url)))))
-		     ("author" . "")
-		     ("author_url" . "")))))
+  (let* ((content
+	  (with-temp-buffer
+	    (insert
+	     (format "Pingback: <a shot class=\"pingback\" href=%S>%s</a>"
+		     url
+		     (ewp--get-domain
+		      (url-host (url-generic-parse-url url)))))
+	    (ewp-transform-and-upload-links (or address ewp-address))
+	    (buffer-string)))
+	 (result
+	  (ewp-call 'ewp-new-comment (or address ewp-address)
+		    post-id
+		    `(("content" . ,content)
+		      ("author" . "")
+		      ("author_url" . "")))))
     (if (or (numberp result)
 	    (eq result t))
 	(message "Posted pingback")
