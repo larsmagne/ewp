@@ -1614,7 +1614,7 @@ Hitting the undo key once will remove the quote characters."
 		       (if ewp-screenshot-links
 			   "shot "
 			 "")
-		       url))
+		       (substring-no-properties url)))
 	 (text
 	  (if (not (eq ewp-hide-links 'always))
 	      (format "%s%s</a>" link text)
@@ -1639,7 +1639,7 @@ Hitting the undo key once will remove the quote characters."
 		 :max-width (truncate (* (frame-pixel-width) 0.8))
 		 :max-height (truncate (* (frame-pixel-height) 0.5))
 		 :scale 1)
-		(format "<img src=%S>" file))
+		(format "<img src=%S>" (substring-no-properties file)))
   (insert "\n\n"))
 
 (defun ewp-insert-title (title)
@@ -1648,7 +1648,8 @@ Hitting the undo key once will remove the quote characters."
   (save-excursion
     (ewp--current-title t)
     (search-forward "<img" (pos-eol))
-    (insert (apply #'propertize (format " title=%S" title)
+    (insert (apply #'propertize (format " title=%S"
+					(substring-no-properties title))
 		   (text-properties-at (match-beginning 0))))))
 
 (defun ewp--current-title (&optional delete)
@@ -1692,13 +1693,13 @@ width), rescale and convert the file to mp4."
     (setq file (ewp-rescale-video file rescale))
     (push file ewp--deletable-files))
   (insert (format "<video autoplay loop muted><source src=%S type=\"video/mp4\"></video>\n\n"
-		  file)))
+		  (substring-no-properties file))))
 
 (defun ewp-insert-video-url (url)
   "Prompt for an URL and insert a <video> tag."
   (interactive "sVideo URL: ")
   (insert (format "<video autoplay loop muted><source src=%S type=\"video/mp4\"></video>\n\n"
-		  url)))
+		  (substring-no-properties url))))
 
 (defun ewp-insert-tag (tag)
   "Insert a balanced pair of tags."
