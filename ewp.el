@@ -3620,46 +3620,7 @@ screenshots from TV, for instance."
 (defun ewp-concatenate-images ()
   "Concatenate the images after point."
   (interactive)
-  (let (cfiles)
-    (save-excursion
-      (while (re-search-forward "\\(<img.*?src=\"\\)" nil t)
-	(let* ((start (match-beginning 1))
-	       (file (buffer-substring-no-properties
-		      (point) (progn
-				(re-search-forward "\".*?>" nil t)
-				(match-beginning 0))))
-	       (type (and (string-match "^[a-z]+:" file)
-			  (substring file 0 (1- (match-end 0)))))
-	       (image (get-text-property start 'display))
-	       cfile)
-	  (with-temp-buffer
-	    (set-buffer-multibyte nil)
-	    (cond
-	     ;; Local file.
-	     ((null type)
-	      (insert-file-contents-literally file))
-	     ;; data: URL where the image is in the src bit.
-	     ((and (equal type "data")
-		   (string-match "^data:\\([^;]+\\);base64," file))
-	      (insert (substring-no-properties file))
-	      (goto-char (point-min))
-	      (search-forward ",")
-	      (delete-region (point-min) (point))
-	      (base64-decode-region (point-min) (point-max)))
-	     ;; We have a normal <img src="http..."> image.
-	     (t
-	      (insert (cl-getf (cdr image) :data))))
-	    (ewp-possibly-rotate-buffer image)
-	    (setq cfile
-		  (ewp--unique-name
-		   "concat."
-		   (car (last (split-string (ewp-content-type (buffer-string))
-					    "/")))))
-	    (write-region (point-min) (point-max) cfile nil 'silent))
-	  (push cfile cfiles)
-	  (push cfile ewp--deletable-files))))
-    ;; Now we have all the image files.
-    (setq cfiles (nreverse cfiles))
+  (let ((cfiles (ewp--image-files-in-buffer)))
     (let* ((size (ewp-image-size (car cfiles)))
 	   (ratio (/ (float (car size)) (cdr size)))
 	   (ffiles (list (pop cfiles))))
@@ -3699,6 +3660,62 @@ screenshots from TV, for instance."
 	  (ensure-empty-lines 1)
 	  (ewp-insert-img result)
 	  (goto-char point))))))
+
+(defun ewp--image-files-in-buffer ()
+  (let (cfiles)
+    (save-excursion
+      (while (re-search-forward "\\(<img.*?src=\"\\)" nil t)
+	(let* ((start (match-beginning 1))
+	       (file (buffer-substring-no-properties
+		      (point) (progn
+				(re-search-forward "\".*?>" nil t)
+				(match-beginning 0))))
+	       (type (and (string-match "^[a-z]+:" file)
+			  (substring file 0 (1- (match-end 0)))))
+	       (image (get-text-property start 'display))
+	       cfile)
+	  (with-temp-buffer
+	    (set-buffer-multibyte nil)
+	    (cond
+	     ;; Local file.
+	     ((null type)
+	      (insert-file-contents-literally file))
+	     ;; data: URL where the image is in the src bit.
+	     ((and (equal type "data")
+		   (string-match "^data:\\([^;]+\\);base64," file))
+	      (insert (substring-no-properties file))
+	      (goto-char (point-min))
+	      (search-forward ",")
+	      (delete-region (point-min) (point))
+	      (base64-decode-region (point-min) (point-max)))
+	     ;; We have a normal <img src="http..."> image.
+	     (t
+	      (insert (cl-getf (cdr image) :data))))
+	    (ewp-possibly-rotate-buffer image)
+	    (setq cfile
+		  (ewp--unique-name
+		   "concat."
+		   (car (last (split-string (ewp-content-type (buffer-string))
+					    "/")))))
+	    (write-region (point-min) (point-max) cfile nil 'silent))
+	  (push cfile cfiles)
+	  (push cfile ewp--deletable-files))))
+    (nreverse cfiles)))
+
+(defun ewp-concatenate-images-same-size ()
+  "Concatenate the images (of the same size) after point."
+  (interactive)
+  (let ((cfiles (ewp--image-files-in-buffer)))
+    ;; Now we have all the image files.
+    (let ((result (ewp--unique-name "ewp.jpg")))
+      (push result ewp--deletable-files)
+      (apply #'call-process
+	     `("convert" nil nil nil "+append" ,@cfiles ,result))
+      (goto-char (point-max))
+      (let ((point (point)))
+	(ensure-empty-lines 1)
+	(ewp-insert-img result)
+	(goto-char point)))))
 
 (defun ewp-copy-lastest-media-url-to-kill-ring (&optional address)
   "Copy the URL of the latest media to the kill ring."
