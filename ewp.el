@@ -922,6 +922,7 @@ If ALL (the prefix), load all the posts in the blog."
 		       (beginning-of-line)
 		       (looking-at "<p style=.clear: both;.>")))
 	     result size)
+	;; Update display so that we can see progress.
 	(unless (equal type "https")
 	  (redisplay t)
 	  (sit-for 0.1))
