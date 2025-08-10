@@ -3744,6 +3744,48 @@ screenshots from TV, for instance."
 	   (message "Copied %s" url))
 	 (kill-buffer (current-buffer)))))))
 
+(defun ewp--download-media-library ()
+  (let ((dir (format "~/.emacs.d/ewp/%s/media/" ewp-address)))
+    (unless (file-exists-p dir)
+      (make-directory dir t))
+    (cl-loop with count = 100
+	     for start from 0 by count
+	     while
+	     (cl-loop for elem in (ewp-call 'ewp-get-media-library ewp-address
+					    count start)
+		      ;; Not appearing in any blog post.
+		      when (equal (cdr (assoc "parent" elem)) 0)
+		      do (let* ((url (string-replace "-scaled." "."
+						     (cdr (assoc "link" elem))))
+				(file (expand-file-name
+				       (concat dir
+					       (replace-regexp-in-string
+						"\\`.*/uploads/" "" url)))))
+			   (unless (file-exists-p file)
+			     (message "Downloading %s to %s..." url file)
+			     (call-process "curl" nil nil nil
+					   "--create-dirs"
+					   "-o" file
+					   url))
+			   file)
+		      collect elem))))
+
+(defun ewp--unattached-media-library ()
+  (cl-loop with count = 100
+	   for start from 0 by count
+	   while
+	   (cl-loop for elem in (ewp-call 'ewp-get-media-library ewp-address
+					  count start)
+		    for url = (string-replace "-scaled." "."
+					      (cdr (assoc "link" elem)))
+		    ;; Not appearing in any blog post.
+		    when (equal (cdr (assoc "parent" elem)) 0)
+		    do (insert (format "<img src=%S>\n" url))
+		    when (> (and (string-match "/uploads/\\([0-9]+\\)" url)
+				 (string-to-number (match-string 1 url)))
+			    2021)
+		    collect url)))
+
 (provide 'ewp)
 
 ;;; ewp.el ends here
