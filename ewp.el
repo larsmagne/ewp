@@ -3188,6 +3188,7 @@ If given a prefix, float to the right instead."
     (unless (member (url-host parsed) ewp-blog-addresses)
       (error "Can't find %s in `ewp-blog-addresses'" (url-host parsed)))
     (with-current-buffer (url-retrieve-synchronously url)
+      (goto-char (point-min))
       (unless (re-search-forward "<body.*postid-\\([0-9]+\\)" nil t)
 	(kill-buffer (current-buffer))
 	(error "Couldn't find the blog post id"))
