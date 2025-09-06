@@ -1446,9 +1446,7 @@ If MAX (the numerical prefix), just do that many thumbnails."
   (ewp-new-post)
   (goto-char (point-max))
   (dolist (file files)
-    (insert-image (create-image file (ewp--image-type) nil
-				:max-width (ewp--display-width))
-		  (format "<img src=%S>" file))
+    (ewp--insert-img file)
     (insert "\n\n"))
   (goto-char (point-min))
   (end-of-line))
@@ -1635,13 +1633,20 @@ Hitting the undo key once will remove the quote characters."
 (defun ewp-insert-img (file)
   "Prompt for a file and insert an <img>."
   (interactive "fImage file: ")
-  (insert-image (create-image
-		 file (ewp--image-type) nil
-		 :max-width (truncate (* (frame-pixel-width) 0.8))
-		 :max-height (truncate (* (frame-pixel-height) 0.5))
-		 :scale 1)
-		(format "<img src=%S>" (substring-no-properties file)))
+  (ewp--insert-img file)
   (insert "\n\n"))
+
+(defun ewp--insert-img (file)
+  (let ((start (point))
+	(image (create-image
+		file (ewp--image-type) nil
+		:max-width (truncate (* (frame-pixel-width) 0.8))
+		:max-height (truncate (* (frame-pixel-height) 0.5))
+		:scale 1)))
+    (insert-image image
+		  (format "<img src=%S>" (substring-no-properties file)))
+    (put-text-property start (point) 'ewp-element (cl-incf ewp--element-id))
+    (put-text-property start (point) 'ewp-display image)))
 
 (defun ewp-insert-title (title)
   "Prompt for a title and insert it in the closest <img>."
@@ -3507,7 +3512,7 @@ screenshots from TV, for instance."
 		(exif-orientation
 		 (ignore-error exif-error
 		   (exif-parse-file file))))
-	       (format "<img src=%S>" file))
+	       (ewp--insert-img file))
 	      (put-text-property start (point) 'help-echo file)
 	      (plist-put (cdr (get-text-property start 'display))
 			 :original-file file))
