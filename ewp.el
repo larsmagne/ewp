@@ -1642,7 +1642,11 @@ Hitting the undo key once will remove the quote characters."
 		file (ewp--image-type) nil
 		:max-width (truncate (* (frame-pixel-width) 0.8))
 		:max-height (truncate (* (frame-pixel-height) 0.5))
-		:scale 1)))
+		:scale 1
+		:rotation
+		(exif-orientation
+		 (ignore-error exif-error
+		   (exif-parse-file file))))))
     (insert-image image
 		  (format "<img src=%S>" (substring-no-properties file)))
     (put-text-property start (point) 'ewp-element (cl-incf ewp--element-id))
@@ -3499,24 +3503,11 @@ screenshots from TV, for instance."
 	      (call-process "convert" nil nil nil
 			    "-resize" "800x"
 			    file smaller-file)
-	      (insert-image
-	       (create-image
-		smaller-file (ewp--image-type) nil
-		:max-width
-		(truncate
-		 (* 0.95 (- (nth 2 edges) (nth 0 edges))))
-		:max-height
-		(truncate
-		 (* 0.7 (- (nth 3 edges) (nth 1 edges))))
-		:rotation
-		(exif-orientation
-		 (ignore-error exif-error
-		   (exif-parse-file file))))
-	       (ewp--insert-img file))
+	      (ewp--insert-img smaller-file)
 	      (put-text-property start (point) 'help-echo file)
 	      (plist-put (cdr (get-text-property start 'display))
 			 :original-file file))
-	    (insert "\n\n")
+	    (insert "\n\n\n")
 	    (when separator
 	      (insert separator)))))
       ;; Keep track of the inserted files.
