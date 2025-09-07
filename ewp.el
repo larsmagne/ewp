@@ -3479,37 +3479,35 @@ screenshots from TV, for instance."
 	(setq file new)
 	(push new ewp--deletable-files))
       (with-current-buffer buffer
-	(let ((edges (window-inside-pixel-edges
-		      (get-buffer-window (current-buffer) t))))
-	  (save-excursion
-	    (goto-char (point-max))
-	    ;; If we're just after an image, leave
-	    ;; several empty lines (to type in).  If not,
-	    ;; just one empty line.
-	    (if (save-excursion
-		  (and (re-search-backward "^[^\n]" nil t)
-		       (looking-at "<img")))
-		(ensure-empty-lines 3)
-	      (ensure-empty-lines 1))
-	    (let ((start (point))
-		  ;; Emacs can get really slow when
-		  ;; displaying large images.  So resize
-		  ;; and display a smaller one instead.
-		  (smaller-file
-		   (concat
-		    (ewp--temp-name "wd" (file-name-extension file))
-		    (file-name-nondirectory file))))
-	      (push smaller-file ewp--deletable-files)
-	      (call-process "convert" nil nil nil
-			    "-resize" "800x"
-			    file smaller-file)
-	      (ewp--insert-img smaller-file)
-	      (put-text-property start (point) 'help-echo file)
-	      (plist-put (cdr (get-text-property start 'display))
-			 :original-file file))
-	    (insert "\n\n\n")
-	    (when separator
-	      (insert separator)))))
+	(save-excursion
+	  (goto-char (point-max))
+	  ;; If we're just after an image, leave
+	  ;; several empty lines (to type in).  If not,
+	  ;; just one empty line.
+	  (if (save-excursion
+		(and (re-search-backward "^[^\n]" nil t)
+		     (looking-at "<img")))
+	      (ensure-empty-lines 3)
+	    (ensure-empty-lines 1))
+	  (let ((start (point))
+		;; Emacs can get really slow when
+		;; displaying large images.  So resize
+		;; and display a smaller one instead.
+		(smaller-file
+		 (concat
+		  (ewp--temp-name "wd" (file-name-extension file))
+		  (file-name-nondirectory file))))
+	    (push smaller-file ewp--deletable-files)
+	    (call-process "convert" nil nil nil
+			  "-resize" "800x"
+			  file smaller-file)
+	    (ewp--insert-img smaller-file)
+	    (put-text-property start (point) 'help-echo file)
+	    (plist-put (cdr (get-text-property start 'display))
+		       :original-file file))
+	  (insert "\n\n\n")
+	  (when separator
+	    (insert separator))))
       ;; Keep track of the inserted files.
       (push file files)
       (setf (elt data 0) files))))
