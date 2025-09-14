@@ -2795,6 +2795,7 @@ I.e., \"google.com\" or \"google.co.uk\"."
   "Make URL a pingback to POST-ID."
   (interactive (list (cdr (assoc "post_id" (vtable-current-object)))
 		     (read-string "Pingback URL: ")))
+  (setq address (or address ewp-address))
   (when (or (zerop (length url))
 	    (not (string-match "\\`http" url)))
     (user-error "%s is not a valid pingback URL" url))
@@ -2805,10 +2806,10 @@ I.e., \"google.com\" or \"google.co.uk\"."
 		     url
 		     (ewp--get-domain
 		      (url-host (url-generic-parse-url url)))))
-	    (ewp-transform-and-upload-links (or address ewp-address))
+	    (ewp-transform-and-upload-links address)
 	    (buffer-string)))
 	 (result
-	  (ewp-call 'ewp-new-comment (or address ewp-address)
+	  (ewp-call 'ewp-new-comment address
 		    post-id
 		    `(("content" . ,content)
 		      ("author" . "")
