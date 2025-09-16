@@ -1640,8 +1640,8 @@ Hitting the undo key once will remove the quote characters."
   (let ((start (point))
 	(image (create-image
 		file (ewp--image-type) nil
-		:max-width (truncate (* (frame-pixel-width) 0.8))
-		:max-height (truncate (* (frame-pixel-height) 0.5))
+		:max-width (truncate (* (frame-pixel-width) 0.95))
+		:max-height (truncate (* (frame-pixel-height) 0.7))
 		:scale 1
 		:rotation
 		(exif-orientation
