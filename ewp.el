@@ -778,7 +778,7 @@ If ALL (the prefix), load all the posts in the blog."
 
 ;; I ... think?  Wordpress uses universal time for the time stamps,
 ;; but I'm not sure.  They call it "GMT", though.  This code assumes
-;; to, anyway.
+;; it, anyway.
 (defun ewp-current-time (post scheduled)
   (ewp-external-time
    (if (plusp (length scheduled))
@@ -786,7 +786,7 @@ If ALL (the prefix), load all the posts in the blog."
 	  (car (current-time-zone)))
      (or (caddr (assoc "date_created_gmt" post))
 	 (caddr (assoc "dateCreated_gmt" post))
-	 ;; Convert to univesal.
+	 ;; Convert to universal.
 	 (- (time-convert (current-time) 'integer)
 	    (car (current-time-zone)))))))
 
@@ -1636,7 +1636,7 @@ Hitting the undo key once will remove the quote characters."
   (ewp--insert-img file)
   (insert "\n\n"))
 
-(defun ewp--insert-img (file)
+(defun ewp--insert-img (file &optional actual-src)
   (let ((start (point))
 	(image (create-image
 		file (ewp--image-type) nil
@@ -1648,7 +1648,8 @@ Hitting the undo key once will remove the quote characters."
 		 (ignore-error exif-error
 		   (exif-parse-file file))))))
     (insert-image image
-		  (format "<img src=%S>" (substring-no-properties file)))
+		  (format "<img src=%S>"
+			  (substring-no-properties (or actual-src file))))
     (put-text-property start (point) 'ewp-element (cl-incf ewp--element-id))
     (put-text-property start (point) 'ewp-display image)))
 
@@ -1711,9 +1712,16 @@ width), rescale and convert the file to mp4."
   (insert (format "<video autoplay loop muted><source src=%S type=\"video/mp4\"></video>\n\n"
 		  (substring-no-properties url))))
 
+(defvar ewp--insert-tag-history nil)
+
 (defun ewp-insert-tag (tag)
   "Insert a balanced pair of tags."
-  (interactive (list (completing-read "Tag: " ewp-html-tags)))
+  (interactive (list (completing-read "Tag: " ewp-html-tags
+				      nil nil nil 'ewp--insert-tag-history)))
+  (when (zerop (length tag))
+    (if ewp--insert-tag-history
+	(setq tag (car ewp--insert-tag-history))
+      (user-error "No tag given")))
   (insert "<" tag ">")
   (let ((point (point)))
     (insert "</" tag ">")
@@ -3502,7 +3510,7 @@ screenshots from TV, for instance."
 	    (call-process "convert" nil nil nil
 			  "-resize" "800x"
 			  file smaller-file)
-	    (ewp--insert-img smaller-file)
+	    (ewp--insert-img smaller-file file)
 	    (put-text-property start (point) 'help-echo file)
 	    (plist-put (cdr (get-text-property start 'display))
 		       :original-file file))
