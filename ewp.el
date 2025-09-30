@@ -1642,7 +1642,6 @@ Hitting the undo key once will remove the quote characters."
 		file (ewp--image-type) nil
 		:max-width (truncate (* (frame-pixel-width) 0.95))
 		:max-height (truncate (* (frame-pixel-height) 0.7))
-		:scale 1
 		:rotation
 		(exif-orientation
 		 (ignore-error exif-error
@@ -2359,6 +2358,15 @@ starting the screenshotting process."
     (insert "\n\n")
     (message "")))
 
+(defun ewp-import-file (file)
+  "Insert FILE as a data: <img>."
+  (interactive "fImage: ")
+  (ewp-insert-image-data (with-temp-buffer
+			   (set-buffer-multibyte nil)
+			   (insert-file-contents-literally file)
+			   (buffer-string)))
+  (insert "\n\n"))
+
 (defun ewp-screenshot-imagemagick ()
   (call-process "import" nil (current-buffer) nil "jpeg:-"))
 
@@ -2848,6 +2856,8 @@ I.e., \"google.com\" or \"google.co.uk\"."
 	     return t)))
 
 (defun ewp-possibly-make-pingback (post-url url &optional post-id)
+  "Make a pingback to POST-URL from URL."
+  (interactive "sPost URL: \nsURL: ")
   (let* ((post-id (or post-id (ewp--find-post-id post-url)))
 	 (address (url-host (url-generic-parse-url post-url))))
     (if (cl-loop for comment in (ewp--get-post-comments address post-id)
