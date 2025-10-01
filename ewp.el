@@ -3026,6 +3026,50 @@ If given a prefix, float to the right instead."
       (delete-region (line-beginning-position) (line-end-position))
       (ewp-insert-image-data new-data))))
 
+(defun ewp-extend-image ()
+  "Make the image under point taller."
+  (interactive)
+  (let ((image (get-text-property (point) 'display))
+	new-data)
+    (when (or (not image)
+	      (not (consp image))
+	      (not (eq (car image) 'image)))
+      (error "No image under point"))
+    (let ((data (cl-getf (cdr image) :data))
+	  (inhibit-read-only t))
+      (when (null data)
+	(with-temp-buffer
+	  (set-buffer-multibyte nil)
+	  (insert-file-contents-literally (ewp--image-file image))
+	  (setq data (buffer-string))))
+      (with-temp-buffer
+	(set-buffer-multibyte nil)
+	(insert data)
+	(call-process-region
+	 (point-min) (point-max)
+	 "convert" t (current-buffer) nil
+	 "-gravity" "north" "-background" 
+	 (image-crop--pick-color (/ (car (ewp-image-size image)) 2) 0)
+	 "-splice" "0x100"
+	 (format "%s:-" (car (last (split-string
+				    (ewp-content-type data)
+				    "/"))))
+	 "jpg:-")
+	(call-process-region
+	 (point-min) (point-max)
+	 "convert" t (current-buffer) nil
+	 "-gravity" "south" "-background" 
+	 (image-crop--pick-color (/ (car (ewp-image-size image)) 2)
+				 (1- (cdr (ewp-image-size image))))
+	 "-splice" "0x100"
+	 (format "%s:-" (car (last (split-string
+				    (ewp-content-type data)
+				    "/"))))
+	 "jpg:-")
+	(setq new-data (buffer-string)))
+      (delete-region (line-beginning-position) (line-end-position))
+      (ewp-insert-image-data new-data))))
+
 (defun ewp-save-image (filename)
   "Save the image under point."
   (interactive "FFilename: ")
