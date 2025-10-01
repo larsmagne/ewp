@@ -3045,6 +3045,7 @@ If given a prefix, float to the right instead."
       (with-temp-buffer
 	(set-buffer-multibyte nil)
 	(insert data)
+	;; Border above.
 	(call-process-region
 	 (point-min) (point-max)
 	 "convert" t (current-buffer) nil
@@ -3055,6 +3056,7 @@ If given a prefix, float to the right instead."
 				    (ewp-content-type data)
 				    "/"))))
 	 "jpg:-")
+	;; Border below.
 	(call-process-region
 	 (point-min) (point-max)
 	 "convert" t (current-buffer) nil
