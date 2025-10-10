@@ -147,6 +147,9 @@ old post) or `always' (also when inserting new links).")
 It \"%u\" is replaced by the URL in question.  It should output
 the resulting image on stdout.")
 
+(defvar ewp-image-class "cimage"
+  "Class to put on <a> links for images.")
+
 (defvar ewp--timers nil)
 (defvar ewp--deletable-files nil)
 (defvar ewp--notification-descriptors nil)
@@ -1027,7 +1030,8 @@ If ALL (the prefix), load all the posts in the blog."
 		       (string-match ewp-embed-smaller-images ewp-address))
 		  (insert
 		   (format
-		    "<a class=cimage href=%S><img src=%S alt=\"\" wp-image-%s /></a>"
+		    "<a class=%S href=%S><img src=%S alt=\"\" wp-image-%s /></a>"
+		    ewp-image-class
 		    unscaled-url
 		    (if (> (car size) 768)
 			(replace-regexp-in-string "\\([.][a-z]+\\)\\'"
@@ -1039,7 +1043,8 @@ If ALL (the prefix), load all the posts in the blog."
 		    (cdr (assoc "id" result))))
 		(insert
 		 (format
-		  "<a class=cimage href=%S><img src=%S alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
+		  "<a class=%S href=%S><img src=%S alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
+		  ewp-image-class
 		  unscaled-url url
 		  (if factor
 		      limit-width
@@ -3061,7 +3066,7 @@ If given a prefix, float to the right instead."
 	 (point-min) (point-max)
 	 "convert" t (current-buffer) nil
 	 "-gravity" "south" "-background" 
-	 (image-crop--pick-color (/ (car (ewp-image-size image)) 2)
+	 (image-crop--pick-color (+ 2 (/ (car (ewp-image-size image)) 2))
 				 (1- (cdr (ewp-image-size image))))
 	 "-splice" "0x100"
 	 (format "%s:-" (car (last (split-string
