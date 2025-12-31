@@ -607,12 +607,13 @@ If ALL (the prefix), load all the posts in the blog."
 (defun ewp--delete-files (files)
   "Delete FILES and if possible, also the parent director{y,ies} of FILES."
   (dolist (file files)
-    (when (file-exists-p file)
-      (delete-file file))
-    (let ((dir (file-name-directory file)))
-      (when (and (file-exists-p dir)
-		 (directory-empty-p dir))
-	(delete-directory dir)))))
+    (when file
+      (when (file-exists-p file)
+	(delete-file file))
+      (let ((dir (file-name-directory file)))
+	(when (and (file-exists-p dir)
+		   (directory-empty-p dir))
+	  (delete-directory dir))))))
 
 (defun ewp-update-post ()
   "Update the post in the current buffer on Wordpress."
@@ -1098,13 +1099,24 @@ If ALL (the prefix), load all the posts in the blog."
 	     (video-start (match-beginning 0))
 	     (url (url-generic-parse-url file))
 	     new-url)
-	;; Local file; add poster and upload the file
-	(when (null (url-type url))
-	  ;; If there's already a poster here, don't make a new one.
-	  (unless (save-excursion
-		    (re-search-forward "poster=\"\\([^\"]+\\)\""
-				       (max end (line-end-position)) t))
-	    (push (ewp--add-video-poster file) ewp--deletable-files))
+	;; If there's already a poster here, don't make a new one.
+	(unless (save-excursion
+		  (re-search-forward "poster=\"\\([^\"]+\\)\""
+				     (max end (line-end-position)) t))
+	  ;; Non-local URL -- download it.
+	  (when (url-type url)
+	    (with-current-buffer (url-retrieve-synchronously file t)
+	      (goto-char (point-min))
+	      (when (re-search-forward "\n\n" nil t)
+		(setq file (concat (make-temp-name "/tmp/ewp")
+				   "."
+				   (or (file-name-extension file) "mp4")))
+		(push file ewp--deletable-files)
+		(write-region (point) (point-max) file nil 'silent))
+	      (kill-buffer (current-buffer))))
+	  (push (ewp--add-video-poster file) ewp--deletable-files))
+	;; Local file -- upload.
+	(unless (url-type url)
 	  (when (or (setq new-url (ewp--possibly-upload-via-ssh file address))
 		    (when-let* ((result
 				 (ewp--upload-file
@@ -1701,7 +1713,9 @@ Hitting the undo key once will remove the quote characters."
 If RESCALE (interactively, the prefix, non-interactively the
 width), rescale and convert the file to mp4."
   (interactive "fVideo file: \nP")
-  (setq rescale (or rescale ewp-video-width))
+  (if ewp-video-width
+      (setq rescale (if rescale nil ewp-video-width))
+    (setq rescale (if rescale ewp-video-width nil)))
   (when rescale
     (unless (numberp rescale)
       (setq rescale (read-number "Rescale video to width (in pixels): ")))
