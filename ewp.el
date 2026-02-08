@@ -446,7 +446,10 @@ If ALL (the prefix), load all the posts in the blog."
 	 (address (or address ewp-address)))
     (switch-to-buffer (format "*%s edit*" id))
     (erase-buffer)
-    (ewp-edit-mode)
+    ;; Bind `ewp-address' here so that the hook can do stuff based on
+    ;; the current blog.
+    (let ((ewp-address address))
+      (ewp-edit-mode))
     (setq-local ewp-address address)
     (insert "Title: " (or (cdr (assoc "title" post)) "") "\n")
     (insert "Categories: " (mapconcat 'identity (cdr (assoc "categories" post))
@@ -568,7 +571,9 @@ If ALL (the prefix), load all the posts in the blog."
 
 (define-derived-mode ewp-edit-mode text-mode "ewp"
   "Major mode for editing Wordpress posts.
-\\<ewp-edit-mode-map>"
+
+`ewp-address' is bound to the current blog being edited when
+`ewp-edit-mode-hook' is called."
   (setq-local word-wrap t)
   (setq-local normal-auto-fill-function 'ignore)
   (setq-local completion-at-point-functions
@@ -3180,7 +3185,7 @@ If given a prefix, float to the right instead."
     (setf (cl-getf (cdr image) :width) width)))
 
 (defun ewp-get-post-data (category)
-  (cl-loop for elem in (ewp-call 'ewp-get-posts ewp-address 300 0 nil
+  (cl-loop for elem in (ewp-call 'ewp-get-posts ewp-address 2000 0 nil
 				 ["post_title" "post_date" "post_status"
 				  "terms" "link" "post_name" "post_content"])
 	   when (or (null category)
