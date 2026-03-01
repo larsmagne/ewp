@@ -917,18 +917,18 @@ If ALL (the prefix), load all the posts in the blog."
     (while (re-search-forward "\\(<a [^>]+>.*?\\)?\\(<img.*?src=\"\\)" nil t)
       (let* ((link-start (match-beginning 1))
 	     (start (match-beginning 2))
-	     (file (buffer-substring-no-properties
-		    (point) (progn
-			      (re-search-forward "\".*?>" nil t)
-			      (match-beginning 0))))
+	     (url (buffer-substring-no-properties
+		   (point) (progn
+			     (re-search-forward "\".*?>" nil t)
+			     (match-beginning 0))))
 	     (end (point))
 	     (link-end (and (looking-at "</a>")
 			    (match-end 0)))
 	     ;; We're avoiding `url-generic-parse-url' and other
 	     ;; regepx-based parsers here because data: URLs can be
 	     ;; huge and blows up the regexp parser.
-	     (type (and (string-match "^[a-z]+:" file)
-			(substring file 0 (1- (match-end 0)))))
+	     (type (and (string-match "^[a-z]+:" url)
+			(substring url 0 (1- (match-end 0)))))
 	     (image (get-text-property start 'display))
 	     (floatp (save-excursion
 		       (beginning-of-line)
@@ -940,14 +940,15 @@ If ALL (the prefix), load all the posts in the blog."
 	  (sit-for 0.1))
 	(cond
 	 ;; Local file.
-	 ((null type)
-	  (let ((data
-		 (with-temp-buffer
-		   (set-buffer-multibyte nil)
-		   (insert-file-contents-literally file)
-		   (ewp-possibly-rotate-buffer image)
-		   (base64-encode-region (point-min) (point-max))
-		   (buffer-string))))
+	 ((equal type "file")
+	  (let* ((file (url-filename (url-generic-parse-url url)))
+		 (data
+		  (with-temp-buffer
+		    (set-buffer-multibyte nil)
+		    (insert-file-contents-literally file)
+		    (ewp-possibly-rotate-buffer image)
+		    (base64-encode-region (point-min) (point-max))
+		    (buffer-string))))
 	    (setq result
 		  (ewp--upload-file address
 				    (file-name-nondirectory file)
@@ -963,11 +964,11 @@ If ALL (the prefix), load all the posts in the blog."
 					(ewp--image-type) t)))))
 	 ;; data: URL where the image is in the src bit.
 	 ((and (equal type "data")
-	       (string-match "^data:\\([^;]+\\);base64," file))
-	  (let ((mime-type (match-string 1 file))
+	       (string-match "^data:\\([^;]+\\);base64," url))
+	  (let ((mime-type (match-string 1 url))
 		(data (with-temp-buffer
 			(set-buffer-multibyte nil)
-			(insert (substring-no-properties file))
+			(insert (substring-no-properties url))
 			(goto-char (point-min))
 			(search-forward ",")
 			(delete-region (point-min) (point))
@@ -1101,18 +1102,20 @@ If ALL (the prefix), load all the posts in the blog."
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward "<video .*?src=\"\\([^\"]+\\)\"" nil t)
-      (let* ((file (match-string 1))
+      (let* ((url (match-string 1))
 	     (start (match-beginning 1))
 	     (end (match-end 1))
 	     (video-start (match-beginning 0))
-	     (url (url-generic-parse-url file))
+	     (parsed (url-generic-parse-url url))
+	     (file (url-filename parsed))
 	     new-url)
 	;; If there's already a poster here, don't make a new one.
 	(unless (save-excursion
+		  (goto-char video-start)
 		  (re-search-forward "poster=\"\\([^\"]+\\)\""
 				     (max end (line-end-position)) t))
 	  ;; Non-local URL -- download it.
-	  (when (url-type url)
+	  (unless (equal (url-type parsed) "file")
 	    (with-current-buffer (url-retrieve-synchronously file t)
 	      (goto-char (point-min))
 	      (when (re-search-forward "\n\n" nil t)
@@ -1124,7 +1127,7 @@ If ALL (the prefix), load all the posts in the blog."
 	      (kill-buffer (current-buffer))))
 	  (push (ewp--add-video-poster file video-start) ewp--deletable-files))
 	;; Local file -- upload.
-	(unless (url-type url)
+	(when (equal (url-type parsed) "file")
 	  (when (or (setq new-url (ewp--possibly-upload-via-ssh file address))
 		    (when-let* ((result
 				 (ewp--upload-file
@@ -1146,12 +1149,13 @@ If ALL (the prefix), load all the posts in the blog."
 	  (goto-char video-start)
 	  (when (re-search-forward "poster=\"\\([^\"]+\\)\""
 				   (max end (line-end-position)) t)
-	    (let* ((file (match-string 1))
+	    (let* ((url (match-string 1))
 		   (start (match-beginning 1))
 		   (end (match-end 1))
-		   (url (url-generic-parse-url file)))
+		   (parsed (url-generic-parse-url url))
+		   (file (url-filename parsed)))
 	      ;; Local file; upload it.
-	      (when (null (url-type url))
+	      (when (equal (url-type parsed) "file")
 		(when-let* ((result
 			     (ewp--upload-file
 			      address
@@ -1185,7 +1189,7 @@ If ALL (the prefix), load all the posts in the blog."
 	    (goto-char video-start)
 	    (search-forward ">")
 	    (forward-char -1)
-	    (insert (format " poster=%S" output)))
+	    (insert (format " poster=%S" (concat "file://" output))))
 	  output)))))
 
 (defun ewp--multi-webshot (url methods)
@@ -1676,9 +1680,10 @@ Hitting the undo key once will remove the quote characters."
 		(exif-orientation
 		 (ignore-error exif-error
 		   (exif-parse-file file))))))
-    (insert-image image
-		  (format "<img src=%S>"
-			  (substring-no-properties (or actual-src file))))
+    (insert-image
+     image
+     (format "<img src=%S>"
+	     (concat "file://" (substring-no-properties (or actual-src file)))))
     (put-text-property start (point) 'ewp-element (cl-incf ewp--element-id))
     (put-text-property start (point) 'ewp-display image)))
 
@@ -1735,7 +1740,7 @@ width), rescale and convert the file to mp4."
     (setq file (ewp-rescale-video file rescale))
     (push file ewp--deletable-files))
   (insert (format "<video autoplay loop muted><source src=%S type=\"video/mp4\"></video>\n\n"
-		  (substring-no-properties file))))
+		  (concat "file://" (substring-no-properties file)))))
 
 (defun ewp-insert-video-url (url)
   "Prompt for an URL and insert a <video> tag."
