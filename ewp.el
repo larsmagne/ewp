@@ -153,6 +153,7 @@ the resulting image on stdout.")
 (defvar ewp--timers nil)
 (defvar ewp--deletable-files nil)
 (defvar ewp--notification-descriptors nil)
+(defvar ewp--edit-address nil)
 
 (defvar ewp-post)
 (defvar ewp-address)
@@ -446,9 +447,10 @@ If ALL (the prefix), load all the posts in the blog."
 	 (address (or address ewp-address)))
     (switch-to-buffer (format "*%s edit*" id))
     (erase-buffer)
-    ;; Bind `ewp-address' here so that the hook can do stuff based on
-    ;; the current blog.
-    (let ((ewp-address address))
+    ;; Bind `ewp--edit-address' here so that the hook can do stuff
+    ;; based on the current blog.  We do it this way because
+    ;; `ewp-address' is buffer-local and cleared by the major mode.
+    (let ((ewp--edit-address address))
       (ewp-edit-mode))
     (setq-local ewp-address address)
     (insert "Title: " (or (cdr (assoc "title" post)) "") "\n")
@@ -597,7 +599,8 @@ If ALL (the prefix), load all the posts in the blog."
     (ewp-watch-directory ewp-watch-directory))
   (yank-media-handler 'text/html #'html-mode--html-yank-handler)
   (yank-media-handler "image/.*" #'ewp--image-yank-handler)
-  (run-hooks 'ewp-edit-hook))
+  (let ((ewp-address ewp--edit-address))
+    (run-hooks 'ewp-edit-hook)))
 
 (defun ewp--update-image-crop (_text image)
   (format "<img src=\"data:%s;base64,%s\">"
@@ -1119,7 +1122,7 @@ If ALL (the prefix), load all the posts in the blog."
 		(push file ewp--deletable-files)
 		(write-region (point) (point-max) file nil 'silent))
 	      (kill-buffer (current-buffer))))
-	  (push (ewp--add-video-poster file) ewp--deletable-files))
+	  (push (ewp--add-video-poster file video-start) ewp--deletable-files))
 	;; Local file -- upload.
 	(unless (url-type url)
 	  (when (or (setq new-url (ewp--possibly-upload-via-ssh file address))
@@ -1165,7 +1168,7 @@ If ALL (the prefix), load all the posts in the blog."
 		  (goto-char start)
 		  (insert url))))))))))
 
-(defun ewp--add-video-poster (file)
+(defun ewp--add-video-poster (file video-start)
   (when (executable-find "ffmpeg")
     (let ((prefix (ewp--temp-name "poster")))
       (when (zerop
@@ -1177,7 +1180,12 @@ If ALL (the prefix), load all the posts in the blog."
 	      "-vf" "thumbnail,scale=-1:720"
 	      (concat prefix "%03d.jpg")))
 	(let ((output (concat prefix "001.jpg")))
-	  (insert (format " poster=%S " output))
+	  ;; Put the poster="..." at the end of the <video ...> element.
+	  (save-excursion
+	    (goto-char video-start)
+	    (search-forward ">")
+	    (forward-char -1)
+	    (insert (format " poster=%S" output)))
 	  output)))))
 
 (defun ewp--multi-webshot (url methods)
