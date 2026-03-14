@@ -1097,14 +1097,19 @@ If ALL (the prefix), load all the posts in the blog."
       (let ((fragment (ewp--upload-via-ssh file (nth 2 elem))))
 	(format "https://%s%s%s" ewp-address (nth 3 elem) fragment)))))
 
+(defun ewp--marker (point)
+  (let ((m (make-marker)))
+    (set-marker m point)
+    m))
+
 (defun ewp-transform-and-upload-videos (address)
   "Look for local <video ...> and upload mp4s from those to Wordpress."
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward "<video .*?src=\"\\([^\"]+\\)\"" nil t)
       (let* ((url (match-string 1))
-	     (start (match-beginning 1))
-	     (end (match-end 1))
+	     (start (ewp--marker (match-beginning 1)))
+	     (end (ewp--marker (match-end 1)))
 	     (video-start (match-beginning 0))
 	     (parsed (url-generic-parse-url url))
 	     (file (url-filename parsed))
@@ -2638,32 +2643,31 @@ All normal editing commands are switched off.
 	(forward-line 1)))
     (nreverse data)))
 
-(defun ewp-display-comment ()
+(defun ewp-display-comment (comment)
   "Display the comment under point."
-  (interactive)
-  (let ((data (get-text-property (point) 'vtable-object)))
-    (unless data
-      (error "No comment under point"))
-    (switch-to-buffer (format "*%s comment*" (cdr (assoc "comment_id" data))))
-    (eww-mode)
-    (let ((inhibit-read-only t))
-      (erase-buffer)
-      (eww-display-html
-       'utf-8 "data:" 
-       (with-temp-buffer
-	 (insert
-	  (if (cdr (assoc "author_url" data))
-	      (format "<a href=%S>%s</a>"
-		      (cdr (assoc "author_url" data))
-		      (or (cdr (assoc "author" data)) "Somebody"))
-	    (format "%s" (or (cdr (assoc "author" data)) "Somebody"))))
-	 (insert (format " writes as a comment to <a href=%S>%s</a>:<p>"
-			 (cdr (assoc "link" data))
-			 (cdr (assoc "post_title" data))))
-	 (insert (cdr (assoc "content" data)))
-	 (libxml-parse-html-region (point-min) (point-max)))
-       (point-min) (current-buffer))
-      (goto-char (point-min)))))
+  (interactive (list (get-text-property (point) 'vtable-object)))
+  (unless comment
+    (error "No comment under point"))
+  (switch-to-buffer (format "*%s comment*" (cdr (assoc "comment_id" comment))))
+  (eww-mode)
+  (let ((inhibit-read-only t))
+    (erase-buffer)
+    (eww-display-html
+     'utf-8 "data:" 
+     (with-temp-buffer
+       (insert
+	(if (cdr (assoc "author_url" comment))
+	    (format "<a href=%S>%s</a>"
+		    (cdr (assoc "author_url" comment))
+		    (or (cdr (assoc "author" comment)) "Somebody"))
+	  (format "%s" (or (cdr (assoc "author" comment)) "Somebody"))))
+       (insert (format " writes as a comment to <a href=%S>%s</a>:<p>"
+		       (cdr (assoc "link" comment))
+		       (cdr (assoc "post_title" comment))))
+       (insert (cdr (assoc "content" comment)))
+       (libxml-parse-html-region (point-min) (point-max)))
+     (point-min) (current-buffer))
+    (goto-char (point-min))))
 
 (defvar ewp-comment-mode-map
   (let ((map (make-sparse-keymap)))
@@ -2789,28 +2793,27 @@ All normal editing commands are switched off.
       (beginning-of-line)
       (insert line))))
   
-(defun ewp-make-comment (&optional editp)
-  "Post a new comment or a reply to the comment under point."
-  (interactive)
-  (let ((data (get-text-property (point) 'vtable-object))
-	(address ewp-address))
-    (unless data
+(defun ewp-make-comment (comment &optional editp)
+  "Reply to the comment/post under point."
+  (interactive (list (get-text-property (point) 'vtable-object)))
+  (let ((address ewp-address))
+    (unless comment
       (error "No comment under point"))
-    (switch-to-buffer (format "*comment %s*" (cdr (assoc "post_id" data))))
+    (switch-to-buffer (format "*comment %s*" (cdr (assoc "post_id" comment))))
     (erase-buffer)
     (ewp-edit-mode)
     (when editp
-      (setq-local ewp-edit data)
-      (insert (cdr (assoc "content" data)))
+      (setq-local ewp-edit comment)
+      (insert (cdr (assoc "content" comment)))
       (goto-char (point-min)))
-    (setq-local ewp-comment data)
-    (setq-local ewp-post data)
+    (setq-local ewp-comment comment)
+    (setq-local ewp-post comment)
     (setq-local ewp-address address)))
 
-(defun ewp-make-comment-edit ()
+(defun ewp-make-comment-edit (comment)
   "Edit a comment."
-  (interactive)
-  (ewp-make-comment t))
+  (interactive (list (get-text-property (point) 'vtable-object)))
+  (ewp-make-comment comment t))
 
 (defun ewp-send-comment ()
   (let* ((editp (and (boundp 'ewp-edit)
