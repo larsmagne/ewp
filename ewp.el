@@ -1269,7 +1269,7 @@ If ALL (the prefix), load all the posts in the blog."
 		 file)
 	    ;; Local file.
 	    (when (and (not (equal (url-host url) address))
-		       (not (dom-attr dom 'onmouseenter)))
+		       (not (dom-attr dom 'data-cached-time)))
 	      (if (not (setq file (ewp--webshot (dom-attr dom 'href))))
 		  (save-excursion
 		    (goto-char start)
@@ -1296,7 +1296,6 @@ If ALL (the prefix), load all the posts in the blog."
 				     (replace-regexp-in-string
 				      "-scaled.webp" ".webp"
 				      image-url))
-		  (dom-set-attribute dom 'onmouseenter "hoverLink(event)")
 		  (ewp-print-html dom t)
 		  (delete-file file))))))))))
 
@@ -1672,7 +1671,7 @@ Hitting the undo key once will remove the quote characters."
 (defun ewp-insert-img (file)
   "Prompt for a file and insert an <img>."
   (interactive "fImage file: ")
-  (ewp--insert-img file)
+  (ewp--insert-img (expand-file-name file))
   (insert "\n\n"))
 
 (defun ewp--insert-img (file &optional actual-src)
