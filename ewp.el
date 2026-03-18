@@ -3896,34 +3896,36 @@ screenshots from TV, for instance."
 			    2021)
 		    collect url)))
 
+(defvar ewp--block-lists
+  '("https://secure.fanboy.co.nz/fanboy-cookiemonster.txt"
+    "https://filters.adtidy.org/extension/ublock/filters/18.txt"))
+
 (defun ewp--create-scraper-js ()
-  (call-process "curl" nil nil nil
-		"-o" (expand-file-name
-		      "~/src/ewp.el/resources/fanboy-cookiemonster.txt")
-		"https://secure.fanboy.co.nz/fanboy-cookiemonster.txt")
-  (call-process "curl" nil nil nil
-		"-o" (expand-file-name
-		      "~/src/ewp.el/resources/18.txt")
-		"https://filters.adtidy.org/extension/ublock/filters/18.txt")
+  (dolist (url ewp--block-lists)
+    (call-process "curl" nil nil nil
+		  "-o" (expand-file-name
+			(file-name-nondirectory url) "~/src/ewp.el/resources")
+		  url))
   (with-temp-buffer
     (insert "(() => {\n")
     (insert-file-contents "~/src/ewp.el/resources/shot-scraper-func.js")
     (goto-char (point-max))
-    (cl-loop for (domain selector) in
-	     (with-temp-buffer
-	       (insert-file-contents
-		"~/src/ewp.el/resources/18.txt")
-	       (insert-file-contents
-		"~/src/ewp.el/resources/fanboy-cookiemonster.txt")
-	       (cl-loop while (re-search-forward "^\\([^#\n]*\\)##\\(.*\\)" nil t)
-			collect (list (match-string 1) (match-string 2))))
-	     do
-	     ;; Ignore stuff like
-	     ;; webronza.asahi.com##+js(remove-class, no_scroll, body.no_scroll)
-	     (unless (string-match-p "\\`\\+" selector)
-	       (if (length> domain 0)
-		   (insert (format "d(%S,%S);" domain selector))
-		 (insert (format "r(%S);" selector)))))
+    (cl-loop
+     for (domain selector) in
+     (with-temp-buffer
+       (dolist (url (reverse ewp--block-lists))
+	 (insert-file-contents
+	  (expand-file-name
+	   (file-name-nondirectory url) "~/src/ewp.el/resources/")))
+       (cl-loop while (re-search-forward "^\\([^#\n]*\\)##\\(.*\\)" nil t)
+		collect (list (match-string 1) (match-string 2))))
+     do
+     ;; Ignore stuff like
+     ;; webronza.asahi.com##+js(remove-class, no_scroll, body.no_scroll)
+     (unless (string-match-p "\\`\\+" selector)
+       (if (length> domain 0)
+	   (insert (format "d(%S,%S);" domain selector))
+	 (insert (format "r(%S);" selector)))))
     (insert "})();")
     (write-region (point-min) (point-max)
 		  "~/src/ewp.el/resources/shot-scraper-filter.js")))
