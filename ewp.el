@@ -145,7 +145,8 @@ old post) or `always' (also when inserting new links).")
    "~/.local/bin/shot-scraper" "shot" "-b" "firefox"
    "--bypass-csp"
    "--javascript"
-   (concat "file " (expand-file-name "~/src/ewp.el/shot-scraper-filter.js"))
+   (concat "file "
+	   (expand-file-name "~/src/ewp.el/resources/shot-scraper-filter.js"))
    "-o" "-" "--wait" "1000" "%u")
   "Command to \"screenshot\" a web page.
 It \"%u\" is replaced by the URL in question.  It should output
@@ -3906,6 +3907,7 @@ screenshots from TV, for instance."
 		"https://filters.adtidy.org/extension/ublock/filters/18.txt")
   (with-temp-buffer
     (insert "(() => {\n")
+    (insert "function r(selector) { document.querySelectorAll(selector).forEach(el => el.remove()); }")
     (insert-file-contents "~/src/ewp.el/resources/shot-scraper-func.js")
     (goto-char (point-max))
     (cl-loop for line in
