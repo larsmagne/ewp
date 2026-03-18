@@ -141,8 +141,12 @@ old post) or `always' (also when inserting new links).")
   "Directory to automatically insert images from.")
 
 (defvar ewp-webshot-command
-  '("~/.local/bin/shot-scraper" "shot" "-b" "firefox"
-    "-o" "-" "--wait" "1000" "%u")
+  (list
+   "~/.local/bin/shot-scraper" "shot" "-b" "firefox"
+   "--bypass-csp"
+   "--javascript"
+   (concat "file " (expand-file-name "~/src/ewp.el/shot-scraper-filter.js"))
+   "-o" "-" "--wait" "1000" "%u")
   "Command to \"screenshot\" a web page.
 It \"%u\" is replaced by the URL in question.  It should output
 the resulting image on stdout.")
@@ -1272,6 +1276,8 @@ If ALL (the prefix), load all the posts in the blog."
 		       (not (dom-attr dom 'data-cached-time)))
 	      (if (not (setq file (ewp--webshot (dom-attr dom 'href))))
 		  (save-excursion
+		    (message "Couldn't capture %s" (dom-attr dom 'href))
+		    (sleep-for 10)
 		    (goto-char start)
 		    (when (looking-at "<a shot ")
 		      (replace-match "<a ")))
@@ -3884,6 +3890,32 @@ screenshots from TV, for instance."
 				 (string-to-number (match-string 1 url)))
 			    2021)
 		    collect url)))
+
+(defun ewp--create-scraper-js ()
+  (call-process "curl" nil nil nil
+		"-o" (expand-file-name
+		      "~/src/ewp.el/resources/fanboy-cookiemonster.txt")
+		"https://secure.fanboy.co.nz/fanboy-cookiemonster.txt")
+  (call-process "curl" nil nil nil
+		"-o" (expand-file-name
+		      "~/src/ewp.el/resources/18.txt")
+		"https://filters.adtidy.org/extension/ublock/filters/18.txt")
+  (with-temp-buffer
+    (insert "(() => {\n")
+    (insert-file-contents "~/src/ewp.el/resources/shot-scraper-func.js")
+    (goto-char (point-max))
+    (cl-loop for line in
+	     (with-temp-buffer
+	       (insert-file-contents
+		"~/src/ewp.el/resources/18.txt")
+	       (insert-file-contents
+		"~/src/ewp.el/resources/fanboy-cookiemonster.txt")
+	       (cl-loop while (re-search-forward "^##" nil t)
+			collect (buffer-substring (point) (pos-eol))))
+	     do (insert (format "r(%S);" line)))
+    (insert "})();")
+    (write-region (point-min) (point-max)
+		  "~/src/ewp.el/resources/shot-scraper-filter.js")))
 
 (provide 'ewp)
 
