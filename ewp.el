@@ -3908,8 +3908,6 @@ screenshots from TV, for instance."
   (with-temp-buffer
     (insert "(() => {\n")
     (insert "function r(selector) { document.querySelectorAll(selector).forEach(el => el.remove()); }")
-    (insert-file-contents "~/src/ewp.el/resources/shot-scraper-func.js")
-    (goto-char (point-max))
     (cl-loop for line in
 	     (with-temp-buffer
 	       (insert-file-contents
