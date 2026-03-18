@@ -3897,7 +3897,7 @@ screenshots from TV, for instance."
 		    collect url)))
 
 (defvar ewp--block-lists
-  '("https://secure.fanboy.co.nz/fanboy-cookiemonster.txt"
+  '("https://secure.fanboy.co.nz/fanboy-annoyance.txt"
     "https://filters.adtidy.org/extension/ublock/filters/18.txt"))
 
 (defun ewp--create-scraper-js ()
