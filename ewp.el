@@ -3917,10 +3917,13 @@ screenshots from TV, for instance."
 		"~/src/ewp.el/resources/fanboy-cookiemonster.txt")
 	       (cl-loop while (re-search-forward "^\\([^#\n]*\\)##\\(.*\\)" nil t)
 			collect (list (match-string 1) (match-string 2))))
-	     if (length> domain 0)
-	     do (insert (format "d(%S,%S);" domain selector))
-	     else
-	     do (insert (format "r(%S);" selector)))
+	     do
+	     ;; Ignore stuff like
+	     ;; webronza.asahi.com##+js(remove-class, no_scroll, body.no_scroll)
+	     (unless (string-match-p "\\`\\+" selector)
+	       (if (length> domain 0)
+		   (insert (format "d(%S,%S);" domain selector))
+		 (insert (format "r(%S);" selector)))))
     (insert "})();")
     (write-region (point-min) (point-max)
 		  "~/src/ewp.el/resources/shot-scraper-filter.js")))
