@@ -3907,16 +3907,20 @@ screenshots from TV, for instance."
 		"https://filters.adtidy.org/extension/ublock/filters/18.txt")
   (with-temp-buffer
     (insert "(() => {\n")
-    (insert "function r(selector) { document.querySelectorAll(selector).forEach(el => el.remove()); }")
-    (cl-loop for line in
+    (insert-file-contents "~/src/ewp.el/resources/shot-scraper-func.js")
+    (goto-char (point-max))
+    (cl-loop for (domain selector) in
 	     (with-temp-buffer
 	       (insert-file-contents
 		"~/src/ewp.el/resources/18.txt")
 	       (insert-file-contents
 		"~/src/ewp.el/resources/fanboy-cookiemonster.txt")
-	       (cl-loop while (re-search-forward "^##" nil t)
-			collect (buffer-substring (point) (pos-eol))))
-	     do (insert (format "r(%S);" line)))
+	       (cl-loop while (re-search-forward "^\\([^#]*\\)##\\(.*\\)" nil t)
+			collect (list (match-string 1) (match-string 2))))
+	     if domain
+	     do (insert (format "d(%S,%S);" domain selector))
+	     else
+	     do (insert (format "r(%S);" selector)))
     (insert "})();")
     (write-region (point-min) (point-max)
 		  "~/src/ewp.el/resources/shot-scraper-filter.js")))
