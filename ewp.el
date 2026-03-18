@@ -1221,6 +1221,10 @@ If ALL (the prefix), load all the posts in the blog."
 
 (defun ewp--webshot (url)
   (message "Capturing %s..." url)
+  (when (and (equal (car ewp-webshot-command) "~/.local/bin/shot-scraper")
+	     (not (file-exists-p
+		   "~/src/ewp.el/resources/shot-scraper-filter.js")))
+    (ewp--create-scraper-js))
   (prog1
       (let ((file (ewp--unique-name "cache-" (format-time-string "%F")
 				    "-web.png"))
