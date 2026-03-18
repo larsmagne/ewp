@@ -3915,9 +3915,9 @@ screenshots from TV, for instance."
 		"~/src/ewp.el/resources/18.txt")
 	       (insert-file-contents
 		"~/src/ewp.el/resources/fanboy-cookiemonster.txt")
-	       (cl-loop while (re-search-forward "^\\([^#]*\\)##\\(.*\\)" nil t)
+	       (cl-loop while (re-search-forward "^\\([^#\n]*\\)##\\(.*\\)" nil t)
 			collect (list (match-string 1) (match-string 2))))
-	     if domain
+	     if (length> domain 0)
 	     do (insert (format "d(%S,%S);" domain selector))
 	     else
 	     do (insert (format "r(%S);" selector)))
