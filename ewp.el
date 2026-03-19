@@ -1245,8 +1245,11 @@ If ALL (the prefix), load all the posts in the blog."
 		  :sentinel (lambda (&rest _))
 		  :buffer (current-buffer)))
 		(time (float-time)))
+	    ;; Wait for half a minute for the process to terminate.
+	    ;; This may seem excessive, but there are some really,
+	    ;; really slow web pages out there.
 	    (while (and (process-live-p proc)
-			(< (- (float-time) time) 10))
+			(< (- (float-time) time) 30))
 	      (sit-for 0.1))
 	    (if (process-live-p proc)
 		(progn
