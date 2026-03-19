@@ -69,13 +69,12 @@ There are five different modes made available by this package:
 * C-c C-o: Quote HTML entities in region.
 * C-c C-p: Yank the current text/jpeg X selection.
 * C-c C-q: Remove image thumbnails.
-* C-c C-r: Prompt for an HTML tag and insert the pair around the region.
+* C-c C-r: Insert a tag around the selected area.
 * C-c C-s: Import a screenshot.
 * C-c C-t: Prompt for an HTML tag and insert a &lt;tag&gt;&lt;/tag&gt; pair.
 * C-c C-u: Unfill a paragraph.
 * C-c C-z: Schedule later posting.
 * C-c C-k: Crop the image under point.
-* C-c C-f: Float the image under point to the left (and make it smaller).
 * C-c C-j: Set the width of the image under point.
 * TAB:     In the Categories header, provide category completion.
 

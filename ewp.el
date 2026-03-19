@@ -571,7 +571,6 @@ If ALL (the prefix), load all the posts in the blog."
   "C-c C-u" #'ewp-unfill-paragraph
   "C-c C-z" #'ewp-schedule
   "C-c C-k" #'ewp-image-crop
-  "C-c C-f" #'ewp-float-image
   "C-c C-S-t" #'ewp-trim-image
   "C-c C-j" #'ewp-set-image-width
   "TAB" #'ewp-complete
@@ -1788,9 +1787,17 @@ width), rescale and convert the file to mp4."
     (insert "</" tag ">")
     (goto-char point)))
 
+(defvar ewp-default-tag "tt"
+  "Default tag to insert by `ewp-tag-region'.")
+
 (defun ewp-tag-region (start end tag)
-  "Insert a balanced pair of tags around the region."
-  (interactive (list (mark) (point) (completing-read "Tag: " ewp-html-tags)))
+  "Insert a balanced pair of tags around the region.
+By default, `ewp-default-tag' is inserted, but if given a prefix,
+prompt for the tag."
+  (interactive (list (mark) (point)
+		     (if current-prefix-arg
+			 (completing-read "Tag: " ewp-html-tags)
+		       ewp-default-tag)))
   (insert "</" tag ">")
   (setq end (point))
   (goto-char start)
