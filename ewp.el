@@ -140,6 +140,9 @@ old post) or `always' (also when inserting new links).")
 (defvar ewp-watch-directory nil
   "Directory to automatically insert images from.")
 
+;; This uses a forked version of shot-scraper to add the "file " syntax.
+;; https://github.com/larsmagne/shot-scraper
+
 (defvar ewp-webshot-command
   (list
    "~/.local/bin/shot-scraper" "shot" "-b" "firefox"
@@ -147,7 +150,8 @@ old post) or `always' (also when inserting new links).")
    "--javascript"
    (concat "file "
 	   (expand-file-name "~/src/ewp.el/resources/shot-scraper-filter.js"))
-   "-o" "-" "--wait" "3000" "%u")
+   "--user-agent" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.3"
+   "-o" "-" "--wait" "5000" "%u")
   "Command to \"screenshot\" a web page.
 It \"%u\" is replaced by the URL in question.  It should output
 the resulting image on stdout.")
