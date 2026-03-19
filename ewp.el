@@ -147,7 +147,7 @@ old post) or `always' (also when inserting new links).")
    "--javascript"
    (concat "file "
 	   (expand-file-name "~/src/ewp.el/resources/shot-scraper-filter.js"))
-   "-o" "-" "--wait" "1000" "%u")
+   "-o" "-" "--wait" "3000" "%u")
   "Command to \"screenshot\" a web page.
 It \"%u\" is replaced by the URL in question.  It should output
 the resulting image on stdout.")
@@ -551,6 +551,7 @@ If ALL (the prefix), load all the posts in the blog."
   "C-c C-a" #'ewp-yank-with-href
   "C-c C-y" #'ewp-yank-link-with-text
   "C-c C-b" #'ewp-yank-with-blockquote
+  "C-c C-p" #'ewp-yank-with-pre
   "C-c C-c" #'ewp-update-post
   "C-c C-d" #'ewp-download-and-insert-image
   "C-c C-i" #'ewp-insert-img
@@ -1620,22 +1621,31 @@ around the text between mark and point."
   "Yank the current kill ring item as a <blockquote>.
 If given a prefix, yank from the clipboard."
   (interactive "P")
+  (ewp--yank-block clipboard "blockquote"))
+
+(defun ewp--yank-block (clipboard tag &optional attributes)
   (set-mark (point))
   (let ((point nil))
     (when-let ((url (x-get-selection-internal 'PRIMARY 'text/x-moz-url-priv)))
       (setq point (+ (point)
 		     (ewp--insert-link (ewp-decode-text-selection url) "")))
       (insert ":\n\n"))
-    (insert "<blockquote>")
+    (insert "<" tag (if attributes (concat " " attributes) "") ">")
     (if clipboard
 	(insert (string-trim
 		 (decode-coding-string (x-get-selection-internal
 					'CLIPBOARD 'text/plain\;charset=utf-8)
 				       'utf-8)))
       (insert (string-trim (substring-no-properties (current-kill 0)))))
-    (insert "</blockquote>\n\n")
+    (insert "</" tag ">\n\n")
     (when point
       (goto-char point))))
+
+(defun ewp-yank-with-pre (&optional clipboard)
+  "Yank the current kill ring item as a <pre>.
+If given a prefix, yank from the clipboard."
+  (interactive "P")
+  (ewp--yank-block clipboard "pre" "style=\"white-space: preserve nowrap;\""))
 
 (defun ewp-yank-link-with-text ()
   "Yank the current kill ring item as <a href=URL>\"TEXT\"</a>.
@@ -3898,7 +3908,8 @@ screenshots from TV, for instance."
 
 (defvar ewp--block-lists
   '("https://secure.fanboy.co.nz/fanboy-annoyance.txt"
-    "https://filters.adtidy.org/extension/ublock/filters/18.txt"))
+    "https://filters.adtidy.org/extension/ublock/filters/18.txt"
+    "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/refs/heads/master/AnnoyancesFilter/Other/sections/annoyances.txt"))
 
 (defun ewp--create-scraper-js ()
   (dolist (url ewp--block-lists)
@@ -3924,7 +3935,9 @@ screenshots from TV, for instance."
      ;; webronza.asahi.com##+js(remove-class, no_scroll, body.no_scroll)
      (unless (string-match-p "\\`\\+" selector)
        (if (length> domain 0)
-	   (insert (format "d(%S,%S);" domain selector))
+	   ;; The domain might be a list of domains.
+	   (dolist (dom (split-string domain ","))
+	     (insert (format "d(%S,%S);" dom selector)))
 	 (insert (format "r(%S);" selector)))))
     (insert "})();")
     (write-region (point-min) (point-max)

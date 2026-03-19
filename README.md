@@ -58,7 +58,8 @@ There are five different modes made available by this package:
 
 * C-c C-a: Treat the contents of the kill ring as an URL and insert it as &lt;a href="..."&gt;&lt;/a&gt;
 * C-c C-y: Yank URL and text of the current selection as a link.
-* C-c C-b: Yank the contents of a kill ring into &lt;blockquote&gt;.
+* C-c C-b: Yank the contents of the kill ring into &lt;blockquote&gt;.
+* C-c C-p: Yank the contents of the kill ring into &lt;pre&gt;.
 * C-c C-c: Post your edits to the blog.  This will update your Wordpress.
 * C-c C-d: Download the image in the kill ring and insert it.
 * C-c C-i: Insert an image into the buffer.
