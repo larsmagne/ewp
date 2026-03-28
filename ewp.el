@@ -150,7 +150,7 @@ old post) or `always' (also when inserting new links).")
    "--javascript"
    (concat "file "
 	   (expand-file-name "~/src/ewp.el/resources/shot-scraper-filter.js"))
-   "--user-agent" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.3"
+   ;;"--user-agent" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.3"
    "-o" "-" "--wait" "5000" "%u")
   "Command to \"screenshot\" a web page.
 It \"%u\" is replaced by the URL in question.  It should output
@@ -430,6 +430,8 @@ If ALL (the prefix), load all the posts in the blog."
 		  ,(funcall (cl-getf auth :secret))))))
     (cdr (assoc "description" post))))  
 
+(defvar ewp-post-data)
+
 (defun ewp-select-post (&optional address id)
   "Edit the post under point."
   (interactive)
@@ -461,7 +463,8 @@ If ALL (the prefix), load all the posts in the blog."
     ;; `ewp-address' is buffer-local and cleared by the major mode.
     (let ((ewp--edit-address address))
       (ewp-edit-mode))
-    (setq-local ewp-address address)
+    (setq-local ewp-address address
+		ewp-post-data data)
     (insert "Title: " (or (cdr (assoc "title" post)) "") "\n")
     (insert "Categories: " (mapconcat 'identity (cdr (assoc "categories" post))
 				      ",")
@@ -577,6 +580,7 @@ If ALL (the prefix), load all the posts in the blog."
   "C-c C-k" #'ewp-image-crop
   "C-c C-S-t" #'ewp-trim-image
   "C-c C-j" #'ewp-set-image-width
+  "C-c C-#" #'ewp-archive-url
   "TAB" #'ewp-complete
   "C-c C-$" #'ewp-toggle-thumbnail)
 
@@ -3956,6 +3960,52 @@ screenshots from TV, for instance."
     (insert "})();")
     (write-region (point-min) (point-max)
 		  "~/src/ewp.el/resources/shot-scraper-filter.js")))
+
+(defun ewp-archive-url ()
+  "Change the URL at point to a Wayback Machine (archive.org) URL.
+If the article being edited is an old one, find an archived
+version of the URL that's from the same time period."
+  (interactive)
+  (let ((url (thing-at-point 'url t))
+	(posted-date
+	 (format-time-string "%Y%m%d%H%M%S"
+			     (or
+			      (cadr (ewp-get "post_date" ewp-post-data))
+			      ;; If this hasn't been posted yet, use
+			      ;; the current time.
+			      (current-time)))))
+    (unless url
+      (user-error "No URL at point"))
+    (let ((bounds (bounds-of-thing-at-point 'url))
+	  ;; Don't allow redirections, because we want the redirect URL.
+	  (url-max-redirections 0)
+	  (parsed (url-generic-parse-url url))
+	  archive-url)
+      ;; Is already on the Wayback Machine.
+      (when (equal (url-host parsed) "web.archive.org")
+	(setq url (replace-regexp-in-string "\\`/web/[0-9]+/" ""
+					    (url-filename parsed))))
+      (with-current-buffer (url-retrieve-synchronously
+			    ;; We want a version of the page from around
+			    ;; the time we linked to it.
+			    (concat "https://web.archive.org/web/"
+				    posted-date
+				    "/" url))
+	(goto-char (point-min))
+	;; Get the closest archived URL to the article posted date.
+	;; We don't want the newest version, because sites are often
+	;; taken over by shady companies, and we don't want the
+	;; earliest version, either, because there might just be
+	;; scaffolding there.
+	(when (re-search-forward "^location: \\(.*\\)" nil t)
+	  (setq archive-url (match-string 1)))
+	(kill-buffer (current-buffer)))
+      (unless archive-url
+	(error "Couldn't find %s on the Wayback Machine" url))
+      (save-excursion
+	(goto-char (car bounds))
+	(delete-region (car bounds) (cdr bounds))
+	(insert archive-url)))))
 
 (provide 'ewp)
 
