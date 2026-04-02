@@ -1134,7 +1134,7 @@ If ALL (the prefix), load all the posts in the blog."
 				     (max end (line-end-position)) t))
 	  ;; Non-local URL -- download it.
 	  (unless (equal (url-type parsed) "file")
-	    (with-current-buffer (url-retrieve-synchronously file t)
+	    (with-current-buffer (url-retrieve-synchronously url t)
 	      (goto-char (point-min))
 	      (when (re-search-forward "\n\n" nil t)
 		(setq file (concat (make-temp-name "/tmp/ewp")
