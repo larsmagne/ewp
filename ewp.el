@@ -3929,12 +3929,13 @@ screenshots from TV, for instance."
     "https://filters.adtidy.org/extension/ublock/filters/18.txt"
     "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/refs/heads/master/AnnoyancesFilter/Other/sections/annoyances.txt"))
 
-(defun ewp--create-scraper-js ()
-  (dolist (url ewp--block-lists)
-    (call-process "curl" nil nil nil
-		  "-o" (expand-file-name
-			(file-name-nondirectory url) "~/src/ewp.el/resources")
-		  url))
+(defun ewp--create-scraper-js (&optional disable-download)
+  (unless disable-download
+    (dolist (url ewp--block-lists)
+      (call-process "curl" nil nil nil
+		    "-o" (expand-file-name
+			  (file-name-nondirectory url) "~/src/ewp.el/resources")
+		    url)))
   (with-temp-buffer
     (insert "(() => {\n")
     (insert-file-contents "~/src/ewp.el/resources/shot-scraper-func.js")
