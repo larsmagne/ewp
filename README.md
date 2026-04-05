@@ -76,6 +76,7 @@ There are five different modes made available by this package:
 * C-c C-z: Schedule later posting.
 * C-c C-k: Crop the image under point.
 * C-c C-j: Set the width of the image under point.
+* C-c C-#: Transform the URL under point to a Wayback Machine URL.
 * TAB:     In the Categories header, provide category completion.
 
 * M-x ewp-set-featured-image: Set the featured image to image under point.
