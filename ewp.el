@@ -3957,7 +3957,9 @@ screenshots from TV, for instance."
 	   ;; The domain might be a list of domains.
 	   (dolist (dom (split-string domain ","))
 	     (insert (format "%s(%S,%S);"
-			     (if (length> extended 0) "e" "d")
+			     (if (or (length> extended 0)
+				     (string-match-p ":has\\|:has-text\\|:matches-attr\\|:matches-css\\|:matches-css-before\\|:matches-css-after\\|:matches-media\\|:matches-path\\|:matches-prop\\|:min-text-length\\|:not\\|:others\\|:upward\\|:watch-attr\\|:xpath" selector))
+				 "e" "d")
 			     dom selector)))
 	 (insert (format "r(%S);" selector)))))
     (insert "})();")
