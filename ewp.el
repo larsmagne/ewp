@@ -3943,7 +3943,7 @@ screenshots from TV, for instance."
     (cl-loop
      for (domain selector extended) in
      (with-temp-buffer
-       (dolist (url (reverse ewp--block-lists))
+       (dolist (url (cons "extras.txt" (reverse ewp--block-lists)))
 	 (insert-file-contents
 	  (expand-file-name
 	   (file-name-nondirectory url) "~/src/ewp.el/resources/")))
