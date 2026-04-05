@@ -3940,14 +3940,15 @@ screenshots from TV, for instance."
     (insert-file-contents "~/src/ewp.el/resources/shot-scraper-func.js")
     (goto-char (point-max))
     (cl-loop
-     for (domain selector) in
+     for (domain selector extended) in
      (with-temp-buffer
        (dolist (url (reverse ewp--block-lists))
 	 (insert-file-contents
 	  (expand-file-name
 	   (file-name-nondirectory url) "~/src/ewp.el/resources/")))
-       (cl-loop while (re-search-forward "^\\([^#\n]*\\)##\\(.*\\)" nil t)
-		collect (list (match-string 1) (match-string 2))))
+       (cl-loop while (re-search-forward "^\\([^#\n]*\\)#\\([?]\\)?#\\(.*\\)" nil t)
+		collect (list (match-string 1) (match-string 3)
+			      (match-string 2))))
      do
      ;; Ignore stuff like
      ;; webronza.asahi.com##+js(remove-class, no_scroll, body.no_scroll)
@@ -3955,7 +3956,9 @@ screenshots from TV, for instance."
        (if (length> domain 0)
 	   ;; The domain might be a list of domains.
 	   (dolist (dom (split-string domain ","))
-	     (insert (format "d(%S,%S);" dom selector)))
+	     (insert (format "%s(%S,%S);"
+			     (if (length> extended 0) "e" "d")
+			     dom selector)))
 	 (insert (format "r(%S);" selector)))))
     (insert "})();")
     (write-region (point-min) (point-max)
