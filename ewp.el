@@ -1265,6 +1265,9 @@ If ALL (the prefix), load all the posts in the blog."
 		  (if (zerop (call-process-region
 			      (point-min) (point-max)
 			      "convert" nil nil nil
+			      ;; Webp has a max height of 16K, so
+			      ;; resize if bigger.
+			      "-resize" "x16383>"
 			      "png:-" webp))
 		      webp
 		    (write-region (point-min) (point-max)
