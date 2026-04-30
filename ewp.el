@@ -3241,10 +3241,15 @@ If given a prefix, float to the right instead."
       (error "No image under point"))
     (setf (cl-getf (cdr image) :width) width)))
 
-(defun ewp-get-post-data (category)
-  (cl-loop for elem in (ewp-call 'ewp-get-posts ewp-address 2000 0 nil
+(defun ewp-get-post-data (address &optional category max)
+  (cl-loop for elem in
+	   (cl-loop for offset from 0 upto (or max 10000) by 100
+		    for posts = (ewp-call
+				 'ewp-get-posts address 100 offset nil
 				 ["post_title" "post_date" "post_status"
 				  "terms" "link" "post_name" "post_content"])
+		    while posts
+		    append posts)
 	   when (or (null category)
 		    (member category (ewp--categories elem)))
 	   collect elem))
@@ -3689,24 +3694,15 @@ screenshots from TV, for instance."
 	(call-process
 	 "convert" nil '(t nil) nil
 	 "-trim" "-fuzz" ewp-watch-directory-trim-fuzz
-	 file "info:-")
-	(let* ((data (seq-take
-		      (nreverse
-		       (seq-take (nreverse
-				  (split-string (string-trim
-						 (buffer-string))))
-				 7))
-		      2))
-	       (left (string-to-number (nth 1 (split-string (cadr data)
-							    "[+-]"))))
-	       (top (string-to-number (nth 2 (split-string (cadr data)
-							   "[+-]"))))
-	       (width (string-to-number
-		       (car (split-string (car data) "x"))))
-
-	       (height (string-to-number
-			(cadr (split-string (car data) "x")))))
-	  (push (list width height left top) crops))))
+	 file "json:-")
+	(goto-char (point-min))
+	(let ((json (plist-get (elt (json-parse-buffer :object-type 'plist) 0)
+			       :image)))
+	  (push (list (plist-get (plist-get json :geometry) :width)
+		      (plist-get (plist-get json :geometry) :height)
+		      (plist-get (plist-get json :pageGeometry) :x)
+		      (plist-get (plist-get json :pageGeometry) :y))
+		crops))))
     ;; We now have a number of crops -- pick the most likely
     ;; one.  Sort by width first.
     (setq crops (sort crops
