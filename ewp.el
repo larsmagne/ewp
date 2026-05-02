@@ -1882,20 +1882,23 @@ prompt for the tag."
 		    (intern (cadr (split-string (symbol-name type) "/"))))
       most-positive-fixnum))
 
-(defun ewp-insert-image-data (image)
-  (let ((im (create-image image (ewp--image-type) t
+(defun ewp-insert-image-data (image &optional filep)
+  (let ((im (create-image image (ewp--image-type) (not filep)
 			  :max-width (truncate (ewp--display-width))
 			  :max-height (- (frame-pixel-height) 500))))
     (insert-image
      im
-     (format "<img src=\"data:%s;base64,%s\">"
-	     (ewp-content-type image)
-	     ;; Get a base64 version of the image.
-	     (with-temp-buffer
-	       (set-buffer-multibyte nil)
-	       (insert image)
-	       (base64-encode-region (point-min) (point-max) t)
-	       (buffer-string)))
+     (if filep
+	 (format "<img src=%S>"
+		 (concat "file://" (expand-file-name image)))
+       (format "<img src=\"data:%s;base64,%s\">"
+	       (ewp-content-type image)
+	       ;; Get a base64 version of the image.
+	       (with-temp-buffer
+		 (set-buffer-multibyte nil)
+		 (insert image)
+		 (base64-encode-region (point-min) (point-max) t)
+		 (buffer-string))))
      nil nil t)
     im))
 
@@ -2998,16 +3001,21 @@ I.e., \"google.com\" or \"google.co.uk\"."
 	   (format "%s" ewp-blog-id)
 	   args)))
 
-(defun ewp-dired-copy-as-kill (files)
-  "Copy the marked images to the kill ring."
-  (interactive (list (dired-get-marked-files nil current-prefix-arg)))
+(defun ewp-dired-copy-as-kill (files &optional direct)
+  "Copy the marked images to the kill ring.
+If DIRECT (interactively, the prefix), refer directly to the file
+names instead of the file contents."
+  (interactive (list (dired-get-marked-files) current-prefix-arg))
   (with-temp-buffer
     (dolist (file files)
-      (ewp-insert-image-data (with-temp-buffer
-			       (set-buffer-multibyte nil)
-			       (insert-file-contents-literally file)
-			       (buffer-string)))
-      (insert "\n\n"))
+      (if direct
+	  (ewp-insert-image-data file t)
+	(ewp-insert-image-data
+	 (with-temp-buffer
+	   (set-buffer-multibyte nil)
+	   (insert-file-contents-literally file)
+	   (buffer-string))))
+      (insert "\n\n\n\n"))
     (copy-region-as-kill (point-min) (point-max))
     (message "Copied %s image%s to the kill ring"
 	     (length files) (if (= (length files) 1)
