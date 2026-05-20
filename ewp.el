@@ -3674,8 +3674,9 @@ screenshots from TV, for instance."
 (defun ewp--file-complete-p (file)
   "Say whether FILE has been completely written to file."
   (with-temp-buffer
-    (zerop (call-process "identify" nil t nil
-			 "-regard-warnings" file))))
+    (call-process "jpeginfo" nil t nil "-c" file)
+    (goto-char (point-min))
+    (re-search-forward " OK *$" nil t)))
 
 (defvar-local ewp--crop-factor nil)
 
