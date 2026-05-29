@@ -3253,7 +3253,7 @@ If given a prefix, float to the right instead."
   (cl-loop for elem in
 	   (cl-loop for offset from 0 upto (or max 10000) by 100
 		    for posts = (ewp-call
-				 'ewp-get-posts address 100 offset nil
+				 'ewp-get-posts address (or max 100) offset nil
 				 ["post_title" "post_date" "post_status"
 				  "terms" "link" "post_name" "post_content"])
 		    while posts
