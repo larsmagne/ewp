@@ -927,9 +927,10 @@ If ALL (the prefix), load all the posts in the blog."
   (interactive (list ewp-address))
   (save-excursion
     (goto-char (point-min))
-    (while (re-search-forward "\\(<a [^>]+>.*?\\)?\\(<img.*?src=\"\\)" nil t)
+    (while (re-search-forward "\\(<a [^>]+>.*?\\)?\\(<img\\(.*?\\)src=\"\\)" nil t)
       (let* ((link-start (match-beginning 1))
 	     (start (match-beginning 2))
+	     (attributes (match-string 3))
 	     (url (buffer-substring-no-properties
 		   (point) (progn
 			     (re-search-forward "\".*?>" nil t)
@@ -1053,9 +1054,10 @@ If ALL (the prefix), load all the posts in the blog."
 		       (string-match ewp-embed-smaller-images ewp-address))
 		  (insert
 		   (format
-		    "<a class=%S href=%S><img src=%S alt=\"\" wp-image-%s /></a>"
+		    "<a class=%S href=%S><img%s src=%S alt=\"\" wp-image-%s /></a>"
 		    ewp-image-class
 		    unscaled-url
+		    (or attributes "")
 		    (if (> (car size) 768)
 			(replace-regexp-in-string "\\([.][a-z]+\\)\\'"
 						  (if (> (car size) (cdr size))
@@ -1066,9 +1068,11 @@ If ALL (the prefix), load all the posts in the blog."
 		    (cdr (assoc "id" result))))
 		(insert
 		 (format
-		  "<a class=%S href=%S><img src=%S alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
+		  "<a class=%S href=%S><img%s src=%S alt=\"\" width=\"%d\" height=\"%d\" class=\"alignnone size-full wp-image-%s\" /></a>"
 		  ewp-image-class
-		  unscaled-url url
+		  unscaled-url
+		  (or attributes "")
+		  url
 		  (if factor
 		      limit-width
 		    (car size))
