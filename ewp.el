@@ -1491,6 +1491,45 @@ If MAX (the numerical prefix), just do that many thumbnails."
     (eww (or (cdr (assoc "short_url" data))
 	     (cdr (assoc "link" data))))))
 
+(defun ewp--dom (url)
+  (with-current-buffer (url-retrieve-synchronously url)
+    (goto-char (point-min))
+    (prog1
+	(and (search-forward "\n\n" nil t)
+	     (libxml-parse-html-region (point) (point-max)))
+      (kill-buffer (current-buffer)))))
+
+(defun ewp-copy-title-and-image-to-clipboard ()
+  "Copy the title and URL to primary selection and the first image to clipboard."
+  (interactive)
+  (let ((data (vtable-current-object)))
+    (unless data
+      (error "No post under point"))
+    (kill-new (concat
+	       (cdr (assoc "post_title" data))
+	       " "
+	       (cdr (assoc "link" data))))
+    (let ((dom (ewp--dom (cdr (assoc "link" data)))))
+      (with-current-buffer (url-retrieve-synchronously
+			    (dom-attr (car (dom-by-tag dom 'img)) 'src))
+	(goto-char (point-min))
+	(search-forward "\n\n")
+	(let ((image (buffer-substring (point) (point-max))))
+	  (with-temp-buffer
+	    (set-buffer-multibyte nil)
+	    (insert image)
+	    ;; We need to get the image in PNG form, because that's
+	    ;; what most web sites that accepts image pastes expect,
+	    ;; apparently.
+	    (call-process-region (point-min) (point-max)
+				 "convert" t t nil
+				 "jpeg:-" "png:-")
+	    (call-process-region (point-min) (point-max)
+				 "wl-copy" nil 0 nil
+				 "-t" "image/png")))
+	(kill-buffer (current-buffer))))
+    (message "Copied title/link to primary and image to clipboard")))
+
 (defun ewp-preview ()
   "Preview the blog post under point."
   (interactive)
