@@ -418,7 +418,7 @@ If ALL (the prefix), load all the posts in the blog."
 	  (or (cadr (assoc address ewp-address-map))
 	      address)))
 
-(defun ewp-get-post-content (address id pagep)
+(defun ewp-get-post-content (address id &optional pagep)
   (let* ((auth (ewp-auth (or address ewp-address)))
 	 (post (apply
 		#'xml-rpc-method-call
@@ -1502,16 +1502,22 @@ If MAX (the numerical prefix), just do that many thumbnails."
 (defun ewp-copy-title-and-image-to-clipboard ()
   "Copy the title and URL to primary selection and the first image to clipboard."
   (interactive)
-  (let ((data (vtable-current-object)))
+  (let ((data (vtable-current-object))
+	(address ewp-address))
     (unless data
       (error "No post under point"))
     (kill-new (concat
 	       (cdr (assoc "post_title" data))
 	       " "
 	       (cdr (assoc "link" data))))
-    (let ((dom (ewp--dom (cdr (assoc "link" data)))))
+    (with-temp-buffer
+      (insert (ewp-get-post-content address (cdr (assoc "post_id" data))))
       (with-current-buffer (url-retrieve-synchronously
-			    (dom-attr (car (dom-by-tag dom 'img)) 'src))
+			    (dom-attr
+			     (car (dom-by-tag (libxml-parse-html-region
+					       (point-min) (point-max))
+					      'img))
+			     'src))
 	(goto-char (point-min))
 	(search-forward "\n\n")
 	(let ((image (buffer-substring (point) (point-max))))
