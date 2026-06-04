@@ -140,6 +140,10 @@ old post) or `always' (also when inserting new links).")
 (defvar ewp-watch-directory nil
   "Directory to automatically insert images from.")
 
+(defvar ewp-clipboard-save-image-command '("wl-copy" "-t" "image/png")
+  "Command to save things on the clipboard.
+The command should take input from stdin (which will have a PNG file).")
+
 ;; This uses a forked version of shot-scraper to add the "file " syntax.
 ;; https://github.com/larsmagne/shot-scraper
 
@@ -1530,9 +1534,9 @@ If MAX (the numerical prefix), just do that many thumbnails."
 	    (call-process-region (point-min) (point-max)
 				 "convert" t t nil
 				 "jpeg:-" "png:-")
-	    (call-process-region (point-min) (point-max)
-				 "wl-copy" nil 0 nil
-				 "-t" "image/png")))
+	    (apply #'call-process-region (point-min) (point-max)
+		   (car ewp-clipboard-save-image-command) nil 0 nil
+		   (cdr ewp-clipboard-save-image-command))))
 	(kill-buffer (current-buffer))))
     (message "Copied title/link to primary and image to clipboard")))
 
