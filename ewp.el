@@ -149,7 +149,8 @@ The command should take input from stdin (which will have a PNG file).")
 
 (defvar ewp-webshot-command
   (list
-   "~/.local/bin/shot-scraper" "shot" "-b" "firefox"
+   "~/.local/bin/shot-scraper" "shot"
+   ;;"-b" "firefox"
    "--bypass-csp"
    "--javascript"
    (concat "file "
@@ -1569,7 +1570,11 @@ If MAX (the numerical prefix), just do that many thumbnails."
 		      (or post-id (make-temp-name "ewp-")))))
     (unless (file-exists-p (file-name-directory file))
       (make-directory (file-name-directory file) t))
-    (write-region (point-min) (point-max) file nil t)))
+    (write-region (point-min) (point-max) file nil t)
+    (setq-local buffer-auto-save-file-name
+		(expand-file-name
+		 (concat "#" (file-name-nondirectory file) "#")
+		 (file-name-directory file)))))
 
 (defun ewp ()
   "List all blogs you have.
