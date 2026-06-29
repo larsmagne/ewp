@@ -611,6 +611,7 @@ If ALL (the prefix), load all the posts in the blog."
   (keymap-set image-map "i c" #'ewp-image-crop)
   (keymap-set image-map "i x" #'ewp-image-cut)
   (keymap-set image-map "i w" #'ewp-image-view)
+  (keymap-set image-map "i g" #'ewp-image-gimp)
   (auto-save-mode 1)
   ;; Automatically insert images.
   (when ewp-watch-directory
@@ -1300,7 +1301,6 @@ If ALL (the prefix), load all the posts in the blog."
 	      (if (not (setq file (ewp--webshot (dom-attr dom 'href))))
 		  (save-excursion
 		    (message "Couldn't capture %s" (dom-attr dom 'href))
-		    (sleep-for 10)
 		    (goto-char start)
 		    (when (looking-at "<a shot ")
 		      (replace-match "<a ")))
@@ -3582,16 +3582,46 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
     (plist-put (cdr image) :file file))
   (image-crop cut))
 
+(defun ewp--image-file-at-point ()
+  (let ((image (get-text-property (point) 'display)))
+    (and (consp image)
+	 (eq (car image) 'image)
+	 (or (ewp--image-file image)
+	     (when-let ((data (plist-get (cdr image) :data)))
+	       (with-temp-buffer
+		 (set-buffer-multibyte nil)
+		 (insert data)
+		 (let ((name 
+			(ewp--temp-name
+			 "edit"
+			 (format ".%s" (plist-get (cdr image) :type)))))
+		   (write-region (point-min) (point-max)
+				 name nil 'silent)
+		   name)))))))
+
 (defun ewp-image-view ()
   "View the image under point with an external viewer."
   (interactive)
-  (let* ((image (get-text-property (point) 'display))
-	 (file (and (consp image)
-		    (eq (car image) 'image)
-		    (ewp--image-file image))))
+  (let ((file (ewp--image-file-at-point)))
     (unless file
       (user-error "No image with a file under point"))
-    (start-process "feh" nil "feh" "-ZF" (expand-file-name file))))
+    (start-process "feh" nil "feh" "-ZF" file)))
+
+(defun ewp-image-gimp ()
+  "Edit the image under point with an external viewer."
+  (interactive)
+  (let ((file (ewp--image-file-at-point))
+	(start (set-marker (make-marker) (pos-bol)))
+	(end (set-marker (make-marker) (pos-bol 2))))
+    (unless file
+      (user-error "No image with a file under point"))
+    (set-process-sentinel
+     (start-process "gimp" nil "gimp" file)
+     (lambda (_ change)
+       (when (string-match-p "finished" change)
+	 (delete-region start end)
+	 (ewp--insert-img file)
+	 (insert "\n"))))))
 
 (defun ewp-rotate-all-images ()
   "Rotate all images 270 degrees."
