@@ -3608,7 +3608,10 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
     (start-process "feh" nil "feh" "-ZF" file)))
 
 (defun ewp-image-gimp ()
-  "Edit the image under point with an external viewer."
+  "Edit the image under point with Gimp.
+After Gimp exits, the image under point will be updated to the
+overwritten temporary file from Gimp (so choose \"overwrite\" in
+Gimp, and then exit when done)."
   (interactive)
   (let ((file (ewp--image-file-at-point))
 	(start (set-marker (make-marker) (pos-bol)))

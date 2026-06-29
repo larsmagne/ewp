@@ -82,6 +82,11 @@ There are five different modes made available by this package:
 * M-x ewp-set-featured-image: Set the featured image to image under point.
 * M-x ewp-remove-html-layer: Remove one layer of HTML tagging.
 
+On images:
+
+* i w: View the image under point with feh.
+* i g: Edit the image under point with Gimp.
+
 ## ewp-list-media-mode:
 
 * RET: Look at the media item (i.e., image) under point
