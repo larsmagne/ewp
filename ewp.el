@@ -484,9 +484,9 @@ If ALL (the prefix), load all the posts in the blog."
     (insert (or (cdr (assoc "description" post)) ""))
     (goto-char (point-min))
     (ewp-save-buffer id)
+    (setq-local ewp-post post)
     (when ewp-hide-links
-      (ewp--hide-links))
-    (setq-local ewp-post post)))
+      (ewp--hide-links))))
 
 (defun ewp-update-images (max)
   (ewp-update-image
@@ -782,7 +782,7 @@ If ALL (the prefix), load all the posts in the blog."
 				  (lambda (cat)
 				    (ewp-value (ewp-node 'string cat)))
 				  (ewp-get "categories" post)))))))
-	 (let ((thumbnail-id (or (car (ewp-get "new_post_thumbnail" post))
+	 (let ((thumbnail-id (or (ewp-get "new_post_thumbnail" post)
 				 (and ewp-set-featured-image
 				      (ewp--automatic-featured-image)))))
 	   (and thumbnail-id
@@ -904,6 +904,21 @@ If ALL (the prefix), load all the posts in the blog."
 			     (pos-eol) t)
       (match-string-no-properties 1))))
 
+(defun ewp--change-image-display (from to limit)
+  (save-restriction
+    (narrow-to-region (point) limit)
+    (while-let ((match
+		 (text-property-search-forward
+		  'display
+		  nil (lambda (_ prop)
+			(equal prop from)))))
+      (put-text-property (prop-match-beginning match)
+			 (prop-match-end match)
+			 'display to)
+      (put-text-property (prop-match-beginning match)
+			 (prop-match-end match)
+			 'ewp-display to))))
+
 (defun ewp-set-featured-image ()
   "Set the current post's featured image to the image under point."
   (interactive)
@@ -915,8 +930,16 @@ If ALL (the prefix), load all the posts in the blog."
 	      (setcdr (assoc "new_post_thumbnail" ewp-post)
 		      (string-to-number image-id))
 	    (setq ewp-post (append ewp-post
-				   (list (list "new_post_thumbnail"
+				   (list (cons "new_post_thumbnail"
 					       (string-to-number image-id))))))
+	  ;; Remove old "featured" markers.
+	  (save-excursion
+	    (goto-char (point-min))
+	    (ewp--change-image-display "📸" "📷" (point-max)))
+	  ;; Mark this as featured.
+	  (save-excursion
+	    (beginning-of-line)
+	    (ewp--change-image-display "📷" "📸" (pos-eol)))
 	  (message
 	   (format "Featured image will be updated to %s upon `C-c C-c'"
 		   image-id)))
@@ -1391,6 +1414,13 @@ If MAX (the numerical prefix), just do that many thumbnails."
   (ewp-update-images max)
   (message "Inserting image thumbnails..."))
 
+(defun ewp--image-id ()
+  "Return the ID of the image under point."
+  (save-excursion
+    (beginning-of-line)
+    (and (re-search-forward " wp-image-\\([0-9]+\\)" (pos-eol) t)
+	 (string-to-number (match-string 1)))))
+
 (defun ewp--hide-links ()
   (save-excursion
     (with-buffer-unmodified-if-unchanged
@@ -1398,7 +1428,8 @@ If MAX (the numerical prefix), just do that many thumbnails."
       (goto-char (point-min))
       (while (re-search-forward "<a[ \n]" nil t)
 	(goto-char (match-beginning 0))
-	(let ((start (point)))
+	(let ((start (point))
+	      (thumbnail-id (cdr (assoc "wp_post_thumbnail" ewp-post))))
 	  (when (with-syntax-table sgml-mode-syntax-table
 		  (ignore-errors
 		    (forward-sexp)
@@ -1417,7 +1448,11 @@ If MAX (the numerical prefix), just do that many thumbnails."
 			     (match-end 0)))))
 		(progn
 		  (goto-char end)
-		  (ewp--hide-region "🔳" start end))
+		  (ewp--hide-region
+		   (if (and thumbnail-id (equal (ewp--image-id) thumbnail-id))
+		       "📸"
+		     "📷")
+		   start end))
 	      (ewp--hide-region "[" start (point))))))
       ;; Hide </a>.
       (goto-char (point-min))
