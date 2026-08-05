@@ -3948,6 +3948,9 @@ screenshots from TV, for instance."
 	     ;; Local file.
 	     ((null type)
 	      (insert-file-contents-literally file))
+	     ;; file: file.
+	     ((equal type "file")
+	      (insert-file-contents-literally (substring file 5)))
 	     ;; data: URL where the image is in the src bit.
 	     ((and (equal type "data")
 		   (string-match "^data:\\([^;]+\\);base64," file))
@@ -3979,6 +3982,21 @@ screenshots from TV, for instance."
       (push result ewp--deletable-files)
       (apply #'call-process
 	     `("convert" nil nil nil "+append" ,@cfiles ,result))
+      (goto-char (point-max))
+      (let ((point (point)))
+	(ensure-empty-lines 1)
+	(ewp-insert-img result)
+	(goto-char point)))))
+
+(defun ewp-concatenate-images-vertical-same-size ()
+  "Concatenate the images (of the same size) vertically after point."
+  (interactive)
+  (let ((cfiles (ewp--image-files-in-buffer)))
+    ;; Now we have all the image files.
+    (let ((result (ewp--unique-name "ewp.jpg")))
+      (push result ewp--deletable-files)
+      (apply #'call-process
+	     `("convert" nil nil nil "-append" ,@cfiles ,result))
       (goto-char (point-max))
       (let ((point (point)))
 	(ensure-empty-lines 1)
