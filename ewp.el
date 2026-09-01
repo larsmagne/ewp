@@ -208,13 +208,6 @@ All normal editing commands are switched off."
   (or ewp-display-width
       (truncate (* (frame-pixel-width) 0.9))))
 
-(defun ewp--image-type ()
-  (if (or (and (fboundp 'image-transforms-p)
-	       (image-transforms-p))
-	  (not (fboundp 'imagemagick-types)))
-      nil
-    'imagemagick))
-
 (defmacro ewp-save-excursion (&rest body)
   (declare (indent 0))
   (let ((location (gensym)))
@@ -544,7 +537,7 @@ If ALL (the prefix), load all the posts in the blog."
 			  (match-beginning 0) (match-end 0)
 			  (list 'display
 				(create-image
-				 image (ewp--image-type) t
+				 image nil t
 				 :max-width (ewp--display-width)
 				 :max-height
 				 (truncate (* (frame-pixel-height) 0.8))
@@ -1004,7 +997,7 @@ If ALL (the prefix), load all the posts in the blog."
 					  (base64-decode-region
 					   (point-min) (point-max))
 					  (buffer-string))
-					(ewp--image-type) t)))))
+					nil t)))))
 	 ;; data: URL where the image is in the src bit.
 	 ((and (equal type "data")
 	       (string-match "^data:\\([^;]+\\);base64," url))
@@ -1034,7 +1027,7 @@ If ALL (the prefix), load all the posts in the blog."
 					  (base64-decode-region
 					   (point-min) (point-max))
 					  (buffer-string))
-					(ewp--image-type) t)))))
+					nil t)))))
 	 ;; We have a normal <img src="http..."> image, but it's been
 	 ;; rotated.
 	 ((and image
@@ -1799,7 +1792,7 @@ Hitting the undo key once will remove the quote characters."
 (defun ewp--insert-img (file &optional actual-src)
   (let ((start (point))
 	(image (create-image
-		file (ewp--image-type) nil
+		file nil nil
 		:max-width (truncate (* (frame-pixel-width) 0.95))
 		:max-height (truncate (* (frame-pixel-height) 0.7))
 		:rotation
@@ -1971,7 +1964,7 @@ prompt for the tag."
       most-positive-fixnum))
 
 (defun ewp-insert-image-data (image &optional filep)
-  (let ((im (create-image image (ewp--image-type) (not filep)
+  (let ((im (create-image image nil (not filep)
 			  :max-width (truncate (ewp--display-width))
 			  :max-height (- (frame-pixel-height) 500))))
     (insert-image
@@ -2355,7 +2348,7 @@ the media there instead."
 	     (with-temp-buffer
 	       (insert-image
 		(create-image
-		 image (ewp--image-type) t
+		 image nil t
 		 :max-width (truncate (* 0.95 (frame-pixel-width)))
 		 :max-height (truncate (* 0.9 (frame-pixel-height)))))
 	       (let ((max-mini-window-height 0.9))
@@ -2446,7 +2439,7 @@ the media there instead."
 	       (insert prev))
 	     (insert-image
 	      (create-image
-	       image (ewp--image-type) t
+	       image nil t
 	       :max-width (ewp--display-width)
 	       :max-height
 	       (truncate (* (frame-pixel-height) 0.8)))
@@ -2496,6 +2489,8 @@ The image should be rotated with `i r' first."
 	    (not image)
 	    (not (eq (car image) 'image)))
 	(error "No media under point")
+      (unless (file-name-extension image-name)
+	(setq image-name (concat image-name ".jpg")))
       (url-retrieve
        url
        (lambda (_)
