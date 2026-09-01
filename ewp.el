@@ -2489,8 +2489,6 @@ The image should be rotated with `i r' first."
 	    (not image)
 	    (not (eq (car image) 'image)))
 	(error "No media under point")
-      (unless (file-name-extension image-name)
-	(setq image-name (concat image-name ".jpg")))
       (url-retrieve
        url
        (lambda (_)
@@ -2500,6 +2498,15 @@ The image should be rotated with `i r' first."
 	     (setq idata (buffer-substring (point) (point-max))))
 	   (kill-buffer (current-buffer))
 	   (when idata
+	     ;; When uploading an image via xmlrpc, it needs to have
+	     ;; an extension that sounds image-like.  So if an image
+	     ;; without extension has been uploaded (via other means),
+	     ;; we have to add an extension...
+	     (unless (file-name-extension image-name)
+	       (setq image-name
+		     (concat image-name "."
+			     (cadr (split-string
+				    (ewp-content-type idata) "/")))))
 	     (let* ((result
 		     (ewp--upload-file
 		      address
