@@ -1842,7 +1842,7 @@ Hitting the undo key once will remove the quote characters."
   "Insert the latest screencast as a <video> element."
   (interactive)
   (ewp-insert-video-file
-   (car (sort (directory-files ewp-screencast-directory t "[.]mp4\\'")
+   (car (sort (directory-files ewp-screencast-directory t "[.]webm\\'")
 	      #'file-newer-than-file-p))))
 
 (defun ewp-insert-video-file (file &optional rescale)
