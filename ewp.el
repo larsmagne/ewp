@@ -2755,11 +2755,11 @@ All normal editing commands are switched off.
 			      (list :background "#505050")))))
 	     ("Title"
 	      (mm-url-decode-entities-string
-	       (cdr (assoc "post_title" comment))))
+	       (or (cdr (assoc "post_title" comment)) "")))
 	     ("Comment"
 	      (mm-url-decode-entities-string
 	       (replace-regexp-in-string
-		"[\n ]+" " " (cdr (assoc "content" comment)))))))
+		"[\n ]+" " " (or (cdr (assoc "content" comment)) ""))))))
 	 :keymap ewp-list-comments-mode-map)))))
 
 (defun ewp-load-more-comments ()
