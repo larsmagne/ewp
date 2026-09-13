@@ -109,13 +109,13 @@ This is a list where every entry is on the form:
 
  (\"example.blog\"
   (* 20 1024 1024)
-  \"/ssh:foo@example.blog:/var/www/html/video/\"
+  \"foo@example.blog:/var/www/html/video/\"
   \"/video/\")
 
 The first element is the blog name -- you can have different
 upload addresses for different blogs.
 Video files larger than the second element will be uploaded via ssh.
-The third element is the Tramp address to upload to.
+The third element is the ssh address to upload to.
 The fourth element is the URL prefix to be used for the resulting URL.")
 
 (defvar ewp-screenshot-function #'ewp-screenshot-gnome
@@ -1114,14 +1114,17 @@ If ALL (the prefix), load all the posts in the blog."
 		   for counter = "" then (format "-%d" i)
 		   for fragment = (concat (format-time-string "%Y/%m/")
 					  base counter "." extension)
-		   for target = (expand-file-name fragment address)
+		   for target = (concat address fragment)
 		   while (file-exists-p target)
 		   finally (progn
 			     (setq frag fragment)
 			     (cl-return target)))))
     (unless (file-exists-p (file-name-directory target))
       (make-directory (file-name-directory target) t))
-    (copy-file file target)
+    (with-temp-buffer
+      (unless (zerop (call-process "scp" nil t nil
+				   (expand-file-name file) target))
+	(error "Failed uploading: %s" (string-trim (buffer-string)))))
     frag))
 
 (defun ewp--possibly-upload-via-ssh (file address)
