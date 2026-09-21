@@ -260,7 +260,7 @@ All normal editing commands are switched off."
 (defun ewp-list-posts-with-category (category)
   "List posts with from a specific category."
   (interactive (list (completing-read "Category: " (ewp-categories))))
-  (ewp-blog ewp-address nil nil category t))
+  (ewp-blog ewp-address nil nil category t t))
 
 (defun ewp-load-more-posts (&optional all)
   "Load more posts from the blog.
