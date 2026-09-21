@@ -260,7 +260,7 @@ All normal editing commands are switched off."
 (defun ewp-list-posts-with-category (category)
   "List posts with from a specific category."
   (interactive (list (completing-read "Category: " (ewp-categories))))
-  (ewp-blog ewp-address nil nil category))
+  (ewp-blog ewp-address nil nil category t))
 
 (defun ewp-load-more-posts (&optional all)
   "Load more posts from the blog.
@@ -322,7 +322,8 @@ If ALL (the prefix), load all the posts in the blog."
 	    (push post data))))
       ;; Also include Pages.
       (when (and (not start-at)
-		 (not status))
+		 (not status)
+		 (not category))
 	(dolist (post (ewp-call 'ewp-get-pagelist address))
 	  (let* ((id (cdr (assoc "page_id" post)))
 		 (old (seq-find (lambda (e)
