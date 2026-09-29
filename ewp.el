@@ -189,6 +189,7 @@ the resulting image on stdout.")
   "s" #'ewp-list-posts-with-status
   "RET" #'ewp-browse
   "w" #'ewp-copy-link
+  "E" #'ewp-show-edit-date
   "d" #'ewp-trash-post
   ;;"u" #'ewp-undelete-post
   "c" #'ewp-make-comment
@@ -410,7 +411,7 @@ If ALL (the prefix), load all the posts in the blog."
 			 ,@(and search (list `("s" . ,search))))
 		       (or fields
 			   ["post_title" "post_date" "post_status" "terms"
-			    "link" "post_name"])))
+			    "link" "post_name" "post_modified_gmt"])))
 
 (defun ewp-xmlrpc-url (address)
   (format "https://%s/xmlrpc.php"
@@ -4167,6 +4168,16 @@ version of the URL that's from the same time period."
 	(goto-char (car bounds))
 	(delete-region (car bounds) (cdr bounds))
 	(insert archive-url)))))
+
+(defun ewp-show-edit-date ()
+  "Show the edit date of the current post."
+  (interactive nil ewp-list-mode)
+  (let ((data (vtable-current-object)))
+    (unless data
+      (user-error "No post on the current line"))
+    (message
+     (format-time-string "Last edited on %F %T"
+			 (nth 2 (assoc "post_modified_gmt" data))))))
 
 (provide 'ewp)
 
