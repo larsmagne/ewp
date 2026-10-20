@@ -914,31 +914,47 @@ If ALL (the prefix), load all the posts in the blog."
 			 (prop-match-end match)
 			 'ewp-display to))))
 
+(defun ewp--register-new-thumbnail (image-id)
+  (if (assoc "new_post_thumbnail" ewp-post)
+      (setcdr (assoc "new_post_thumbnail" ewp-post)
+	      (string-to-number image-id))
+    (setq ewp-post (append ewp-post
+			   (list (cons "new_post_thumbnail"
+				       (string-to-number image-id)))))))
+
 (defun ewp-set-featured-image ()
   "Set the current post's featured image to the image under point."
   (interactive)
   (save-excursion
     (beginning-of-line)
-    (if (re-search-forward "wp-image-\\([0-9]+\\)" (pos-eol) t)
-	(let ((image-id (match-string 1)))
-	  (if (assoc "new_post_thumbnail" ewp-post)
-	      (setcdr (assoc "new_post_thumbnail" ewp-post)
-		      (string-to-number image-id))
-	    (setq ewp-post (append ewp-post
-				   (list (cons "new_post_thumbnail"
-					       (string-to-number image-id))))))
-	  ;; Remove old "featured" markers.
-	  (save-excursion
-	    (goto-char (point-min))
-	    (ewp--change-image-display "📸" "📷" (point-max)))
-	  ;; Mark this as featured.
-	  (save-excursion
-	    (beginning-of-line)
-	    (ewp--change-image-display "📷" "📸" (pos-eol)))
-	  (message
-	   (format "Featured image will be updated to %s upon `C-c C-c'"
-		   image-id)))
-      (user-error "No (uploaded) image at point"))))
+    (cond
+     ;; Normal images have the ID stashed in the HTML.
+     ((re-search-forward "wp-image-\\([0-9]+\\)" (pos-eol) t)
+      (let ((image-id (match-string 1)))
+	(ewp--register-new-thumbnail image-id)
+	;; Remove old "featured" markers.
+	(save-excursion
+	  (goto-char (point-min))
+	  (ewp--change-image-display "📸" "📷" (point-max)))
+	;; Mark this as featured.
+	(save-excursion
+	  (beginning-of-line)
+	  (ewp--change-image-display "📷" "📸" (pos-eol)))
+	(message
+	 (format "Featured image will be updated to %s upon `C-c C-c'"
+		 image-id))))
+     ;; If we have a video element, we have to look up the ID.
+     ((re-search-forward "poster=\"\\([^\"]+\\)\"" (pos-eol) t)
+      (let* ((url (match-string 1))
+	     (image-id (ewp--get-media-id url)))
+	(if (not image-id)
+	    (user-error "Couldn't get the ID an image under point")
+	(ewp--register-new-thumbnail image-id)
+	(message
+	 (format "Featured image will be updated to %s upon `C-c C-c'"
+		 image-id)))))
+     (t
+      (user-error "No (uploaded) image at point")))))
 
 (defun ewp-open-image-in-browser ()
   "Open the image under point in the secondary browser."
@@ -4178,6 +4194,15 @@ version of the URL that's from the same time period."
     (message
      (format-time-string "Last edited on %F %T"
 			 (nth 2 (assoc "post_modified_gmt" data))))))
+
+(defun ewp--get-media-id (url)
+  (cl-loop for elem in (ewp-call #'ewp-get-media-library
+				 (url-host (url-generic-parse-url url))
+				 ;; Only look through the 1000 most recent
+				 ;; images.
+				 1000)
+	   when (equal url (cdr (assoc "link" elem)))
+	   return (cdr (assoc "attachment_id" elem))))
 
 (provide 'ewp)
 
