@@ -846,10 +846,31 @@ If ALL (the prefix), load all the posts in the blog."
     (end-of-line)
     (ewp-save-buffer)))
 
+(defun ewp--rpc-request (url xml)
+  ;; This function uses curl to upload instead of the internal version
+  ;; (just to see whether it's more efficient).
+  (with-temp-buffer
+    (insert "<?xml version=\"1.0\"  encoding=\"UTF-8\"?>\n")
+    (xml-print xml)
+    (insert "\n")
+    (encode-coding-region (point-min) (point-max) 'utf-8)
+    (call-process-region
+     (point-min) (point-max) "curl"
+     t t nil
+     "--silent"
+     "--show-headers"
+     "-X" "POST" "--data-binary" "@-" url)
+    (goto-char (point-min))
+    (if (not (re-search-forward "^<\\?xml " nil t))
+	(error "Unable to upload: %s" (buffer-string))
+      (beginning-of-line)
+      (delete-region (point-min) (point))
+      (xml-rpc-request-process-buffer (current-buffer)))))
+
 (defun ewp--upload-file (address name type bits &optional date)
   (let ((auth (ewp-auth address)))
     (xml-rpc-xml-to-response
-     (xml-rpc-request
+     (ewp--rpc-request
       (ewp-xmlrpc-url address)
       (list
        (ewp-node
