@@ -3616,6 +3616,36 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
       (delete-region (line-beginning-position) (line-end-position))
       (ewp-insert-image-data new-data))))
 
+(defun ewp-scale-image (width)
+  "Resize the image under point to have a width of WIDTH."
+  (interactive "nNew width: ")
+  (let ((image (get-text-property (point) 'display))
+	new-data)
+    (when (or (not image)
+	      (not (consp image))
+	      (not (eq (car image) 'image)))
+      (user-error "No image under point"))
+    (let* ((data (cl-getf (cdr image) :data))
+	   (inhibit-read-only t))
+      (when (null data)
+	(with-temp-buffer
+	  (set-buffer-multibyte nil)
+	  (insert-file-contents-literally (ewp--image-file image))
+	  (setq data (buffer-string))))
+      (with-temp-buffer
+	(set-buffer-multibyte nil)
+	(insert data)
+	(call-process-region (point-min) (point-max)
+			     "convert" t (current-buffer) nil
+			     "-resize" (format "%dx" width)
+			     (format "%s:-" (car (last (split-string
+							(ewp-content-type data)
+							"/"))))
+			     "jpg:-")
+	(setq new-data (buffer-string)))
+      (delete-region (line-beginning-position) (line-end-position))
+      (ewp-insert-image-data new-data))))
+
 (defun ewp-copy-title-and-url ()
   "Copy the title and the URL of the post under point."
   (interactive)
