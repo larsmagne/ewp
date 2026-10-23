@@ -1076,7 +1076,7 @@ If ALL (the prefix), load all the posts in the blog."
 	  (let* ((data
 		  (with-temp-buffer
 		    (set-buffer-multibyte nil)
-		    (insert (cl-getf (cdr image) :data))
+		    (insert (ewp--image-data image))
 		    (ewp-possibly-rotate-buffer image)
 		    (buffer-string)))
 		 (content-type (ewp-content-type data)))
@@ -1628,7 +1628,7 @@ If MAX (the numerical prefix), just do that many thumbnails."
   (ewp-new-post)
   (goto-char (point-max))
   (dolist (file files)
-    (ewp--insert-img file)
+    (ewp-insert-image-data file t)
     (insert "\n\n"))
   (goto-char (point-min))
   (end-of-line))
@@ -1828,25 +1828,8 @@ Hitting the undo key once will remove the quote characters."
 (defun ewp-insert-img (file)
   "Prompt for a file and insert an <img>."
   (interactive "fImage file: ")
-  (ewp--insert-img (expand-file-name file))
+  (ewp-insert-image-data (expand-file-name file) t)
   (insert "\n\n"))
-
-(defun ewp--insert-img (file &optional actual-src)
-  (let ((start (point))
-	(image (create-image
-		file nil nil
-		:max-width (truncate (* (frame-pixel-width) 0.95))
-		:max-height (truncate (* (frame-pixel-height) 0.7))
-		:rotation
-		(exif-orientation
-		 (ignore-error exif-error
-		   (exif-parse-file file))))))
-    (insert-image
-     image
-     (format "<img src=%S>"
-	     (concat "file://" (substring-no-properties (or actual-src file)))))
-    (put-text-property start (point) 'ewp-element (cl-incf ewp--element-id))
-    (put-text-property start (point) 'ewp-display image)))
 
 (defun ewp-insert-title (title)
   "Prompt for a title and insert it in the closest <img>."
@@ -2006,9 +1989,52 @@ prompt for the tag."
       most-positive-fixnum))
 
 (defun ewp-insert-image-data (image &optional filep)
-  (let ((im (create-image image nil (not filep)
+  (let* ((actual-src image)
+	 (size (ewp-image-size image (not filep)))
+	 (start (point))
+	 (im
+	  ;; Displaying large images in Emacs is very slow.  So if the image
+	  ;; is large, show a smaller image, but use the original, large
+	  ;; image in other circumstances.
+	  (if (> (car size) (ewp--display-width))
+	      (let (rotation)
+		(with-temp-buffer
+		  (set-buffer-multibyte nil)
+		  (if filep
+		      (progn
+			(call-process "convert" nil t nil
+				      "-resize" "800x"
+				      image "jpg:-")
+			(setq rotation
+			      (exif-orientation
+			       (ignore-error exif-error
+				 (exif-parse-file image)))))
+		    (insert image)
+		    (goto-char (point-min))
+		    (setq rotation
+			  (exif-orientation
+			   (ignore-error exif-error
+			     (exif-parse-buffer))))
+		    (call-process-region
+		     (point-min) (point-max)
+		     "convert" t t nil "-resize" "800x"
+		     (format "%s:-"
+			     (cadr (split-string (ewp-content-type image) "/")))
+		     "jpg:-"))
+		  (create-image (buffer-string) nil t
+				:max-width (truncate (ewp--display-width))
+				:max-height (- (frame-pixel-height) 500)
+				:rotation rotation)))
+	    ;; No resizing needed.
+	    (setq actual-src nil)
+	    (create-image image nil (not filep)
 			  :max-width (truncate (ewp--display-width))
-			  :max-height (- (frame-pixel-height) 500))))
+			  :max-height (- (frame-pixel-height) 500)
+			  :rotation
+			  (and filep
+			       (exif-orientation
+				(ignore-error exif-error
+				  (exif-parse-file image))))))))
     (insert-image
      im
      (if filep
@@ -2023,6 +2049,15 @@ prompt for the tag."
 		 (base64-encode-region (point-min) (point-max) t)
 		 (buffer-string))))
      nil nil t)
+    (when filep
+      (put-text-property start (point) 'help-echo (or actual-src image)))
+    (when actual-src
+      (plist-put (cdr (get-text-property start 'display))
+		 :original-file actual-src)
+      (plist-put (cdr (get-text-property start 'display))
+		 :original-datap (not filep)))
+    (put-text-property start (point) 'ewp-element (cl-incf ewp--element-id))
+    (put-text-property start (point) 'ewp-display im)
     im))
 
 (defun ewp-content-type (image)
@@ -2659,24 +2694,31 @@ If SHORTLINK, return a \"/?p=42434\" link instead of the full URL."
   (or (plist-get (cdr image) :original-file)
       (plist-get (cdr image) :file)))
 
-(defun ewp--identify (image)
+(defun ewp--image-data (image)
+  (or (and (plist-get (cdr image) :original-datap)
+	   (plist-get (cdr image) :original-file))
+      (plist-get (cdr image) :data)))
+
+(defun ewp--identify (image &optional datap)
   (with-temp-buffer
     (set-buffer-multibyte nil)
     (cond
+     (datap
+      (insert image))
      ((stringp image)
       (insert-file-contents-literally image))
      ((plist-get (cdr image) :file)
       (insert-file-contents-literally (ewp--image-file image)))
      (t
-      (insert (plist-get (cdr image) :data))))
+      (insert (ewp--image-data image))))
     (call-process-region (point-min) (point-max) "identify" t (current-buffer)
 			 nil "-")
     (buffer-string)))
 
-(defun ewp-image-size (image)
+(defun ewp-image-size (image &optional datap)
   (let ((size (mapcar #'string-to-number
 		      (split-string
-		       (nth 2 (split-string (ewp--identify image)))
+		       (nth 2 (split-string (ewp--identify image datap)))
 		       "x"))))
     (cons (car size) (cadr size))))
 
@@ -3228,7 +3270,7 @@ If given a prefix, float to the right instead."
 	      (not (consp image))
 	      (not (eq (car image) 'image)))
       (error "No image under point"))
-    (let* ((data (cl-getf (cdr image) :data))
+    (let* ((data (ewp--image-data image))
 	   (inhibit-read-only t))
       (when (null data)
 	(with-temp-buffer
@@ -3258,7 +3300,7 @@ If given a prefix, float to the right instead."
 	      (not (consp image))
 	      (not (eq (car image) 'image)))
       (error "No image under point"))
-    (let ((data (cl-getf (cdr image) :data))
+    (let ((data (ewp--image-data image))
 	  (inhibit-read-only t))
       (when (null data)
 	(with-temp-buffer
@@ -3303,7 +3345,7 @@ If given a prefix, float to the right instead."
 	      (not (consp image))
 	      (not (eq (car image) 'image)))
       (error "No image under point"))
-    (let* ((data (cl-getf (cdr image) :data))
+    (let* ((data (ewp--image-data image))
 	   (inhibit-read-only t))
       (when (null data)
 	(with-temp-buffer
@@ -3520,7 +3562,7 @@ SVG object (possibly the same)."
     (setf (plist-get (cdr image) :max-height) nil)
     (setf (plist-get (cdr image) :max-width) nil)
     (setf (plist-get (cdr image) :scale) nil)
-    (let* ((data (cl-getf (cdr image) :data))
+    (let* ((data (ewp--image-data image))
 	   (type (cond
 		  ((cl-getf (cdr image) :format)
 		   (format "%s" (cl-getf (cdr image) :format)))
@@ -3594,7 +3636,7 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	      (not (consp image))
 	      (not (eq (car image) 'image)))
       (error "No image under point"))
-    (let* ((data (cl-getf (cdr image) :data))
+    (let* ((data (ewp--image-data image))
 	   (inhibit-read-only t))
       (when (null data)
 	(with-temp-buffer
@@ -3625,7 +3667,7 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
 	      (not (consp image))
 	      (not (eq (car image) 'image)))
       (user-error "No image under point"))
-    (let* ((data (cl-getf (cdr image) :data))
+    (let* ((data (ewp--image-data image))
 	   (inhibit-read-only t))
       (when (null data)
 	(with-temp-buffer
@@ -3685,12 +3727,16 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
   (interactive)
   ;; Swap back the original image file if we're displaying a smaller
   ;; resized one.
-  (when-let* ((image (get-text-property (point) 'display))
-	      (file (and (consp image)
-			 (eq (car image) 'image)
-			 (plist-get (cdr image) :file)
-			 (plist-get (cdr image) :original-file))))
-    (plist-put (cdr image) :file file))
+  (when-let ((image (get-text-property (point) 'display)))
+    (when (and (consp image)
+	       (eq (car image) 'image))
+      (when-let ((file (and (plist-get (cdr image) :file)
+			    (plist-get (cdr image) :original-file))))
+	(plist-put (cdr image) :file file))
+      (when-let ((data (and (plist-get (cdr image) :data)
+			    (plist-get (cdr image) :original-datap)
+			    (plist-get (cdr image) :original-file))))
+	(plist-put (cdr image) :data data))))
   (image-crop cut))
 
 (defun ewp--image-file-at-point ()
@@ -3698,7 +3744,7 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
     (and (consp image)
 	 (eq (car image) 'image)
 	 (or (ewp--image-file image)
-	     (when-let ((data (plist-get (cdr image) :data)))
+	     (when-let ((data (ewp--image-data image)))
 	       (with-temp-buffer
 		 (set-buffer-multibyte nil)
 		 (insert data)
@@ -3734,7 +3780,7 @@ Gimp, and then exit when done)."
      (lambda (_ change)
        (when (string-match-p "finished" change)
 	 (delete-region start end)
-	 (ewp--insert-img file)
+	 (ewp-insert-image-data file t)
 	 (insert "\n"))))))
 
 (defun ewp-rotate-all-images ()
@@ -3845,22 +3891,7 @@ screenshots from TV, for instance."
 		     (looking-at "<img")))
 	      (ensure-empty-lines 3)
 	    (ensure-empty-lines 1))
-	  (let ((start (point))
-		;; Emacs can get really slow when
-		;; displaying large images.  So resize
-		;; and display a smaller one instead.
-		(smaller-file
-		 (concat
-		  (ewp--temp-name "wd" (file-name-extension file))
-		  (file-name-nondirectory file))))
-	    (push smaller-file ewp--deletable-files)
-	    (call-process "convert" nil nil nil
-			  "-resize" "800x"
-			  file smaller-file)
-	    (ewp--insert-img smaller-file file)
-	    (put-text-property start (point) 'help-echo file)
-	    (plist-put (cdr (get-text-property start 'display))
-		       :original-file file))
+	  (ewp-insert-image-data file t)
 	  (insert "\n\n\n")
 	  (when separator
 	    (insert separator))))
@@ -4037,7 +4068,7 @@ screenshots from TV, for instance."
 	      (base64-decode-region (point-min) (point-max)))
 	     ;; We have a normal <img src="http..."> image.
 	     (t
-	      (insert (cl-getf (cdr image) :data))))
+	      (insert (ewp--image-data image))))
 	    (ewp-possibly-rotate-buffer image)
 	    (setq cfile
 		  (ewp--unique-name
