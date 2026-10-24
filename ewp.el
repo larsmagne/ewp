@@ -2768,7 +2768,7 @@ If SHORTLINK, return a \"/?p=42434\" link instead of the full URL."
 	   ("&" "&amp;")))))))
 
 (defun ewp-get-comments (blog-xmlrpc user-name password blog-id comments
-				     &optional offset post-id)
+				     &optional offset post-id status)
   "Retrieves list of posts from the weblog system. Uses wp.getComments."
   (xml-rpc-method-call blog-xmlrpc
                        "wp.getComments"
@@ -2777,7 +2777,9 @@ If SHORTLINK, return a \"/?p=42434\" link instead of the full URL."
                        password
 		       `(("number" . ,comments)
 			 ("offset" . ,(or offset 0))
-			 ,@(and post-id `(("post_id" . ,post-id))))))
+			 ,@(and post-id `(("post_id" . ,post-id)))
+			 ;; Return only comments with a specific status.
+			 ,@(and status `(("status" . ,status))))))
 
 (defvar-keymap ewp-list-comments-mode-map
   "g" #'ewp-list-comments
