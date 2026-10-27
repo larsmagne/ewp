@@ -3732,9 +3732,14 @@ FUZZ (the numerical prefix) says how much fuzz to apply."
   (when-let ((image (get-text-property (point) 'display)))
     (when (and (consp image)
 	       (eq (car image) 'image))
-      (when-let ((file (and (plist-get (cdr image) :file)
-			    (plist-get (cdr image) :original-file))))
-	(plist-put (cdr image) :file file))
+      (when-let ((file (plist-get (cdr image) :original-file)))
+	(if (plist-get (cdr image) :file)
+	    (plist-put (cdr image) :file file)
+	  (plist-put (cdr image) :data
+		     (with-temp-buffer
+		       (set-buffer-multibyte nil)
+		       (insert-file-contents-literally file)
+		       (buffer-string)))))
       (when-let ((data (and (plist-get (cdr image) :data)
 			    (plist-get (cdr image) :original-datap)
 			    (plist-get (cdr image) :original-file))))
