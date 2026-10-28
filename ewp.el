@@ -3999,6 +3999,18 @@ screenshots from TV, for instance."
 		  output)
     output))
 
+(defun ewp-time-trim-video (file start)
+  "Trim START seconds from FILE and convert into mp4."
+  (interactive "fVideo file: \nnTrim seconds at start: ")
+  (let ((output (ewp--temp-name "video-" ".mp4")))
+    (call-process "ffmpeg" nil (get-buffer-create "*video convert*") nil
+		  "-i" (expand-file-name file)
+		  "-ss" (format "00:%02d:%02d"
+				(/ start 60)
+				(mod start 60))
+		  output)
+    (ewp-insert-video-file output)))
+
 (defun ewp-concatenate-images ()
   "Concatenate the images after point."
   (interactive)
