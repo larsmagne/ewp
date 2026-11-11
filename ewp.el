@@ -795,9 +795,19 @@ If ALL (the prefix), load all the posts in the blog."
 (defun ewp--automatic-featured-image ()
   (save-excursion
     (goto-char (point-min))
-    (when (and (search-forward "<img " nil t)
-	       (re-search-forward "wp-image-\\([0-9]+\\)" (pos-eol) t))
-      (string-to-number (match-string 1)))))
+    (when (re-search-forward "<\\(img\\|video\\) " nil t)
+      (let ((type (match-string 1)))
+	(cond
+	 ;; If we have an <img>, the ID of the image is stashed in the
+	 ;; HTML for easy lookup.
+	 ((equal type "img")
+	  (and (re-search-forward "wp-image-\\([0-9]+\\)" (pos-eol) t)
+	       (string-to-number (match-string 1))))
+	 ;; If we have a <video>, look up the ID of the poster
+	 ;; element.
+	 ((equal type "video")
+	  (and (re-search-forward "poster=\"\\([^\"]+\\)\"" (pos-eol) t)
+	       (string-to-number (ewp--get-media-id (match-string 1))))))))))
 
 (defun ewp-external-time (time)
   (format-time-string "%Y%m%dT%H:%M:%S" time))
@@ -1154,12 +1164,12 @@ If ALL (the prefix), load all the posts in the blog."
 		   for fragment = (concat (format-time-string "%Y/%m/")
 					  base counter "." extension)
 		   for target = (concat address fragment)
-		   while (file-exists-p target)
+		   while (file-exists-p (concat "/ssh:" target))
 		   finally (progn
 			     (setq frag fragment)
 			     (cl-return target)))))
-    (unless (file-exists-p (file-name-directory target))
-      (make-directory (file-name-directory target) t))
+    (unless (file-exists-p (file-name-directory (concat "/ssh:" target)))
+      (make-directory (concat "/ssh:" (file-name-directory target)) t))
     (with-temp-buffer
       (unless (zerop (call-process "scp" nil t nil
 				   (expand-file-name file) target))
