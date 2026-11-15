@@ -777,9 +777,13 @@ If ALL (the prefix), load all the posts in the blog."
 				  (lambda (cat)
 				    (ewp-value (ewp-node 'string cat)))
 				  (ewp-get "categories" post)))))))
-	 (let ((thumbnail-id (or (ewp-get "new_post_thumbnail" post)
-				 (and ewp-set-featured-image
-				      (ewp--automatic-featured-image)))))
+	 (let ((thumbnail-id (or
+			      ;; Newly set.
+			      (ewp-get "new_post_thumbnail" post)
+			      ;; Previously set.
+			      (ewp-get "wp_post_thumbnail" post)
+			      (and ewp-set-featured-image
+				   (ewp--automatic-featured-image)))))
 	   (and thumbnail-id
 		(not pagep)
 		;; Wordpress doesn't like when we set the thumbnail to
