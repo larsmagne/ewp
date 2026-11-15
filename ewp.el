@@ -189,6 +189,7 @@ the resulting image on stdout.")
   "s" #'ewp-list-posts-with-status
   "RET" #'ewp-browse
   "w" #'ewp-copy-link
+  "W" #'ewp-copy-title-and-image-to-clipboard
   "E" #'ewp-show-edit-date
   "d" #'ewp-trash-post
   ;;"u" #'ewp-undelete-post
@@ -1590,7 +1591,7 @@ If MAX (the numerical prefix), just do that many thumbnails."
 
 (defun ewp-copy-title-and-image-to-clipboard ()
   "Copy the title and URL to primary selection and the first image to clipboard."
-  (interactive)
+  (interactive nil ewp-list-mode)
   (let ((data (vtable-current-object))
 	(address ewp-address))
     (unless data
