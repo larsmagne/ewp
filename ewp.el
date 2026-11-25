@@ -3198,8 +3198,14 @@ I.e., \"google.com\" or \"google.co.uk\"."
 (defun ewp-dired-copy-as-kill (files &optional direct)
   "Copy the marked images to the kill ring.
 If DIRECT (interactively, the prefix), refer directly to the file
-names instead of the file contents."
-  (interactive (list (dired-get-marked-files) current-prefix-arg))
+names instead of the file contents.
+
+This works in both Dired and image-triage buffers."
+  (interactive (list (if (eq major-mode 'dired-mode)
+			 (dired-get-marked-files)
+		       (image-triage-marked-files))
+		      current-prefix-arg)
+	       dired-mode image-triage-list-mode)
   (with-temp-buffer
     (dolist (file files)
       (if direct
@@ -3217,8 +3223,12 @@ names instead of the file contents."
 			      "s"))))
 
 (defun ewp-dired-upload-media (files)
-  "Upload media files to Wordpress."
-  (interactive (list (dired-get-marked-files nil current-prefix-arg)))
+  "Upload media files to Wordpress.
+This works in both Dired and image-triage buffers."
+  (interactive (list (if (eq major-mode 'dired-mode)
+			 (dired-get-marked-files)
+		       (image-triage-marked-files)))
+	       dired-mode image-triage-list-mode)
   (let ((address
 	 (if (> (length ewp-blog-addresses) 1)
 	     (completing-read "Upload to blog: " ewp-blog-addresses nil t)
